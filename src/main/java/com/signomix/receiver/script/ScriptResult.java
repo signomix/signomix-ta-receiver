@@ -9,8 +9,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import com.signomix.common.iot.ChannelData;
 import com.signomix.receiver.event.IotEvent;
-import com.signomix.receiver.dto.ChannelData;
 
 /**
  *

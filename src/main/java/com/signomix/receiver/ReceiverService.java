@@ -7,11 +7,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
-import com.signomix.receiver.dto.ChannelData;
-import com.signomix.receiver.dto.Device;
-import com.signomix.receiver.dto.HttpResult;
-import com.signomix.receiver.dto.IotData;
-import com.signomix.receiver.dto.IotData2;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
+import com.signomix.common.iot.generic.IotData;
+import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
@@ -20,7 +19,6 @@ import org.jboss.logging.Logger;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
-import io.vertx.core.eventbus.EventBus;
 
 @ApplicationScoped
 public class ReceiverService {
@@ -58,6 +56,7 @@ public class ReceiverService {
         LOG.info("DATA FROM EUI: "+data.getDeviceEUI());
     }
 
+    /*
     void processGenericRequest(IotData data) {
         IotData2 iotData = data.getIotData();
         HttpResult result = new HttpResult();
@@ -91,31 +90,32 @@ public class ReceiverService {
             e.printStackTrace();
         }
 
-        /*
-         * Event command = ActuatorModule.getInstance().getCommand(device.getEUI(),
-         * actuatorCommandsDB);
-         * if (null != command) {
-         * String commandPayload = (String) command.getPayload();
-         * System.out.println("EVENT CATEGORY TYPE:" + command.getCategory() + " " +
-         * command.getType());
-         * if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
-         * String rawCmd = new
-         * String(Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload
-         * )));
-         * result.setPayload(rawCmd.getBytes());
-         * // TODO: odpowiedź jeśli dane z formularza
-         * } else {
-         * result.setPayload(commandPayload.getBytes());
-         * // TODO: odpowiedź jeśli dane z formularza
-         * }
-         * ActuatorModule.getInstance().archiveCommand(command, actuatorCommandsDB);
-         * }
-         */
+        
+        // Event command = ActuatorModule.getInstance().getCommand(device.getEUI(),
+        // actuatorCommandsDB);
+        // if (null != command) {
+        // String commandPayload = (String) command.getPayload();
+        // System.out.println("EVENT CATEGORY TYPE:" + command.getCategory() + " " +
+        // command.getType());
+        // if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
+        // String rawCmd = new
+        // String(Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload
+        // )));
+        // result.setPayload(rawCmd.getBytes());
+        // // TODO: odpowiedź jeśli dane z formularza
+        // } else {
+        // result.setPayload(commandPayload.getBytes());
+        // // TODO: odpowiedź jeśli dane z formularza
+        // }
+        // ActuatorModule.getInstance().archiveCommand(command, actuatorCommandsDB);
+        // }
+        
         if (htmlClient) {
             result.code = 200;
             result.payload = buildResultData(htmlClient, true, clientAppTitle, "Data saved.");
         }
     }
+    */
 
     private Object[] processValues(ArrayList<ChannelData> inputList, Device device, IotData2 iotData, String dataString)
             throws Exception {

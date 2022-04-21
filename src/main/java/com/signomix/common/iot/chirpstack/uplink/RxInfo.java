@@ -2,7 +2,7 @@
 * Copyright (C) Grzegorz Skorupa 2020.
 * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 */
-package com.signomix.receiver.dto.chirpstack.uplink;
+package com.signomix.common.iot.chirpstack.uplink;
 
 
 /**
@@ -16,7 +16,7 @@ public class RxInfo {
     private String name;
     private String time;
     private long rssi;
-    private long loRaSNR;
+    private double loRaSNR;
     public Location location;
 
     /**
@@ -50,14 +50,14 @@ public class RxInfo {
     /**
      * @return the loRaSNR
      */
-    public long getLoRaSNR() {
+    public double getLoRaSNR() {
         return loRaSNR;
     }
 
     /**
      * @param loRaSNR the loRaSNR to set
      */
-    public void setLoRaSNR(long loRaSNR) {
+    public void setLoRaSNR(double loRaSNR) {
         this.loRaSNR = loRaSNR;
     }
 

@@ -3,8 +3,8 @@ package com.signomix.receiver;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.signomix.receiver.dto.ChannelData;
-import com.signomix.receiver.dto.Device;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
 
 import io.agroal.api.AgroalDataSource;
 

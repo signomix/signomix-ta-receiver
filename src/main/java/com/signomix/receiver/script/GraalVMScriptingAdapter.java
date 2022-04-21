@@ -18,10 +18,10 @@ import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
 import com.signomix.receiver.IotDatabaseIface;
 import com.signomix.receiver.MessageService;
-import com.signomix.receiver.dto.ChannelData;
-import com.signomix.receiver.dto.Device;
 import com.signomix.receiver.event.IotEvent;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;

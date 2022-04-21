@@ -2,8 +2,9 @@
 * Copyright (C) Grzegorz Skorupa 2018.
 * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
 */
-package com.signomix.receiver.dto;
+package com.signomix.common;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 
 /**
@@ -14,10 +15,12 @@ public interface IotDataIface {
     public String getDeviceEUI();
     public String getDeviceID();
     public String getPayload();
+    public String getHexPayload();
     public String[] getPayloadFieldNames();
     //public long getLongValue(String fieldName, int multiplier);
     public Instant getTimeField();
     public long getTimestamp();
+    public Timestamp getTimestampUTC();
     public long getReceivedPackageTimestamp(); // timestamp from data object metadata
     public Double getDoubleValue(String fieldName);
     public String getStringValue(String fieldName);

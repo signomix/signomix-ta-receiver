@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.signomix.receiver.dto.ChannelData;
-import com.signomix.receiver.dto.Device;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
 
 import org.jboss.logging.Logger;
 

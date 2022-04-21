@@ -2,13 +2,18 @@
  * Copyright (C) Grzegorz Skorupa 2018.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-package com.signomix.receiver.dto;
+package com.signomix.common.iot.generic;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.signomix.common.DateTool;
+import com.signomix.common.IotDataIface;
+import com.signomix.common.iot.ChannelData;
 
 /**
  *
@@ -19,15 +24,18 @@ public class IotData2 implements IotDataIface {
     public String applicationID;
     public String dev_eui;
     public String authKey;
-    //public String callbackurl;
+    // public String callbackurl;
     public String gateway_eui;
     public String time;
     public ArrayList<Map> payload_fields;
     public String timestamp;
     public String clientname;
-    public ArrayList<ChannelData> dataList=new ArrayList<>();
-    
-    public IotData2(){
+    public ArrayList<ChannelData> dataList = new ArrayList<>();
+    public String payload = null;
+    public String hexPayload = null;
+    private Timestamp timestampUTC;
+
+    public IotData2() {
     }
 
     @Override
@@ -37,7 +45,8 @@ public class IotData2 implements IotDataIface {
 
     @Override
     public String[] getPayloadFieldNames() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
     @Override
@@ -45,34 +54,31 @@ public class IotData2 implements IotDataIface {
         try {
             return Instant.parse(time);
         } catch (NullPointerException | DateTimeParseException e) {
-            //e.printStackTrace();
+            // e.printStackTrace();
         }
         return null;
     }
 
     @Override
     public long getTimestamp() {
-        long t;
-        try {
-            return Long.parseLong(timestamp);
-        } catch (NumberFormatException e) {
-            if(null!=getTimeField()){
-                t=getTimeField().toEpochMilli();
-            }else{
-                t=0;
-            }
-        }
-        return t;
+        return timestampUTC.getTime();
+    }
+
+    @Override
+    public Timestamp getTimestampUTC() {
+        return timestampUTC;
     }
 
     @Override
     public Double getDoubleValue(String fieldName) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
-    
+
     @Override
     public String getStringValue(String fieldName) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
     /**
@@ -109,11 +115,18 @@ public class IotData2 implements IotDataIface {
             }
             payload_fields.set(i, tempMap);
         }
+        // timestamp
+        timestampUTC=DateTool.parseTimestamp(timestamp, time, true);
     }
 
     @Override
     public String getPayload() {
-        throw new UnsupportedOperationException("Not supported.");
+        return payload;
+    }
+
+    @Override
+    public String getHexPayload() {
+        return hexPayload;
     }
 
     @Override
@@ -161,7 +174,7 @@ public class IotData2 implements IotDataIface {
     public void setDataList(ArrayList<ChannelData> dataList) {
         this.dataList = dataList;
     }
-    
+
     public void prepareIotValues() {
         for (int i = 0; i < this.payload_fields.size(); i++) {
             ChannelData mval = new ChannelData();
@@ -181,7 +194,7 @@ public class IotData2 implements IotDataIface {
             if (mval.getTimestamp() == 0) {
                 mval.setTimestamp(System.currentTimeMillis());
             }
-            //System.out.println("TIMESTAMP:"+mval.getTimestamp());
+            // System.out.println("TIMESTAMP:"+mval.getTimestamp());
             this.dataList.add(mval);
         }
     }

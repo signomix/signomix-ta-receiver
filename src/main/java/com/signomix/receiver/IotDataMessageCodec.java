@@ -3,7 +3,7 @@ package com.signomix.receiver;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.signomix.receiver.dto.IotData2;
+import com.signomix.common.iot.generic.IotData2;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;

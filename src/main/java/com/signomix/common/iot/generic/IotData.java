@@ -2,10 +2,9 @@
  * Copyright (C) Grzegorz Skorupa 2020.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-package com.signomix.receiver.dto;
+package com.signomix.common.iot.generic;
 
-import com.signomix.receiver.dto.chirpstack.uplink.Uplink;
-import com.signomix.receiver.dto.ttn.TtnData;
+import com.signomix.common.iot.chirpstack.uplink.Uplink;
 
 /**
  *
@@ -21,7 +20,6 @@ public class IotData {
     private int type;
     private Uplink chirpstackData;
     private IotData2 iotData;
-    private TtnData ttnData;
     private boolean authRequired;
     private String authKey;
     private String serializedData;

@@ -2,11 +2,10 @@
  * Copyright (C) Grzegorz Skorupa 2018.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-package com.signomix.receiver.dto;
+package com.signomix.common.iot;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.TimeZone;
 
 /**
  *
@@ -53,8 +52,8 @@ public class ChannelData {
 
         if (convertTimestamp) {
             String dateFormatted;
-            SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSX");
+            //dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             dateFormatted = dateFormat.format(new Date(getTimestamp()));
             return getDeviceEUI() + delimeter + getName() + delimeter + getValue() + delimeter + dateFormatted;
         }
@@ -62,7 +61,7 @@ public class ChannelData {
     }
 
     public static String getCsvHeaderLine(boolean convertTimestamp) {
-        return "EUI,name,value," + (convertTimestamp ? "date (UTC)" : "timestamp") + "\r\n";
+        return "EUI,name,value," + (convertTimestamp ? "date (UTC)" : "epoch [ms]") + "\r\n";
     }
 
     /**

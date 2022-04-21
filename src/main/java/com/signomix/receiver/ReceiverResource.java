@@ -1,9 +1,10 @@
 package com.signomix.receiver;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Scanner;
+import java.util.Map;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -20,7 +21,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import com.signomix.receiver.dto.IotData2;
+import com.signomix.common.iot.generic.IotData2;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -45,6 +46,9 @@ public class ReceiverResource {
 
     @ConfigProperty(name = "device.eui.header.first")
     Boolean euiHeaderFirst;
+
+    @ConfigProperty(name = "parser.class.name")
+    String parserClassName;
 
     public void onApplicationStart(@Observes StartupEvent event) {
         bus.registerCodec(new IotDataMessageCodec());
@@ -100,30 +104,34 @@ public class ReceiverResource {
     }
 
     private IotData2 parseIotData(String eui, String input) {
-        IotData2 data = new IotData2();
-        data.payload_fields=new ArrayList<>();
-        data.dev_eui = eui;
-        Scanner scanner = new Scanner(input);
-        HashMap<String, String> map;
-        int idx;
-        String name;
-        String value;
-        String line;
-        while (scanner.hasNextLine()) {
-            line = scanner.nextLine();
-            idx = line.indexOf("=");
-            if (idx > 0 && idx < line.length()) {
-                name = line.substring(0, idx);
-                value = line.substring(idx + 1);
-                map = new HashMap<>();
-                map.put(name.trim(), value.trim());
-                data.payload_fields.add(map);
-                if("eui".equalsIgnoreCase(name) && (!euiHeaderFirst || (null==data.dev_eui || data.dev_eui.isEmpty()))){
-                    data.dev_eui=value;
-                }
+        IotData2 data=new IotData2();
+        data.dev_eui=eui;
+        HashMap<String,Object> options=new HashMap<>();
+        //options.put("eui", eui);
+        //options.put("euiInHeader", ""+euiHeaderFirst);
+        PayloadParserIface parser;
+        try {
+            Class clazz = Class.forName(parserClassName);
+            parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
+            data.payload_fields=(ArrayList)parser.parse(input,options);
+            if(!euiHeaderFirst || (null==data.dev_eui || data.dev_eui.isEmpty())){
+                data.dev_eui=getEuiParamValue(data.payload_fields);
+            }
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+            LOG.error(e.getMessage());
+        }
+        return null;
+    }
+
+    private String getEuiParamValue(ArrayList<Map> params){
+        Map<String, String> map;
+        for(int i=0; i<params.size(); i++){
+            map=params.get(i);
+            if("eui".equals(map.get("name"))){
+                return map.get("value");
             }
         }
-        return data;
+        return null;
     }
 
     private IotData2 parseIotData(String eui, MultivaluedMap<String, String> form) {

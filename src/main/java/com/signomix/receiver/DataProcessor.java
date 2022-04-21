@@ -11,8 +11,8 @@ import java.util.Iterator;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import com.signomix.receiver.dto.ChannelData;
-import com.signomix.receiver.dto.Device;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.GraalVMScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
