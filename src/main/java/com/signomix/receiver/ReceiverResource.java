@@ -9,7 +9,6 @@ import java.util.Map;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import javax.json.JsonObject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
@@ -22,6 +21,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import com.signomix.common.iot.generic.IotData2;
+import com.signomix.common.iot.generic.IotDto;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -53,9 +53,12 @@ public class ReceiverResource {
 
     @Path("/receiver/in")
     @OPTIONS
-    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-    @Produces(MediaType.TEXT_PLAIN)
     public String sendOKString() {
+        return "OK";
+    }
+    @Path("/receiver/io")
+    @OPTIONS
+    public String sendOKString2() {
         return "OK";
     }
 
@@ -65,19 +68,22 @@ public class ReceiverResource {
     @Produces(MediaType.TEXT_PLAIN)
     public Response getAsForm(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
-        Iterator<String> it = form.keySet().iterator();
-        String key;
-        while (it.hasNext()) {
-            key = it.next();
-            LOG.info(key + "=" + form.getFirst(key));
-        }
-        IotData2 iotData = null;
+        LOG.debug("form received");
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
-        } else {
-            iotData = parseIotData(inHeaderEui, form);
         }
-        return Response.ok("OK").build();
+        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, form);
+        if (null == iotData) {
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        } else {
+            send(iotData);
+        }
+        if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
+            return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
+                    .header("Content-type", "text/html").build();
+        } else {
+            return Response.ok("OK").build();
+        }
     }
 
     @Path("/receiver/in")
@@ -86,22 +92,43 @@ public class ReceiverResource {
     @Produces(MediaType.TEXT_PLAIN)
     public Response getAsText(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, String input) {
-        LOG.info("input: " + input);
-        IotData2 iotData = null;
+        LOG.debug("input: " + input);
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        iotData = parseIotData(inHeaderEui, input);
-        if(null==iotData){
+        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, input);
+        if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
-        }    
-        iotData.authRequired = authorizationRequired;
-        
+        } else {
+            send(iotData);
+        }
+        return Response.ok("OK").build();
+    }
+
+    @Path("/receiver/in")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response getAsJson(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
+        LOG.debug("input: " + dataObject.toString());
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
+        if (null == iotData) {
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        } else {
+            send(iotData);
+        }
+        return Response.ok("OK").build();
+    }
+
+    private void send(IotData2 iotData) {
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
         bus.send("iotdata-no-response", iotData, options);
         LOG.debug("sent");
-        return Response.ok("OK").build();
     }
 
     private IotData2 runDedicatedParser(String eui, String input) {
@@ -109,12 +136,12 @@ public class ReceiverResource {
         return null;
     }
 
-    private IotData2 parseIotData(String eui, String input) {
-        IotData2 data=runDedicatedParser(eui,input);
-        if(null!=data){
+    private IotData2 parseIotData(String eui, boolean authRequired, String input) {
+        IotData2 data = runDedicatedParser(eui, input);
+        if (null != data) {
             return data;
         }
-        data= new IotData2();
+        data = new IotData2();
         data.dev_eui = eui;
         HashMap<String, Object> options = new HashMap<>();
         // options.put("eui", eui);
@@ -132,7 +159,9 @@ public class ReceiverResource {
             LOG.error(e.getMessage());
             return null;
         }
+        data.normalize();
         data.setTimestampUTC();
+        data.authRequired = authRequired;
         return data;
     }
 
@@ -147,128 +176,76 @@ public class ReceiverResource {
         return null;
     }
 
-    private IotData2 parseIotData(String eui, MultivaluedMap<String, String> form) {
+    private IotData2 parseIotData(String eui, boolean authRequired, MultivaluedMap<String, String> form) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
-        /*
-         * data.dev_eui = null;
-         * data.timestamp = "" + System.currentTimeMillis();
-         * data.payload_fields = new ArrayList<>();
-         * HashMap<String, String> map;
-         * for (Map.Entry<String, Object> entry : parameters.entrySet()) {
-         * String key = entry.getKey();
-         * String value = (String) entry.getValue();
-         * if ("eui".equalsIgnoreCase(key)) {
-         * data.dev_eui = value;
-         * System.out.println("dev_eui:" + data.dev_eui);
-         * } else if ("timestamp".equalsIgnoreCase(key)) {
-         * data.timestamp = value;
-         * } else if ("authkey".equalsIgnoreCase(key)) {
-         * data.authKey = value;
-         * } else if ("clienttitle".equalsIgnoreCase(key)) {
-         * data.clientname = value;
-         * } else if ("payload".equalsIgnoreCase(key)) {
-         * data.payload = value;
-         * } else {
-         * map = new HashMap<>();
-         * map.put("name", key);
-         * map.put("value", value);
-         * data.payload_fields.add(map);
-         * System.out.println(key + ":" + value);
-         * }
-         * System.out.println("timestamp:" + data.timestamp);
-         * }
-         * if (null == data.dev_eui || (data.payload_fields.isEmpty() &&
-         * null==data.payload)) {
-         * System.out.println("ERROR: " + data.dev_eui + "," + data.payload_fields);
-         * return null;
-         * }
-         * data.normalize();
-         */
+        data.payload_fields = new ArrayList<>();
+        HashMap<String, String> map;
+        Iterator<String> it = form.keySet().iterator();
+        String key;
+        String value;
+        while (it.hasNext()) {
+            key = it.next();
+            value = form.getFirst(key);
+            LOG.debug(key + "=" + value);
+            if ("eui".equalsIgnoreCase(key)) {
+                data.dev_eui = value;
+            } else if ("timestamp".equalsIgnoreCase(key)) {
+                data.timestamp = value;
+            } else if ("authkey".equalsIgnoreCase(key)) {
+                data.authKey = value;
+            } else if ("clienttitle".equalsIgnoreCase(key)) {
+                data.clientname = value;
+            } else if ("payload".equalsIgnoreCase(key)) {
+                data.payload = value;
+            } else {
+                map = new HashMap<>();
+                map.put("name", key);
+                map.put("value", value);
+                data.payload_fields.add(map);
+            }
+        }
+        if (null == data.dev_eui || (data.payload_fields.isEmpty() && null == data.payload)) {
+            LOG.warn("ERROR: " + data.dev_eui + "," + data.payload_fields);
+            return null;
+        }
+        data.normalize();
+        data.setTimestampUTC();
+        data.authRequired = authRequired;
         return data;
     }
 
-    private IotData2 parseJson(String eui, JsonObject o) {
+    private IotData2 parseJson(String eui, boolean authRequired, IotDto dataObject) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
-        // TODO
-        /*
-         * Uplink iotData = new Uplink();
-         * iotData.setAdr((boolean) o.get("adr"));
-         * iotData.setApplicationID((String) o.get("applicationID"));
-         * iotData.setApplicationName((String) o.get("applicationName"));
-         * iotData.setData((String) o.get("data"));
-         * iotData.setDevEUI((String) o.get("devEUI"));
-         * iotData.setDeviceName((String) o.get("deviceName"));
-         * iotData.setfCnt((long) o.get("fCnt"));
-         * iotData.setfPort((long) o.get("fPort"));
-         * 
-         * //tx
-         * JsonObject txObj = (JsonObject) o.get("txInfo");
-         * TxInfo txInfo = new TxInfo();
-         * txInfo.setDr((long) txObj.get("dr"));
-         * txInfo.setFrequency((long) txObj.get("frequency"));
-         * iotData.setTxInfo(txInfo);
-         * 
-         * //rx
-         * ArrayList<RxInfo> rxList = new ArrayList<>();
-         * //List<JsonObject> objList = (List) o.get("rxInfo");
-         * Object[] jo = (Object[]) o.get("rxInfo");
-         * JsonObject rxObj, locObj;
-         * RxInfo rxInfo;
-         * Location loc;
-         * 
-         * for (int i = 0; i < jo.length; i++) {
-         * rxObj = (JsonObject) jo[i];
-         * rxInfo = new RxInfo();
-         * rxInfo.setGatewayID((String) rxObj.get("gatewayID"));
-         * rxInfo.setUplinkID((String) rxObj.get("uplinkID"));
-         * rxInfo.setName((String) rxObj.get("name"));
-         * rxInfo.setRssi((long) rxObj.get("rssi"));
-         * rxInfo.setLoRaSNR((long) rxObj.get("loRaSNR"));
-         * locObj = (JsonObject) rxObj.get("location");
-         * loc = new Location();
-         * loc.setLatitude((Double) locObj.get("latitude"));
-         * loc.setLongitude((Double) locObj.get("longitude"));
-         * loc.setAltitude((long) locObj.get("altitude"));
-         * rxInfo.setLocation(loc);
-         * rxList.add(rxInfo);
-         * }
-         * iotData.setRxInfo(rxList);
-         * 
-         * //data
-         * JsonObject data = (JsonObject) o.get("object");
-         * JsonObject dataMap;
-         * JsonObject dataFieldsMap;
-         * Iterator it = data.keySet().iterator();
-         * Iterator it2, it3;
-         * String dataName;
-         * String dataIndex, dataField;
-         * Object dataValue;
-         * while (it.hasNext()) {
-         * dataName = (String) it.next();
-         * dataMap = (JsonObject) data.get(dataName);
-         * it2 = dataMap.keySet().iterator();
-         * while (it2.hasNext()) {
-         * dataIndex = (String) it2.next();
-         * dataValue = dataMap.get(dataIndex);
-         * if (dataValue instanceof Double) {
-         * iotData.addField(dataName + "_" + dataIndex, (Double) dataValue);
-         * } else {
-         * dataFieldsMap = (JsonObject) dataValue;
-         * it3 = dataFieldsMap.keySet().iterator();
-         * while (it3.hasNext()) {
-         * dataField = (String) it3.next();
-         * dataValue = dataFieldsMap.get(dataField);
-         * iotData.addField(dataName + "_" + dataIndex + "_" + dataField, (Double)
-         * dataValue);
-         * }
-         * }
-         * }
-         * }
-         * return iotData;
-         */
+        if (null != dataObject.dev_eui && !dataObject.dev_eui.isEmpty()) {
+            data.dev_eui = dataObject.dev_eui;
+        }
+        data.gateway_eui = dataObject.gateway_eui;
+        data.timestamp = "" + dataObject.timestamp;
+        data.clientname = dataObject.clientname;
+        data.payload_fields = dataObject.payload_fields;
+        data.normalize();
+        data.setTimestampUTC();
+        data.authRequired = authRequired;
         return data;
+    }
+
+    String buildResultData(boolean html, boolean isSuccess, String title, String text) {
+        if (!html) {
+            return text;
+        }
+        String err = isSuccess ? "" : "ERROR<br>";
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><body style='text-align: center;'><h1>")
+                .append(title)
+                .append("</h1><p>")
+                .append(err)
+                .append(text)
+                .append("</p><button type='button' onclick='window.history.go(-1); return false;'>")
+                .append("OK")
+                .append("</button></body></html>");
+        return sb.toString();
     }
 
 }
