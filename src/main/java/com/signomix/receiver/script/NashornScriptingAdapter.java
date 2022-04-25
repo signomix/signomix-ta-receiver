@@ -16,6 +16,7 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import com.signomix.common.iot.ChannelData;
@@ -34,8 +35,8 @@ import io.quarkus.runtime.StartupEvent;
  * @author greg
  */
 @ApplicationScoped
-public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
-    private static final Logger LOG = Logger.getLogger(GraalVMScriptingAdapter.class);
+public class NashornScriptingAdapter implements ScriptingAdapterIface {
+    private static final Logger LOG = Logger.getLogger(NashornScriptingAdapter.class);
 
     @ConfigProperty(name = "decoder.script")
     private String decoderScriptLocation;
@@ -50,40 +51,14 @@ public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
     private String processorScript;
     private String decoderScript;
 
-    /*
-     * public void loadProperties(HashMap<String, String> properties, String
-     * adapterName) {
-     * super.loadProperties(properties, adapterName);
-     * manager = new ScriptEngineManager();
-     * engine = manager.getEngineByName("nashorn");
-     * processorScriptLocation = properties.get("script-file");
-     * Kernel.getInstance().getLogger().print("\tscript-file: " +
-     * processorScriptLocation);
-     * decoderScriptLocation = properties.get("decoder-envelope-location");
-     * Kernel.getInstance().getLogger().print("\tdecoder-envelope-location: " +
-     * decoderScriptLocation);
-     * helperName = properties.get("helper-name");
-     * Kernel.getInstance().getLogger().print("\thelper-name: " + helperName);
-     * processorScript = readScript(processorScriptLocation);
-     * decoderScript = readScript(decoderScriptLocation);
-     * }
-     */
-
     public void onApplicationStart(@Observes StartupEvent event) {
         processorScript = readScript(processorScriptLocation);
         decoderScript = readScript(decoderScriptLocation);
+        LOG.debug("processor: "+processorScript);
+        LOG.debug("decoder: "+decoderScript);
+        engine=new ScriptEngineManager().getEngineByName("nashorn");
+        LOG.debug("engine: "+engine);
     }
-
-    /*
-    @Override
-    public ScriptResult processData(ArrayList<ChannelData> values, Device device,
-            long dataTimestamp, Double latitude, Double longitude, Double altitude, Double state,
-            int alert, String command, String requestData, IotDatabaseIface dao) throws ScriptAdapterException {
-        return processData1(values, device.getCodeUnescaped(), device.getEUI(), device.getUserID(),
-                dataTimestamp, latitude, longitude, altitude, device.getState(), device.getAlertStatus(),
-                device.getLatitude(), device.getLongitude(), device.getAltitude(), command, requestData, dao);
-    }
-    */
 
     @Override
     public ScriptResult processData1(ArrayList<ChannelData> values,
@@ -107,6 +82,10 @@ public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
         if (values == null) {
             return result;
         }
+        LOG.debug("values.size=="+values.size());
+        for(int i=0; i<values.size(); i++){
+            LOG.debug(values.get(i).toString());
+        }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
         try {
             engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
@@ -114,14 +93,16 @@ public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
             result = (ScriptResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
                     devLatitude, devLongitude, devAltitude, command, requestData);
+                    LOG.debug("result.output.size=="+result.getOutput().size());
+                    LOG.debug("result.measures.size=="+result.getMeasures().size());
         } catch (NoSuchMethodException e) {
             fireEvent(2, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD,
-                    "NashornScriptingAdapter.no_such_method " + e.getMessage());
+                    "ScriptingAdapter.no_such_method " + e.getMessage());
         } catch (ScriptException e) {
             fireEvent(2, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION,
-                    "NashornScriptingAdapter.script_exception " + e.getMessage());
+                    "ScriptingAdapter.script_exception " + e.getMessage());
         }
         return result;
     }
@@ -176,7 +157,7 @@ public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
      * @return script content
      */
     public String readScript(String path) {
-        LOG.info("reading " + path);
+        LOG.debug("reading " + path);
         String result;
         InputStream resource = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
         try (BufferedReader br = new BufferedReader(new InputStreamReader(resource, "UTF-8"))) {
@@ -196,7 +177,6 @@ public class GraalVMScriptingAdapter implements ScriptingAdapterIface {
      * @param message
      */
     private void fireEvent(int source, Device device, String message) {
-        // TODO
         IotEvent ev = new IotEvent();
         ev.setOrigin(device.getUserID() + "\t" + device.getDeviceID());
         if (source == 1) {

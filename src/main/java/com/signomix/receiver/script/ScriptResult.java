@@ -12,18 +12,21 @@ import java.util.Iterator;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.receiver.event.IotEvent;
 
+import org.jboss.logging.Logger;
+
 /**
  *
  * @author Grzegorz Skorupa <g.skorupa at gmail.com>
  */
 public class ScriptResult {
+    private static final Logger LOG = Logger.getLogger(ScriptResult.class);
 
     //ArrayList<MeasureValue> measures;
     HashMap<String, ChannelData> measures;
     HashMap<String, ArrayList> dataEvents;
     ArrayList<IotEvent> events;
     /**
-     * Each map in the autput list can include data with different timestamps
+     * Each map in the output list can include data with different timestamps
      * This way, output can hold several data points
      */
     ListOfMaps output = new ListOfMaps();
@@ -35,6 +38,10 @@ public class ScriptResult {
         measures = new HashMap<>();
         events = new ArrayList<>();
         output = new ListOfMaps();
+    }
+
+    public void log(String message){
+        LOG.info(message);
     }
 
     public void putData(ChannelData v) {

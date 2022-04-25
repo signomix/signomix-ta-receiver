@@ -6,7 +6,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+import org.jboss.logging.Logger;
+
 public class PayloadParser implements PayloadParserIface {
+    private static final Logger LOG = Logger.getLogger(PayloadParser.class);
     public PayloadParser(){
     }
 
@@ -21,12 +24,14 @@ public class PayloadParser implements PayloadParserIface {
         String line;
         while (scanner.hasNextLine()) {
             line = scanner.nextLine();
+            LOG.debug("line:"+line);
             idx = line.indexOf("=");
             if (idx > 0 && idx < line.length()) {
                 name = line.substring(0, idx);
                 value = line.substring(idx + 1);
                 map = new HashMap<>();
-                map.put(name.trim(), value.trim());
+                map.put("name",name.trim());
+                map.put("value", value.trim());
                 payload_fields.add(map);
             }
         }

@@ -14,10 +14,11 @@ import javax.inject.Inject;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.event.IotEvent;
-import com.signomix.receiver.script.GraalVMScriptingAdapter;
+import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
 import com.signomix.receiver.script.ScriptResult;
-import com.signomix.receiver.script.ScriptingAdapterIface;
+
+import org.jboss.logging.Logger;
 
 /**
  *
@@ -25,9 +26,13 @@ import com.signomix.receiver.script.ScriptingAdapterIface;
  */
 @ApplicationScoped
 public class DataProcessor {
+    private static final Logger LOG = Logger.getLogger(DataProcessor.class);
 
     @Inject
     MessageService messageService;
+
+    @Inject
+    NashornScriptingAdapter scriptingAdapter;
 
     public Object[] processValues(
             ArrayList<ChannelData> listOfValues,
@@ -39,9 +44,11 @@ public class DataProcessor {
             String requestData,
             String command,
             IotDatabaseIface dao) throws Exception {
-        ScriptingAdapterIface scriptingAdapter = new GraalVMScriptingAdapter();
+        //ScriptingAdapterIface scriptingAdapter = new GraalVMScriptingAdapter();
         ScriptResult scriptResult = null;
         try {
+            LOG.debug("listOfValues.size()=="+listOfValues.size());
+            LOG.info("listOfValues.size()=="+listOfValues.size());
             scriptResult = scriptingAdapter.processData1(
                     listOfValues,
                     device,
