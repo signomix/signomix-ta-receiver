@@ -47,9 +47,6 @@ public class ReceiverResource {
     @ConfigProperty(name = "device.eui.header.first")
     Boolean euiHeaderFirst;
 
-    @ConfigProperty(name = "parser.class.name")
-    String parserClassName;
-
     public void onApplicationStart(@Observes StartupEvent event) {
         bus.registerCodec(new IotDataMessageCodec());
     }
@@ -107,15 +104,24 @@ public class ReceiverResource {
         return Response.ok("OK").build();
     }
 
+    private IotData2 runDedicatedParser(String eui, String input) {
+        // put your specific code here
+        return null;
+    }
+
     private IotData2 parseIotData(String eui, String input) {
-        IotData2 data = new IotData2();
+        IotData2 data=runDedicatedParser(eui,input);
+        if(null!=data){
+            return data;
+        }
+        data= new IotData2();
         data.dev_eui = eui;
         HashMap<String, Object> options = new HashMap<>();
         // options.put("eui", eui);
         // options.put("euiInHeader", ""+euiHeaderFirst);
         PayloadParserIface parser;
         try {
-            Class clazz = Class.forName(parserClassName);
+            Class clazz = Class.forName("com.signomix.receiver.PayloadParser");
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
             data.payload_fields = (ArrayList) parser.parse(input, options);
             if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
