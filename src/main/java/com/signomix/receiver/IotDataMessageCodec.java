@@ -35,6 +35,7 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
         jsonToEncode.put("timestamp", iotData2.timestamp);
         jsonToEncode.put("time", iotData2.time);
         jsonToEncode.put("gateway", iotData2.gateway_eui);
+        jsonToEncode.put("authrequired", iotData2.authRequired);
         jsonToEncode.put("fields", fields);
 
         // Encode object to string
@@ -67,7 +68,9 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
         data.timestamp = contentJson.getString("timestamp");
         data.time = contentJson.getString("time");
         data.gateway_eui = contentJson.getString("gateway");
+        data.authRequired = contentJson.getBoolean("authrequired");
         fields = contentJson.getJsonArray("fields");
+
 
         // Get fields
         JsonObject field;
@@ -80,15 +83,16 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
             data.payload_fields.add(map);
         }
         // We can finally create custom message object
+        data.setTimestampUTC();
         data.prepareIotValues();
         return data;
     }
 
     @Override
-    public IotData2 transform(IotData2 IotData2) {
+    public IotData2 transform(IotData2 iotData2) {
         // If a message is sent *locally* across the event bus.
         // This example sends message just as is
-        return IotData2;
+        return iotData2;
     }
 
     @Override

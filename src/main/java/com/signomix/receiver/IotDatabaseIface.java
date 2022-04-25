@@ -11,7 +11,7 @@ import io.agroal.api.AgroalDataSource;
 public interface IotDatabaseIface {
     //ThinksAdapter
     public void setDatasource(AgroalDataSource ds);
-    public void updateDeviceStatus(String eui, Double newStatus) throws IotDatabaseException;
+    public void updateDeviceStatus(String eui, Double newStatus, long timestamp, long lastFrame, String downlink, String deviceId) throws IotDatabaseException;
     public void putData(Device device, ArrayList<ChannelData> list) throws IotDatabaseException;
     public Device getDevice(String eui) throws IotDatabaseException;
     public Device getDevice(String userID, String deviceEUI, boolean withShared) throws IotDatabaseException;

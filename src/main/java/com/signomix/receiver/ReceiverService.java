@@ -2,6 +2,7 @@ package com.signomix.receiver;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -47,13 +48,41 @@ public class ReceiverService {
         messageService.sendErrorInfo(new IotEvent());
     }
 
-    private void updateHealthStatus(String deviceEUI) {
-        // TODO: ?
-    }
-
     @ConsumeEvent(value = "iotdata-no-response")
     void processData(IotData2 data) {
-        LOG.info("DATA FROM EUI: "+data.getDeviceEUI());
+        LOG.debug("DATA FROM EUI: "+data.getDeviceEUI());
+        Device device = getDeviceChecked(data, IotData.GENERIC);
+        if (null == device) {
+            // result.setData(authMessage);
+            return;
+        }
+        data.prepareIotValues();
+        ArrayList<ChannelData> inputList = decodePayload(data, device);
+        for(int i=0; i< inputList.size(); i++){
+            LOG.debug(inputList.get(i).toString());
+        }
+        ArrayList<ArrayList> outputList;
+        //String dataString = data.getSerializedData();
+        String dataString=null;
+        boolean statusUpdated = false;
+        try {
+            Object[] processingResult = processValues(inputList, device, data, dataString);
+            outputList = (ArrayList<ArrayList>) processingResult[0];
+            for (int i = 0; i < outputList.size(); i++) {
+                saveData(device, outputList.get(i));
+            }
+            if (device.isActive() && device.getState().compareTo((Double) processingResult[1]) != 0) {
+                updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
+            }else if(device.isActive()){
+                updateHealthStatus(device.getEUI());
+            }
+            statusUpdated=true;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if(!statusUpdated){
+            updateHealthStatus(device.getEUI());
+        }
     }
 
     /*
@@ -147,7 +176,16 @@ public class ReceiverService {
 
     private void updateDeviceStatus(String eui, Double newStatus) {
         try {
-            dao.updateDeviceStatus(eui, newStatus);
+            dao.updateDeviceStatus(eui, newStatus,System.currentTimeMillis(), -1, "", "");
+        } catch (IotDatabaseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    private void updateHealthStatus(String eui) {
+        try {
+            dao.updateDeviceStatus(eui, null,System.currentTimeMillis(), -1, "", "");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -173,6 +211,7 @@ public class ReceiverService {
 
     private ArrayList<ChannelData> decodePayload(IotData2 data, Device device) {
         if (!data.getDataList().isEmpty()) {
+            LOG.debug("data list not empty");
             return data.getDataList();
         }
         ArrayList<ChannelData> values = new ArrayList<>();
@@ -183,9 +222,14 @@ public class ReceiverService {
                     values = scriptingAdapter.decodeData(decodedPayload, device, data.getTimestamp());
                 } catch (Exception e) {
                     e.printStackTrace();
-                    ;
                     return null;
                 }
+            }
+        }else{
+            LOG.debug("payloadFieldNamse not set");
+            for(int i=0;i<data.payload_fields.size(); i++){
+                HashMap map=(HashMap)data.payload_fields.get(i);
+                
             }
         }
         return values;
@@ -195,16 +239,12 @@ public class ReceiverService {
         return dao.getDevice(eui);
     }
 
-    private Device getDeviceChecked(IotData data, int expectedType) {
-        if (data.isAuthRequired() && (data.getAuthKey() == null || data.getAuthKey().isEmpty())) {
-            LOG.warn("Unauthotized");
-            return null;
-        }
+    private Device getDeviceChecked(IotData2 data, int expectedType) {
         Device device = null;
         Device gateway = null;
         try {
             device = getDevice(data.getDeviceEUI());
-            gateway = getDevice(data.getGatewayEUI());
+            //gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());
         }
@@ -212,7 +252,7 @@ public class ReceiverService {
             LOG.warn("Device " + data.getDeviceEUI() + " is not registered");
             return null;
         }
-        if (data.isAuthRequired()) {
+        if (data.authRequired) {
             String secret;
             if (gateway == null) {
                 secret = device.getKey();
@@ -229,9 +269,10 @@ public class ReceiverService {
                 return null;
             }
         }
+        
         switch (expectedType) {
             case IotData.GENERIC:
-                if (!device.getType().startsWith("GENERIC")) {
+                if (!device.getType().startsWith("GENERIC") && !device.getType().startsWith("VIRTUAL")) {
                     LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
                     return null;
                 }

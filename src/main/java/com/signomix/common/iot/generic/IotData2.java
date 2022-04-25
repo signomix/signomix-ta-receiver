@@ -24,6 +24,7 @@ public class IotData2 implements IotDataIface {
     public String applicationID;
     public String dev_eui;
     public String authKey;
+    public boolean authRequired = false;
     // public String callbackurl;
     public String gateway_eui;
     public String time;
@@ -33,7 +34,7 @@ public class IotData2 implements IotDataIface {
     public ArrayList<ChannelData> dataList = new ArrayList<>();
     public String payload = null;
     public String hexPayload = null;
-    private Timestamp timestampUTC;
+    public Timestamp timestampUTC;
 
     public IotData2() {
     }
@@ -45,8 +46,11 @@ public class IotData2 implements IotDataIface {
 
     @Override
     public String[] getPayloadFieldNames() {
-        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
-                                                                       // Tools | Templates.
+        String[] names=new String[payload_fields.size()];
+        for(int i=0; i<payload_fields.size();i++){
+            names[i]=(String)payload_fields.get(i).get("name");
+        }
+        return names;
     }
 
     @Override
@@ -95,6 +99,11 @@ public class IotData2 implements IotDataIface {
         this.applicationID = applicationID;
     }
 
+    public void setTimestampUTC(){
+        // timestamp
+        timestampUTC=DateTool.parseTimestamp(timestamp, time, true);
+    }
+
     @Override
     public void normalize() {
         if (this.gateway_eui != null) {
@@ -115,8 +124,6 @@ public class IotData2 implements IotDataIface {
             }
             payload_fields.set(i, tempMap);
         }
-        // timestamp
-        timestampUTC=DateTool.parseTimestamp(timestamp, time, true);
     }
 
     @Override

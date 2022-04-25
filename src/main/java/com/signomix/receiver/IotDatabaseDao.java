@@ -27,47 +27,30 @@ public class IotDatabaseDao implements IotDatabaseIface {
     }
 
     @Override
-    public void updateDeviceStatus(String eui, Double newStatus) throws IotDatabaseException {
+    public void updateDeviceStatus(String eui, Double newStatus, long timestamp, long lastFrame, String downlink, String deviceId) throws IotDatabaseException {
         Device device = getDevice(eui);
         if (device == null) {
             throw new IotDatabaseException(IotDatabaseException.NOT_FOUND, "device not found", null);
         }
         device.setState(newStatus);
         Device previous = getDevice(device.getEUI());
-        String query = "update devices set name=?,userid=?,type=?,team=?,channels=?,code=?,decoder=?,key=?,description=?,lastseen=?,tinterval=?,lastframe=?,template=?,pattern=?,downlink=?,commandscript=?,appid=?,appeui=?,groups=?,alert=?,devid=?,active=?,project=?,latitude=?,longitude=?,altitude=?,state=?, retention=?, administrators=?, framecheck=? where eui=?";
+        String query;
+        if(null!=newStatus){
+            query = "update devices set lastseen=?,lastframe=?,downlink=?,devid=?,state=? where eui=?";
+        }else{
+            query = "update devices set lastseen=?,lastframe=?,downlink=?,devid=? where eui=?";
+        }
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
-            pstmt.setString(1, device.getName());
-            pstmt.setString(2, device.getUserID());
-            pstmt.setString(3, device.getType());
-            pstmt.setString(4, device.getTeam());
-            pstmt.setString(5, device.getChannelsAsString());
-            pstmt.setString(6, device.getCode());
-            pstmt.setString(7, device.getEncoder());
-            pstmt.setString(8, device.getKey());
-            pstmt.setString(9, device.getDescription());
-            pstmt.setLong(10, device.getLastSeen());
-            pstmt.setLong(11, device.getTransmissionInterval());
-            pstmt.setLong(12, device.getLastFrame());
-            pstmt.setString(13, device.getTemplate());
-            pstmt.setString(14, device.getPattern());
-            pstmt.setString(15, device.getDownlink());
-            pstmt.setString(16, device.getCommandScript());
-            pstmt.setString(17, device.getApplicationID());
-            pstmt.setString(18, device.getApplicationEUI());
-            pstmt.setString(19, device.getGroups());
-            pstmt.setInt(20, device.getAlertStatus());
-            pstmt.setString(21, device.getDeviceID());
-            pstmt.setBoolean(22, device.isActive());
-            pstmt.setString(23, device.getProject());
-            pstmt.setDouble(24, device.getLatitude());
-            pstmt.setDouble(25, device.getLongitude());
-            pstmt.setDouble(26, device.getAltitude());
-            pstmt.setDouble(27, device.getState());
-            pstmt.setLong(28, device.getRetentionTime());
-            pstmt.setString(29, device.getAdministrators());
-            pstmt.setBoolean(30, device.isCheckFrames());
-            pstmt.setString(31, device.getEUI());
-            // TODO: last frame
+            pstmt.setLong(1, timestamp);
+            pstmt.setLong(2, lastFrame);
+            pstmt.setString(3, downlink);
+            pstmt.setString(4, deviceId);
+            if(null!=newStatus){
+                pstmt.setDouble(5, newStatus);
+                pstmt.setString(6, eui);
+            }else{
+                pstmt.setString(5, eui);
+            }
             int updated = pstmt.executeUpdate();
             if (updated < 1) {
                 throw new IotDatabaseException(IotDatabaseException.UNKNOWN,
@@ -79,13 +62,21 @@ public class IotDatabaseDao implements IotDatabaseIface {
         } catch (Exception e) {
             throw new IotDatabaseException(IotDatabaseException.UNKNOWN, e.getMessage(), null);
         }
-
     }
 
+    private void putVirtualData(Device device, ArrayList<ChannelData> values){
+        String query="MERGE INTO virtualdevicedata (eui, tstamp, data) values (?,?,?)";
+        //TODO
+    }
+ 
     @Override
     public void putData(Device device, ArrayList<ChannelData> values) throws IotDatabaseException {
         if (values == null || values.isEmpty()) {
             System.out.println("no values");
+            return;
+        }
+        if("VIRTUAL".equalsIgnoreCase(device.getType())){
+            putVirtualData(device, values);
             return;
         }
         int limit = 24;

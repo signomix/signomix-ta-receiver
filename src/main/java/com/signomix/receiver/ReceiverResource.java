@@ -93,41 +93,48 @@ public class ReceiverResource {
         IotData2 iotData = null;
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
-        } else {
-            iotData = parseIotData(inHeaderEui, input);
         }
+        iotData = parseIotData(inHeaderEui, input);
+        if(null==iotData){
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }    
+        iotData.authRequired = authorizationRequired;
+        
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
         bus.send("iotdata-no-response", iotData, options);
-        LOG.info("sent");
+        LOG.debug("sent");
         return Response.ok("OK").build();
     }
 
     private IotData2 parseIotData(String eui, String input) {
-        IotData2 data=new IotData2();
-        data.dev_eui=eui;
-        HashMap<String,Object> options=new HashMap<>();
-        //options.put("eui", eui);
-        //options.put("euiInHeader", ""+euiHeaderFirst);
+        IotData2 data = new IotData2();
+        data.dev_eui = eui;
+        HashMap<String, Object> options = new HashMap<>();
+        // options.put("eui", eui);
+        // options.put("euiInHeader", ""+euiHeaderFirst);
         PayloadParserIface parser;
         try {
             Class clazz = Class.forName(parserClassName);
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
-            data.payload_fields=(ArrayList)parser.parse(input,options);
-            if(!euiHeaderFirst || (null==data.dev_eui || data.dev_eui.isEmpty())){
-                data.dev_eui=getEuiParamValue(data.payload_fields);
+            data.payload_fields = (ArrayList) parser.parse(input, options);
+            if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
+                data.dev_eui = getEuiParamValue(data.payload_fields);
             }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
+            return null;
         }
-        return null;
+        data.setTimestampUTC();
+        return data;
     }
 
-    private String getEuiParamValue(ArrayList<Map> params){
+    private String getEuiParamValue(ArrayList<Map> params) {
         Map<String, String> map;
-        for(int i=0; i<params.size(); i++){
-            map=params.get(i);
-            if("eui".equals(map.get("name"))){
+        for (int i = 0; i < params.size(); i++) {
+            map = params.get(i);
+            if ("eui".equals(map.get("name"))) {
                 return map.get("value");
             }
         }
