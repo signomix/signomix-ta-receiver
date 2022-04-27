@@ -4,13 +4,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
+import com.signomix.common.iot.virtual.VirtualData;
 
 import org.jboss.logging.Logger;
 
@@ -64,19 +68,32 @@ public class IotDatabaseDao implements IotDatabaseIface {
         }
     }
 
-    private void putVirtualData(Device device, ArrayList<ChannelData> values){
+    @Override
+    public void putVirtualData(Device device, VirtualData data) throws IotDatabaseException {
+        JsonMapper mapper=new JsonMapper();
+        String serialized;
+        try {
+            serialized=mapper.writeValueAsString(data);
+            LOG.info(serialized);
+        } catch (JsonProcessingException e) {
+            throw new IotDatabaseException(IotDatabaseException.UNKNOWN, "",null);
+        }
         String query="MERGE INTO virtualdevicedata (eui, tstamp, data) values (?,?,?)";
-        //TODO
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setString(1, device.getEUI());
+            pst.setTimestamp(2, new Timestamp(data.timestamp));
+            pst.setString(3, serialized);
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
     }
- 
+    
     @Override
     public void putData(Device device, ArrayList<ChannelData> values) throws IotDatabaseException {
         if (values == null || values.isEmpty()) {
             System.out.println("no values");
-            return;
-        }
-        if("VIRTUAL".equalsIgnoreCase(device.getType())){
-            putVirtualData(device, values);
             return;
         }
         int limit = 24;

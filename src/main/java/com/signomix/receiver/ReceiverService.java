@@ -3,6 +3,7 @@ package com.signomix.receiver;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Map;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -10,8 +11,9 @@ import javax.inject.Inject;
 
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
-import com.signomix.common.iot.generic.IotData;
+import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
+import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
@@ -50,20 +52,21 @@ public class ReceiverService {
 
     @ConsumeEvent(value = "iotdata-no-response")
     void processData(IotData2 data) {
-        LOG.debug("DATA FROM EUI: "+data.getDeviceEUI());
-        Device device = getDeviceChecked(data, IotData.GENERIC);
+        LOG.debug("DATA FROM EUI: " + data.getDeviceEUI());
+        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL };
+        Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // result.setData(authMessage);
             return;
         }
         data.prepareIotValues();
         ArrayList<ChannelData> inputList = decodePayload(data, device);
-        for(int i=0; i< inputList.size(); i++){
+        for (int i = 0; i < inputList.size(); i++) {
             LOG.debug(inputList.get(i).toString());
         }
         ArrayList<ArrayList> outputList;
-        //String dataString = data.getSerializedData();
-        String dataString=null;
+        // String dataString = data.getSerializedData();
+        String dataString = null;
         boolean statusUpdated = false;
         try {
             Object[] processingResult = processValues(inputList, device, data, dataString);
@@ -71,80 +74,87 @@ public class ReceiverService {
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
             }
-            if (device.isActive() && device.getState().compareTo((Double) processingResult[1]) != 0) {
+            if (DeviceType.VIRTUAL.name().equals(device.getType())) {
+                saveVirtualData(device, data);
+            }
+            if (device.getState().compareTo((Double) processingResult[1]) != 0) {
                 updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
-            }else if(device.isActive()){
+            } else if (device.isActive()) {
                 updateHealthStatus(device.getEUI());
             }
-            statusUpdated=true;
+            statusUpdated = true;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        if(!statusUpdated){
+        if (!statusUpdated) {
             updateHealthStatus(device.getEUI());
         }
     }
 
     /*
-    void processGenericRequest(IotData data) {
-        IotData2 iotData = data.getIotData();
-        HttpResult result = new HttpResult();
-        result.code = 201;
-        boolean htmlClient = false;
-        String clientAppTitle = data.getClientName();
-        if (null != clientAppTitle && !clientAppTitle.isEmpty()) {
-            result.headers.put("Content-type", "text/html");
-            htmlClient = true;
-        }
-        Device device = getDeviceChecked(data, IotData.GENERIC);
-        if (null == device) {
-            // result.setData(authMessage);
-            return;
-        }
-        updateHealthStatus(device.getEUI());
-
-        ArrayList<ChannelData> inputList = decodePayload(iotData, device);
-        ArrayList<ArrayList> outputList;
-        String dataString = data.getSerializedData();
-        try {
-            Object[] processingResult = processValues(inputList, device, iotData, dataString);
-            outputList = (ArrayList<ArrayList>) processingResult[0];
-            for (int i = 0; i < outputList.size(); i++) {
-                saveData(device, outputList.get(i));
-            }
-            if (device.isActive() && device.getState().compareTo((Double) processingResult[1]) != 0) {
-                updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        
-        // Event command = ActuatorModule.getInstance().getCommand(device.getEUI(),
-        // actuatorCommandsDB);
-        // if (null != command) {
-        // String commandPayload = (String) command.getPayload();
-        // System.out.println("EVENT CATEGORY TYPE:" + command.getCategory() + " " +
-        // command.getType());
-        // if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
-        // String rawCmd = new
-        // String(Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload
-        // )));
-        // result.setPayload(rawCmd.getBytes());
-        // // TODO: odpowiedź jeśli dane z formularza
-        // } else {
-        // result.setPayload(commandPayload.getBytes());
-        // // TODO: odpowiedź jeśli dane z formularza
-        // }
-        // ActuatorModule.getInstance().archiveCommand(command, actuatorCommandsDB);
-        // }
-        
-        if (htmlClient) {
-            result.code = 200;
-            result.payload = buildResultData(htmlClient, true, clientAppTitle, "Data saved.");
-        }
-    }
-    */
+     * void processGenericRequest(IotData data) {
+     * IotData2 iotData = data.getIotData();
+     * HttpResult result = new HttpResult();
+     * result.code = 201;
+     * boolean htmlClient = false;
+     * String clientAppTitle = data.getClientName();
+     * if (null != clientAppTitle && !clientAppTitle.isEmpty()) {
+     * result.headers.put("Content-type", "text/html");
+     * htmlClient = true;
+     * }
+     * Device device = getDeviceChecked(data, IotData.GENERIC);
+     * if (null == device) {
+     * // result.setData(authMessage);
+     * return;
+     * }
+     * updateHealthStatus(device.getEUI());
+     * 
+     * ArrayList<ChannelData> inputList = decodePayload(iotData, device);
+     * ArrayList<ArrayList> outputList;
+     * String dataString = data.getSerializedData();
+     * try {
+     * Object[] processingResult = processValues(inputList, device, iotData,
+     * dataString);
+     * outputList = (ArrayList<ArrayList>) processingResult[0];
+     * for (int i = 0; i < outputList.size(); i++) {
+     * saveData(device, outputList.get(i));
+     * }
+     * if (device.isActive() && device.getState().compareTo((Double)
+     * processingResult[1]) != 0) {
+     * updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
+     * }
+     * } catch (Exception e) {
+     * e.printStackTrace();
+     * }
+     * 
+     * 
+     * // Event command = ActuatorModule.getInstance().getCommand(device.getEUI(),
+     * // actuatorCommandsDB);
+     * // if (null != command) {
+     * // String commandPayload = (String) command.getPayload();
+     * // System.out.println("EVENT CATEGORY TYPE:" + command.getCategory() + " " +
+     * // command.getType());
+     * // if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
+     * // String rawCmd = new
+     * //
+     * String(Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload
+     * // )));
+     * // result.setPayload(rawCmd.getBytes());
+     * // // TODO: odpowiedź jeśli dane z formularza
+     * // } else {
+     * // result.setPayload(commandPayload.getBytes());
+     * // // TODO: odpowiedź jeśli dane z formularza
+     * // }
+     * // ActuatorModule.getInstance().archiveCommand(command, actuatorCommandsDB);
+     * // }
+     * 
+     * if (htmlClient) {
+     * result.code = 200;
+     * result.payload = buildResultData(htmlClient, true, clientAppTitle,
+     * "Data saved.");
+     * }
+     * }
+     */
 
     private Object[] processValues(ArrayList<ChannelData> inputList, Device device, IotData2 iotData, String dataString)
             throws Exception {
@@ -174,9 +184,45 @@ public class ReceiverService {
         }
     }
 
+    private void saveVirtualData(Device device, IotData2 data) {
+        // TODO
+        try {
+            VirtualData vd = new VirtualData(data.getDeviceEUI());
+            vd.timestamp = data.getTimestampUTC().getTime();
+            Map tmp;
+            String name;
+            Double value;
+            for (int i = 0; i < data.payload_fields.size(); i++) {
+                tmp = data.payload_fields.get(i);
+                name = (String) tmp.get("name");
+                value = null;
+                try {
+                    value = (Double) tmp.get("value");
+                } catch (Exception e) {
+                    try{
+                        value = ((Long) tmp.get("value")).doubleValue();
+                    }catch(Exception e2){
+                        try {
+                            value = Double.parseDouble((String) tmp.get("value"));
+                        } catch (Exception e1) {
+                            LOG.warn("unable to parse "+name+" value: "+tmp.get("value"));
+                        }
+                    }
+                }
+                if (null != value) {
+                    vd.payload_fields.put(name, value);
+                }
+            }
+            dao.putVirtualData(device, vd);
+        } catch (IotDatabaseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
     private void updateDeviceStatus(String eui, Double newStatus) {
         try {
-            dao.updateDeviceStatus(eui, newStatus,System.currentTimeMillis(), -1, "", "");
+            dao.updateDeviceStatus(eui, newStatus, System.currentTimeMillis(), -1, "", "");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -185,7 +231,7 @@ public class ReceiverService {
 
     private void updateHealthStatus(String eui) {
         try {
-            dao.updateDeviceStatus(eui, null,System.currentTimeMillis(), -1, "", "");
+            dao.updateDeviceStatus(eui, null, System.currentTimeMillis(), -1, "", "");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -225,11 +271,11 @@ public class ReceiverService {
                     return null;
                 }
             }
-        }else{
+        } else {
             LOG.debug("payloadFieldNamse not set");
-            for(int i=0;i<data.payload_fields.size(); i++){
-                HashMap map=(HashMap)data.payload_fields.get(i);
-                
+            for (int i = 0; i < data.payload_fields.size(); i++) {
+                HashMap map = (HashMap) data.payload_fields.get(i);
+
             }
         }
         return values;
@@ -239,12 +285,12 @@ public class ReceiverService {
         return dao.getDevice(eui);
     }
 
-    private Device getDeviceChecked(IotData2 data, int expectedType) {
+    private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
         Device device = null;
         Device gateway = null;
         try {
             device = getDevice(data.getDeviceEUI());
-            //gateway = getDevice(data.getGatewayEUI());
+            // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());
         }
@@ -269,35 +315,20 @@ public class ReceiverService {
                 return null;
             }
         }
-        
-        switch (expectedType) {
-            case IotData.GENERIC:
-                if (!device.getType().startsWith("GENERIC") && !device.getType().startsWith("VIRTUAL")) {
-                    LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
-                    return null;
-                }
+
+        boolean deviceFound = false;
+        for (int i = 0; i < expectedTypes.length; i++) {
+            if (expectedTypes[i] == DeviceType.valueOf(device.getType())) {
+                deviceFound = true;
                 break;
-            case IotData.CHIRPSTACK:
-                if (!device.getType().startsWith("LORA")) {
-                    LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
-                    return null;
-                }
-                break;
-            case IotData.TTN:
-                if (!device.getType().startsWith("TTN")) {
-                    LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
-                    return null;
-                }
-                break;
-            case IotData.KPN:
-                if (!device.getType().startsWith("KPN")) {
-                    LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
-                    return null;
-                }
-                break;
+            }
+        }
+        if (!deviceFound) {
+            LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
+            return null;
         }
         if (!device.isActive()) {
-            // return "device is not active";
+            // TODO: return "device is not active"?;
             return null;
         }
         return device;

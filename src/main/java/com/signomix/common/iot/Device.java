@@ -18,9 +18,7 @@ public class Device {
 
     public static String GENERIC = "GENERIC";
     public static String TTN = "TTN";
-    //public static String TTNCLIENT = "TTNCLIENT";
     public static String GATEWAY = "GATEWAY";
-    //public static String ACTUATOR = "ACTUATOR";
     public static String VIRTUAL = "VIRTUAL";
     public static String LORA = "LORA";
     public static String KPN = "KPN";
