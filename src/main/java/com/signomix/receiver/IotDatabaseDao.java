@@ -78,7 +78,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
         } catch (JsonProcessingException e) {
             throw new IotDatabaseException(IotDatabaseException.UNKNOWN, "",null);
         }
-        String query="MERGE INTO virtualdevicedata (eui, tstamp, data) values (?,?,?)";
+        String query="MERGE INTO virtualdevicedata (eui, tstamp, data) KEY (eui) values (?,?,?)";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
             pst.setString(1, device.getEUI());
             pst.setTimestamp(2, new Timestamp(data.timestamp));
