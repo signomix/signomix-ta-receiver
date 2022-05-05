@@ -50,6 +50,16 @@ public class IotEvent extends Event {
         setPayload(payload);
     }
 
+    public IotEvent clone() {
+        IotEvent clon = new IotEvent();
+        clon.setName(this.getName());
+        clon.setCategory(this.getCategory());
+        clon.setOrigin(this.getOrigin());
+        clon.setPayload(this.getPayload());
+        clon.setType(this.getType());
+        return clon;
+    }
+
     public IotEvent(String type, String payload) {
         setCategory(CATEGORY_IOT);
         setOrigin(null);

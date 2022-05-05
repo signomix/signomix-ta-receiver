@@ -117,7 +117,7 @@ public class DataProcessor {
 
     private void fireEvent(IotEvent event) {
         // TODO
-        // Kernel.getInstance().dispatchEvent(newEvent);
+        messageService.sendErrorInfo(event);
     }
 
     /*
