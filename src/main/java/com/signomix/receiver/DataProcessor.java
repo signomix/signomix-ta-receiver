@@ -73,7 +73,7 @@ public class DataProcessor {
         for (int i = 0; i < events.size(); i++) {
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())) {
-                fireEvent(events.get(i));
+                        messageService.sendCommand(events.get(i));
             } else {
                 recipients = new HashMap<>();
                 recipients.put(device.getUserID(), "");
@@ -89,7 +89,7 @@ public class DataProcessor {
                 while (itr.hasNext()) {
                     IotEvent newEvent = (IotEvent) events.get(i).clone();
                     newEvent.setOrigin(itr.next() + "\t" + device.getEUI());
-                    fireEvent(newEvent);
+                    messageService.sendNotification(newEvent);
                 }
             }
         }
@@ -108,16 +108,11 @@ public class DataProcessor {
                 }
                 payload = payload.substring(1);
                 newEvent.setPayload(payload);
-                fireEvent(newEvent);
+                messageService.sendData(newEvent);
             }
         }
         Object[] result = { finalValues, scriptResult.getDeviceState() };
         return result;
-    }
-
-    private void fireEvent(IotEvent event) {
-        // TODO
-        messageService.sendErrorInfo(event);
     }
 
     /*
