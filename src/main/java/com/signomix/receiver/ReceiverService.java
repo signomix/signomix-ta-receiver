@@ -3,18 +3,21 @@ package com.signomix.receiver;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import com.signomix.common.HexTool;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.event.IotEvent;
+import com.signomix.receiver.script.ScriptResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import org.jboss.logging.Logger;
@@ -50,115 +53,153 @@ public class ReceiverService {
         messageService.sendErrorInfo(new IotEvent());
     }
 
+    String processDataAndReturnResponse(IotData2 data) {
+        LOG.info("OK " + data.dev_eui);
+        return processData(data);
+    }
+
     @ConsumeEvent(value = "iotdata-no-response")
-    void processData(IotData2 data) {
+    void processDataNoResponse(IotData2 data) {
+        LOG.info("OK");
+        processData(data);
+    }
+
+    private String processData(IotData2 data) {
         LOG.debug("DATA FROM EUI: " + data.getDeviceEUI());
+        String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL };
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
-            // result.setData(authMessage);
-            return;
+            // TODO: result.setData(authMessage);
+            return result;
         }
         data.prepareIotValues();
         ArrayList<ChannelData> inputList = decodePayload(data, device);
         for (int i = 0; i < inputList.size(); i++) {
             LOG.debug(inputList.get(i).toString());
         }
+        ScriptResult scriptResult = null;
         ArrayList<ArrayList> outputList;
         // String dataString = data.getSerializedData();
         String dataString = null;
         boolean statusUpdated = false;
         try {
-            Object[] processingResult = processValues(inputList, device, data, dataString);
-            outputList = (ArrayList<ArrayList>) processingResult[0];
+            // Object[] processingResult = processValues(inputList, device, data,
+            // dataString);
+            scriptResult = getProcessingResult(inputList, device, data, dataString);
+
+            // data to save
+            // outputList = (ArrayList<ArrayList>) processingResult[VALUES_IDX];
+            outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
             }
             if (DeviceType.VIRTUAL.name().equals(device.getType())) {
                 saveVirtualData(device, data);
             }
-            if (device.getState().compareTo((Double) processingResult[1]) != 0) {
-                updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
+            // device status
+            if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
+                updateDeviceStatus(device.getEUI(), scriptResult.getDeviceState());
             } else if (device.isActive()) {
                 updateHealthStatus(device.getEUI());
             }
             statusUpdated = true;
         } catch (Exception e) {
             e.printStackTrace();
+
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI());
         }
-    }
+        if (null == scriptResult) {
+            return "";
+        }
 
-    /*
-     * void processGenericRequest(IotData data) {
-     * IotData2 iotData = data.getIotData();
-     * HttpResult result = new HttpResult();
-     * result.code = 201;
-     * boolean htmlClient = false;
-     * String clientAppTitle = data.getClientName();
-     * if (null != clientAppTitle && !clientAppTitle.isEmpty()) {
-     * result.headers.put("Content-type", "text/html");
-     * htmlClient = true;
-     * }
-     * Device device = getDeviceChecked(data, IotData.GENERIC);
-     * if (null == device) {
-     * // result.setData(authMessage);
-     * return;
-     * }
-     * updateHealthStatus(device.getEUI());
-     * 
-     * ArrayList<ChannelData> inputList = decodePayload(iotData, device);
-     * ArrayList<ArrayList> outputList;
-     * String dataString = data.getSerializedData();
-     * try {
-     * Object[] processingResult = processValues(inputList, device, iotData,
-     * dataString);
-     * outputList = (ArrayList<ArrayList>) processingResult[0];
-     * for (int i = 0; i < outputList.size(); i++) {
-     * saveData(device, outputList.get(i));
-     * }
-     * if (device.isActive() && device.getState().compareTo((Double)
-     * processingResult[1]) != 0) {
-     * updateDeviceStatus(device.getEUI(), (Double) processingResult[1]);
-     * }
-     * } catch (Exception e) {
-     * e.printStackTrace();
-     * }
-     * 
-     * 
-     * // Event command = ActuatorModule.getInstance().getCommand(device.getEUI(),
-     * // actuatorCommandsDB);
-     * // if (null != command) {
-     * // String commandPayload = (String) command.getPayload();
-     * // System.out.println("EVENT CATEGORY TYPE:" + command.getCategory() + " " +
-     * // command.getType());
-     * // if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
-     * // String rawCmd = new
-     * //
-     * String(Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload
-     * // )));
-     * // result.setPayload(rawCmd.getBytes());
-     * // // TODO: odpowiedź jeśli dane z formularza
-     * // } else {
-     * // result.setPayload(commandPayload.getBytes());
-     * // // TODO: odpowiedź jeśli dane z formularza
-     * // }
-     * // ActuatorModule.getInstance().archiveCommand(command, actuatorCommandsDB);
-     * // }
-     * 
-     * if (htmlClient) {
-     * result.code = 200;
-     * result.payload = buildResultData(htmlClient, true, clientAppTitle,
-     * "Data saved.");
-     * }
-     * }
-     */
+        ArrayList<IotEvent> events = scriptResult.getEvents();
+        HashMap<String, String> recipients;
+
+        // commands and notifications
+        for (int i = 0; i < events.size(); i++) {
+            if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
+                    || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())) {
+                // commands
+                saveCommand(events.get(i));
+            } else {
+                recipients = new HashMap<>();
+                recipients.put(device.getUserID(), "");
+                if (device.getTeam() != null) {
+                    String[] r = device.getTeam().split(",");
+                    for (int j = 0; j < r.length; j++) {
+                        if (!r[j].isEmpty()) {
+                            recipients.put(r[j], "");
+                        }
+                    }
+                }
+                Iterator itr = recipients.keySet().iterator();
+                while (itr.hasNext()) {
+                    IotEvent newEvent = (IotEvent) events.get(i).clone();
+                    newEvent.setOrigin(itr.next() + "\t" + device.getEUI());
+                    try {
+                        dao.addAlert(newEvent);
+                    } catch (IotDatabaseException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                    messageService.sendNotification(newEvent);
+                }
+            }
+        }
+        // data events
+        HashMap<String, ArrayList> dataEvents = scriptResult.getDataEvents();
+        ArrayList<IotEvent> el;
+        for (String key : dataEvents.keySet()) {
+            el = dataEvents.get(key);
+            IotEvent newEvent;
+            if (el.size() > 0) {
+                newEvent = (IotEvent) el.get(0).clone();
+                // newEvent.setOrigin(device.getUserID());
+                String payload = "";
+                for (int i = 0; i < el.size(); i++) {
+                    payload = payload + ";" + el.get(i).getPayload();
+                }
+                payload = payload.substring(1);
+                newEvent.setPayload(payload);
+                messageService.sendData(newEvent);
+            }
+        }
+
+        // are commands waiting?
+        try {
+            IotEvent command = (IotEvent) dao.getFirstCommand(device.getEUI());
+            if (null != command) {
+                String commandPayload = (String) command.getPayload();
+                if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
+                    String rawCmd = new String(
+                            Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload)));
+                    result = rawCmd;
+                } else {
+                    result = commandPayload;
+                }
+                dao.removeCommand(command.getId());
+                dao.putCommandLog(command.getOrigin(), command);
+            }
+        } catch (IotDatabaseException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
 
     private Object[] processValues(ArrayList<ChannelData> inputList, Device device, IotData2 iotData, String dataString)
             throws Exception {
         return processor.processValues(inputList, device,
+                iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
+                iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
+    }
+
+    private ScriptResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
+            String dataString)
+            throws Exception {
+        return processor.getProcessingResult(inputList, device,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
                 iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
     }
@@ -173,6 +214,16 @@ public class ReceiverService {
             }
         }
         return fixedList;
+    }
+
+    private void saveCommand(IotEvent commandEvent) {
+        try {
+            String[] origin = commandEvent.getOrigin().split("@");
+            dao.putCommandLog(origin[0], commandEvent);
+        } catch (IotDatabaseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
@@ -199,13 +250,13 @@ public class ReceiverService {
                 try {
                     value = (Double) tmp.get("value");
                 } catch (Exception e) {
-                    try{
+                    try {
                         value = ((Long) tmp.get("value")).doubleValue();
-                    }catch(Exception e2){
+                    } catch (Exception e2) {
                         try {
                             value = Double.parseDouble((String) tmp.get("value"));
                         } catch (Exception e1) {
-                            LOG.warn("unable to parse "+name+" value: "+tmp.get("value"));
+                            LOG.warn("unable to parse " + name + " value: " + tmp.get("value"));
                         }
                     }
                 }
@@ -236,23 +287,6 @@ public class ReceiverService {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    }
-
-    private String buildResultData(boolean html, boolean isSuccess, String title, String text) {
-        if (!html) {
-            return text;
-        }
-        String err = isSuccess ? "" : "ERROR<br>";
-        StringBuilder sb = new StringBuilder();
-        sb.append("<html><body style='text-align: center;'><h1>")
-                .append(title)
-                .append("</h1><p>")
-                .append(err)
-                .append(text)
-                .append("</p><button type='button' onclick='window.history.go(-1); return false;'>")
-                .append("OK")
-                .append("</button></body></html>");
-        return sb.toString();
     }
 
     private ArrayList<ChannelData> decodePayload(IotData2 data, Device device) {

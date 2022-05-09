@@ -12,9 +12,11 @@ import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.signomix.common.iot.Alert;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
+import com.signomix.receiver.event.IotEvent;
 
 import org.jboss.logging.Logger;
 
@@ -24,6 +26,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
     private static final Logger LOG = Logger.getLogger(IotDatabaseDao.class);
 
     private AgroalDataSource dataSource;
+
+    //TODO: get requestLimit from config
+    private long requestLimit = 500;
 
     @Override
     public void setDatasource(AgroalDataSource dataSource) {
@@ -259,6 +264,205 @@ public class IotDatabaseDao implements IotDatabaseIface {
         d.setAdministrators(rs.getString(30));
         d.setCheckFrames(rs.getBoolean(31));
         return d;
+    }
+
+    @Override
+    public IotEvent getFirstCommand(String deviceEUI) throws IotDatabaseException {
+        String query = "select id,category,type,payload,createdat from commands where origin like ? order by createdat limit 1";
+        IotEvent result = null;
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setString(1, "%@" + deviceEUI);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                //result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null, rs.getString(4));
+                result = new IotEvent(rs.getString(3),rs.getString(4));
+                result.setId(rs.getLong(1));
+                result.setCategory(rs.getString(2));
+                result.setCreatedAt(rs.getLong(5));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void removeCommand(long id) throws IotDatabaseException {
+        String query = "delete from commands where id=?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setLong(1, id);
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void putCommandLog(String deviceEUI, IotEvent commandEvent) throws IotDatabaseException {
+        String query = "insert into commandslog (id,category,type,origin,payload,createdat) values (?,?,?,?,?,?);";
+        String command = (String) commandEvent.getPayload();
+        if (command.startsWith("#") || command.startsWith("&")) {
+            command = command.substring(1);
+        }
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setLong(1, commandEvent.getId());
+            pst.setString(2, commandEvent.getCategory());
+            pst.setString(3, commandEvent.getType());
+            pst.setString(4, deviceEUI);
+            pst.setString(5, command);
+            pst.setLong(6, commandEvent.getCreatedAt());
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void putDeviceCommand(String deviceEUI, IotEvent commandEvent) throws IotDatabaseException {
+        String query = "insert into commands (id,category,type,origin,payload,createdat) values (?,?,?,?,?,?);";
+        String query2 = "merge into commands key (category,type,origin) values (?,?,?,?,?,?)";
+        String command = (String) commandEvent.getPayload();
+        boolean overwriteMode = false;
+        if (command.startsWith("&")) {
+            overwriteMode = false;
+        } else if (command.startsWith("#")) {
+            query = query2;
+            overwriteMode = true;
+        }
+        command = command.substring(1);
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setLong(1, commandEvent.getId());
+            pst.setString(2, commandEvent.getCategory());
+            pst.setString(3, commandEvent.getType());
+            pst.setString(4, deviceEUI);
+            pst.setString(5, command);
+            pst.setLong(6, commandEvent.getCreatedAt());
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+
+    }
+
+    @Override
+    public void addAlert(IotEvent event) throws IotDatabaseException {
+        Alert alert = new Alert(event);
+        String query = "insert into alerts (name,category,type,deviceeui,userid,payload,timepoint,serviceid,uuid,calculatedtimepoint,createdat,rooteventid,cyclic) values (?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setString(1, alert.getName());
+            pstmt.setString(2, alert.getCategory());
+            pstmt.setString(3, alert.getType());
+            pstmt.setString(4, alert.getDeviceEUI());
+            pstmt.setString(5, alert.getUserID());
+            pstmt.setString(6, (null != alert.getPayload()) ? alert.getPayload().toString() : "");
+            pstmt.setString(7, "");
+            pstmt.setString(8, "");
+            pstmt.setString(9, "");
+            pstmt.setLong(10, 0);
+            pstmt.setLong(11, alert.getCreatedAt());
+            pstmt.setLong(12, -1);
+            pstmt.setBoolean(13, false);
+            int updated = pstmt.executeUpdate();
+            if (updated < 1) {
+                throw new IotDatabaseException(IotDatabaseException.UNKNOWN,"Unable to create notification "+alert.getId(),null);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IotDatabaseException(IotDatabaseException.UNKNOWN, e.getMessage(), null);
+        }
+    }
+
+
+    @Override
+    public List getAlerts(String userID, boolean descending) throws IotDatabaseException {
+        String query = "select id,name,category,type,deviceeui,userid,payload,timepoint,serviceid,uuid,calculatedtimepoint,createdat,rooteventid,cyclic from alerts where userid = ? order by id ";
+        if (descending) {
+            query = query.concat(" desc");
+        }
+        query = query.concat(" limit ?");
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setString(1, userID);
+            pstmt.setLong(2, requestLimit);
+            ResultSet rs = pstmt.executeQuery();
+            ArrayList<Alert> list = new ArrayList<>();
+            while (rs.next()) {
+                list.add(buildAlert(rs));
+            }
+            return list;
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void removeAlert(long alertID) throws IotDatabaseException {
+        String query = "delete from alerts where id=?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setLong(1, alertID);
+            int updated = pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void removeAlerts(String userID) throws IotDatabaseException {
+        String query = "delete from alerts where userid=?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setString(1, userID);
+            int updated = pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void removeAlerts(String userID, long checkpoint) throws IotDatabaseException {
+        String query = "delete from alerts where userid=? and createdat < ?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setString(1, userID);
+            pstmt.setLong(2, checkpoint);
+            int updated = pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void removeOutdatedAlerts(long checkpoint) throws IotDatabaseException {
+        String query = "delete from alerts where createdat < ?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
+            pstmt.setLong(1, checkpoint);
+            int updated = pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    Alert buildAlert(ResultSet rs) throws SQLException {
+        // id,name,category,type,deviceeui,userid,payload,timepoint,serviceid,uuid,calculatedtimepoint,createdat,rooteventid,cyclic
+        // Device d = new Device();
+        Alert a = new Alert();
+        a.setId(rs.getLong(1));
+        a.setName(rs.getString(2));
+        a.setCategory(rs.getString(3));
+        a.setType(rs.getString(4));
+        a.setOrigin(rs.getString(6) + "\t" + rs.getString(5));
+        a.setPayload(rs.getString(7));
+        a.setCreatedAt(rs.getLong(12));
+        return a;
     }
 
 }

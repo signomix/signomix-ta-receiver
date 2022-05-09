@@ -105,6 +105,50 @@ public class ReceiverResource {
         return Response.ok("OK").build();
     }
 
+    @Path("/receiver/io")
+    @POST
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response processText(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, String input) {
+        LOG.debug("input: " + input);
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, input);
+        if (null == iotData) {
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        } else {
+            String result=service.processDataAndReturnResponse(iotData);
+            return Response.ok(result).build();
+        }
+    }
+
+    @Path("/receiver/io")
+    @POST
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response processForm(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
+        LOG.info("form processing");
+        String result;
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, form);
+        if (null == iotData) {
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        } else {
+            result=service.processDataAndReturnResponse(iotData);
+        }
+        if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
+            return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
+                    .header("Content-type", "text/html").build();
+        } else {
+            return Response.ok(result).build();
+        }
+    }
+
     @Path("/receiver/in")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)

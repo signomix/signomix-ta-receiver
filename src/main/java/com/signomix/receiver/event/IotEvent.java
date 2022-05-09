@@ -39,11 +39,13 @@ public class IotEvent extends Event {
     
 
     public IotEvent() {
+        super();
         setCategory(CATEGORY_IOT);
         setType(GENERAL);
     }
     
     public IotEvent(String type, Object origin, String payload) {
+        super();
         setCategory(CATEGORY_IOT);
         setType(type);
         setOrigin(origin.getClass().getSimpleName());
@@ -57,10 +59,12 @@ public class IotEvent extends Event {
         clon.setOrigin(this.getOrigin());
         clon.setPayload(this.getPayload());
         clon.setType(this.getType());
+        clon.setId(this.getId());
         return clon;
     }
 
     public IotEvent(String type, String payload) {
+        super();
         setCategory(CATEGORY_IOT);
         setOrigin(null);
         setType(type);

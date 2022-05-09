@@ -15,6 +15,8 @@
  */
 package com.signomix.receiver.event;
 
+import java.time.Instant;
+
 /**
  * Event
  */
@@ -26,11 +28,22 @@ public class Event {
     private String type;
     private String origin;
     private Object payload;
+    private long createdAt;
+
+    public long getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(long createdAt) {
+        this.createdAt = createdAt;
+    }
 
     /**
      * Creates new Event instance. Sets new id and createdAt parameters.
      */
     public Event() {
+        createdAt=System.currentTimeMillis();
+        id=createdAt;
     }
 
     /**

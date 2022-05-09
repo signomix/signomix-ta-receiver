@@ -6,6 +6,7 @@ import java.util.List;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
+import com.signomix.receiver.event.IotEvent;
 
 import io.agroal.api.AgroalDataSource;
 
@@ -20,4 +21,15 @@ public interface IotDatabaseIface {
     public ChannelData getLastValue(String userID, String deviceID, String channel) throws IotDatabaseException;
     public List<List> getValues(String userID, String deviceID,String dataQuery)  throws IotDatabaseException;
     public List<String> getDeviceChannels(String deviceEUI) throws IotDatabaseException;
+    public IotEvent getFirstCommand(String deviceEUI) throws IotDatabaseException;
+    public void removeCommand(long id) throws IotDatabaseException;
+    public void putCommandLog(String deviceEUI, IotEvent command) throws IotDatabaseException;
+    public void putDeviceCommand(String deviceEUI, IotEvent commandEvent) throws IotDatabaseException; 
+    //notifications
+    public void addAlert(IotEvent alert) throws IotDatabaseException;
+    public List getAlerts(String userID, boolean descending) throws IotDatabaseException;
+    public void removeAlert(long alertID) throws IotDatabaseException;
+    public void removeAlerts(String userID) throws IotDatabaseException;
+    public void removeAlerts(String userID, long checkpoint) throws IotDatabaseException;
+    public void removeOutdatedAlerts(long checkpoint) throws IotDatabaseException;
 }

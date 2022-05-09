@@ -19,7 +19,6 @@ public class MessageService {
     @Channel("notifications") Emitter<byte[]> iotEventEmitter;
 
 
-
     public void sendErrorInfo(IotEvent event) {
         LOG.info("sending error to MQ");
         eventsEmitter.send(event);
@@ -46,7 +45,6 @@ public class MessageService {
         } catch (JsonProcessingException ex) {
             LOG.error(ex.getMessage());
         }
-        //iotEventEmitter.send(wrapper);
     }
     
     public void sendData(IotEvent event) {
