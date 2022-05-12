@@ -19,6 +19,7 @@ public interface IotDatabaseIface {
     public Device getDevice(String eui) throws IotDatabaseException;
     public Device getDevice(String userID, String deviceEUI, boolean withShared) throws IotDatabaseException;
     public ChannelData getLastValue(String userID, String deviceID, String channel) throws IotDatabaseException;
+    public List<List> getLastValues(String userID, String deviceEUI) throws IotDatabaseException;
     public List<List> getValues(String userID, String deviceID,String dataQuery)  throws IotDatabaseException;
     public List<String> getDeviceChannels(String deviceEUI) throws IotDatabaseException;
     public IotEvent getFirstCommand(String deviceEUI) throws IotDatabaseException;
@@ -32,4 +33,5 @@ public interface IotDatabaseIface {
     public void removeAlerts(String userID) throws IotDatabaseException;
     public void removeAlerts(String userID, long checkpoint) throws IotDatabaseException;
     public void removeOutdatedAlerts(long checkpoint) throws IotDatabaseException;
+    public int getChannelIndex(String deviceEUI, String channel) throws IotDatabaseException;
 }

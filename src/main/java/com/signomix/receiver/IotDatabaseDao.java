@@ -27,7 +27,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
 
     private AgroalDataSource dataSource;
 
-    //TODO: get requestLimit from config
+    // TODO: get requestLimit from config
     private long requestLimit = 500;
 
     @Override
@@ -36,7 +36,8 @@ public class IotDatabaseDao implements IotDatabaseIface {
     }
 
     @Override
-    public void updateDeviceStatus(String eui, Double newStatus, long timestamp, long lastFrame, String downlink, String deviceId) throws IotDatabaseException {
+    public void updateDeviceStatus(String eui, Double newStatus, long timestamp, long lastFrame, String downlink,
+            String deviceId) throws IotDatabaseException {
         Device device = getDevice(eui);
         if (device == null) {
             throw new IotDatabaseException(IotDatabaseException.NOT_FOUND, "device not found", null);
@@ -44,9 +45,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
         device.setState(newStatus);
         Device previous = getDevice(device.getEUI());
         String query;
-        if(null!=newStatus){
+        if (null != newStatus) {
             query = "update devices set lastseen=?,lastframe=?,downlink=?,devid=?,state=? where eui=?";
-        }else{
+        } else {
             query = "update devices set lastseen=?,lastframe=?,downlink=?,devid=? where eui=?";
         }
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
@@ -54,10 +55,10 @@ public class IotDatabaseDao implements IotDatabaseIface {
             pstmt.setLong(2, lastFrame);
             pstmt.setString(3, downlink);
             pstmt.setString(4, deviceId);
-            if(null!=newStatus){
+            if (null != newStatus) {
                 pstmt.setDouble(5, newStatus);
                 pstmt.setString(6, eui);
-            }else{
+            } else {
                 pstmt.setString(5, eui);
             }
             int updated = pstmt.executeUpdate();
@@ -75,15 +76,15 @@ public class IotDatabaseDao implements IotDatabaseIface {
 
     @Override
     public void putVirtualData(Device device, VirtualData data) throws IotDatabaseException {
-        JsonMapper mapper=new JsonMapper();
+        JsonMapper mapper = new JsonMapper();
         String serialized;
         try {
-            serialized=mapper.writeValueAsString(data);
+            serialized = mapper.writeValueAsString(data);
             LOG.info(serialized);
         } catch (JsonProcessingException e) {
-            throw new IotDatabaseException(IotDatabaseException.UNKNOWN, "",null);
+            throw new IotDatabaseException(IotDatabaseException.UNKNOWN, "", null);
         }
-        String query="MERGE INTO virtualdevicedata (eui, tstamp, data) KEY (eui) values (?,?,?)";
+        String query = "MERGE INTO virtualdevicedata (eui, tstamp, data) KEY (eui) values (?,?,?)";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
             pst.setString(1, device.getEUI());
             pst.setTimestamp(2, new Timestamp(data.timestamp));
@@ -94,7 +95,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
             throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
         }
     }
-    
+
     @Override
     public void putData(Device device, ArrayList<ChannelData> values) throws IotDatabaseException {
         if (values == null || values.isEmpty()) {
@@ -218,15 +219,62 @@ public class IotDatabaseDao implements IotDatabaseIface {
     }
 
     @Override
-    public ChannelData getLastValue(String userID, String deviceID, String channel) throws IotDatabaseException {
+    public List<List> getValues(String userID, String deviceID, String dataQuery)
+            throws IotDatabaseException {
         // TODO Auto-generated method stub
         return null;
     }
 
     @Override
-    public List<List> getValues(String userID, String deviceID, String dataQuery) throws IotDatabaseException {
-        // TODO Auto-generated method stub
-        return null;
+    public ChannelData getLastValue(String userID, String deviceEUI, String channel) throws IotDatabaseException {
+        int channelIndex = getChannelIndex(deviceEUI, channel);
+        if (channelIndex < 0) {
+            return null;
+        }
+        String columnName = "d" + (channelIndex);
+        String query = "select eui,userid,day,dtime,tstamp," + columnName
+                + " from devicedata where eui=? order by tstamp desc limit 1";
+        ChannelData result = null;
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setString(1, deviceEUI);
+            ResultSet rs = pst.executeQuery();
+            Double d;
+            if (rs.next()) {
+                d = rs.getDouble(6);
+                if (!rs.wasNull()) {
+                    result = new ChannelData(deviceEUI, channel, d, rs.getTimestamp(5).getTime());
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public List<List> getLastValues(String userID, String deviceEUI) throws IotDatabaseException {
+        String query = "select eui,userid,day,dtime,tstamp,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15,d16,d17,d18,d19,d20,d21,d22,d23,d24 from devicedata where eui=? order by tstamp desc limit 1";
+        List<String> channels = getDeviceChannels(deviceEUI);
+        ArrayList<ChannelData> row = new ArrayList<>();
+        ArrayList<List> result = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setString(1, deviceEUI);
+            ResultSet rs = pst.executeQuery();
+            double d;
+            if (rs.next()) {
+                for (int i = 0; i < channels.size(); i++) {
+                    d = rs.getDouble(6 + i);
+                    if (!rs.wasNull()) {
+                        row.add(new ChannelData(deviceEUI, channels.get(i), d,
+                                rs.getTimestamp(5).getTime()));
+                    }
+                }
+                result.add(row);
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
     }
 
     private Device buildDevice(ResultSet rs) throws SQLException {
@@ -274,8 +322,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
             pst.setString(1, "%@" + deviceEUI);
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
-                //result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null, rs.getString(4));
-                result = new IotEvent(rs.getString(3),rs.getString(4));
+                // result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null,
+                // rs.getString(4));
+                result = new IotEvent(rs.getString(3), rs.getString(4));
                 result.setId(rs.getLong(1));
                 result.setCategory(rs.getString(2));
                 result.setCreatedAt(rs.getLong(5));
@@ -364,7 +413,8 @@ public class IotDatabaseDao implements IotDatabaseIface {
             pstmt.setBoolean(13, false);
             int updated = pstmt.executeUpdate();
             if (updated < 1) {
-                throw new IotDatabaseException(IotDatabaseException.UNKNOWN,"Unable to create notification "+alert.getId(),null);
+                throw new IotDatabaseException(IotDatabaseException.UNKNOWN,
+                        "Unable to create notification " + alert.getId(), null);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -374,7 +424,6 @@ public class IotDatabaseDao implements IotDatabaseIface {
             throw new IotDatabaseException(IotDatabaseException.UNKNOWN, e.getMessage(), null);
         }
     }
-
 
     @Override
     public List getAlerts(String userID, boolean descending) throws IotDatabaseException {
@@ -449,6 +498,11 @@ public class IotDatabaseDao implements IotDatabaseIface {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public int getChannelIndex(String deviceEUI, String channel) throws IotDatabaseException {
+        return getDeviceChannels(deviceEUI).indexOf(channel) + 1;
     }
 
     Alert buildAlert(ResultSet rs) throws SQLException {
