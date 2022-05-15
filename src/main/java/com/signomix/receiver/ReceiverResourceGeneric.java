@@ -32,8 +32,8 @@ import io.vertx.mutiny.core.eventbus.EventBus;
 
 @Path("/api")
 @ApplicationScoped
-public class ReceiverResource {
-    private static final Logger LOG = Logger.getLogger(ReceiverResource.class);
+public class ReceiverResourceGeneric {
+    private static final Logger LOG = Logger.getLogger(ReceiverResourceGeneric.class);
 
     @Inject
     EventBus bus;
@@ -72,7 +72,7 @@ public class ReceiverResource {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, form);
+        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -96,7 +96,7 @@ public class ReceiverResource {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, input);
+        IotData2 iotData = parseTextData(inHeaderEui, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -115,7 +115,7 @@ public class ReceiverResource {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, input);
+        IotData2 iotData = parseTextData(inHeaderEui, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -135,7 +135,7 @@ public class ReceiverResource {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseIotData(inHeaderEui, authorizationRequired, form);
+        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -168,6 +168,25 @@ public class ReceiverResource {
         return Response.ok("OK").build();
     }
 
+    @Path("/receiver/io")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response processJson(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
+        LOG.debug("input: " + dataObject.toString());
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
+        if (null == iotData) {
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        } else {
+            String result=service.processDataAndReturnResponse(iotData);
+            return Response.ok(result).build();
+        }
+    }
+
     private void send(IotData2 iotData) {
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
@@ -180,7 +199,7 @@ public class ReceiverResource {
         return null;
     }
 
-    private IotData2 parseIotData(String eui, boolean authRequired, String input) {
+    private IotData2 parseTextData(String eui, boolean authRequired, String input) {
         IotData2 data = runDedicatedParser(eui, input);
         if (null != data) {
             return data;
@@ -220,7 +239,7 @@ public class ReceiverResource {
         return null;
     }
 
-    private IotData2 parseIotData(String eui, boolean authRequired, MultivaluedMap<String, String> form) {
+    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
         data.payload_fields = new ArrayList<>();

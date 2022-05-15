@@ -49,18 +49,12 @@ public class ReceiverService {
         dao.setDatasource(ds);
     }
 
-    public void test() {
-        messageService.sendErrorInfo(new IotEvent());
-    }
-
     String processDataAndReturnResponse(IotData2 data) {
-        LOG.info("OK " + data.dev_eui);
         return processData(data);
     }
 
     @ConsumeEvent(value = "iotdata-no-response")
     void processDataNoResponse(IotData2 data) {
-        LOG.info("OK");
         processData(data);
     }
 
@@ -84,12 +78,8 @@ public class ReceiverService {
         String dataString = null;
         boolean statusUpdated = false;
         try {
-            // Object[] processingResult = processValues(inputList, device, data,
-            // dataString);
             scriptResult = getProcessingResult(inputList, device, data, dataString);
-
             // data to save
-            // outputList = (ArrayList<ArrayList>) processingResult[VALUES_IDX];
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
@@ -106,7 +96,7 @@ public class ReceiverService {
             statusUpdated = true;
         } catch (Exception e) {
             e.printStackTrace();
-
+            //TODO: notification
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI());
@@ -187,13 +177,6 @@ public class ReceiverService {
             e.printStackTrace();
         }
         return result;
-    }
-
-    private Object[] processValues(ArrayList<ChannelData> inputList, Device device, IotData2 iotData, String dataString)
-            throws Exception {
-        return processor.processValues(inputList, device,
-                iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
-                iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
     }
 
     private ScriptResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
@@ -315,15 +298,11 @@ public class ReceiverService {
         return values;
     }
 
-    private Device getDevice(String eui) throws IotDatabaseException {
-        return dao.getDevice(eui);
-    }
-
     private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
         Device device = null;
         Device gateway = null;
         try {
-            device = getDevice(data.getDeviceEUI());
+            device = dao.getDevice(data.getDeviceEUI());
             // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());
