@@ -80,7 +80,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
         String serialized;
         try {
             serialized = mapper.writeValueAsString(data);
-            LOG.info(serialized);
+            LOG.debug(serialized);
         } catch (JsonProcessingException e) {
             throw new IotDatabaseException(IotDatabaseException.UNKNOWN, "", null);
         }
@@ -208,7 +208,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
                 for (int i = 0; i < channels.size(); i++) {
                     channelStr = channelStr + channels.get(i) + ",";
                 }
-                LOG.info("CHANNELS READ: " + deviceEUI + " " + channelStr);
+                LOG.debug("CHANNELS READ: " + deviceEUI + " " + channelStr);
                 return channels;
             } else {
                 return new ArrayList<>();

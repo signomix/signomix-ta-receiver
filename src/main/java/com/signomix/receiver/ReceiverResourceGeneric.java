@@ -130,7 +130,7 @@ public class ReceiverResourceGeneric {
     @Produces(MediaType.TEXT_PLAIN)
     public Response processForm(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
-        LOG.info("form processing");
+        LOG.debug("form processing");
         String result;
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
