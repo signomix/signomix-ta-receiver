@@ -4,10 +4,13 @@
  */
 package com.signomix.common.iot;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Properties;
 
 /**
  * Description
@@ -23,7 +26,7 @@ public class Device {
     public static String LORA = "LORA";
     public static String KPN = "KPN";
     public static String EXTERNAL = "EXTERNAL";
-    
+
     public static int UNKNOWN = 0;
     public static int OK = 1;
     public static int FAILURE = 2;
@@ -33,12 +36,12 @@ public class Device {
     /**
      * EUI
      */
-    private String EUI;  // TTN: devEUI
-    private String name; // 
-    private String applicationEUI; //TTN: appEUI
-    private String applicationID;  //TTn: appID
-    private String key;  // TTN: HTTP Integration Authorization request header
-    private String userID; //device owner
+    private String EUI; // TTN: devEUI
+    private String name; //
+    private String applicationEUI; // TTN: appEUI
+    private String applicationID; // TTn: appID
+    private String key; // TTN: HTTP Integration Authorization request header
+    private String userID; // device owner
     private String type;
     private String team;
     private LinkedHashMap channels;
@@ -49,7 +52,7 @@ public class Device {
     private long transmissionInterval;
     private long lastFrame;
     private boolean checkFrames;
-    private String pattern; //not used
+    private String pattern; // not used
     private String downlink;
     private String commandScript;
     private String groups;
@@ -63,14 +66,18 @@ public class Device {
     private Double state;
     private long retentionTime;
     private String administrators;
+    private String configuration;
+    private Long orgApplicationId;
+    private Properties applicationConfig;
+    private Long organizationId;
 
-    //TODO: change uid to uidHex and add validation (is it hex value)
+    // TODO: change uid to uidHex and add validation (is it hex value)
     /**
      * IoT device
      */
     public Device() {
         EUI = "###"; // unique idenitifier
-        //uid = ""; // device internal ID ( == not unique device_address in TTN!)
+        // uid = ""; // device internal ID ( == not unique device_address in TTN!)
         userID = "";
         type = "GENERIC";
         team = "";
@@ -80,7 +87,7 @@ public class Device {
         key = null;
         description = "";
         lastSeen = -1;
-        transmissionInterval = 0; //10 minutes
+        transmissionInterval = 0; // 10 minutes
         lastFrame = -1;
         checkFrames = true;
         alertStatus = UNKNOWN;
@@ -91,7 +98,11 @@ public class Device {
         longitude = 100000d;
         altitude = 100000d;
         state = 0d;
-        administrators="";
+        administrators = "";
+        configuration = null;
+        orgApplicationId = 0L;
+        applicationConfig = null;
+        organizationId = 0L;
     }
 
     public void print() {
@@ -99,6 +110,36 @@ public class Device {
         System.out.println("TEAM: " + getTeam());
         System.out.println("CHANNELS: " + getChannels().keySet().size());
         System.out.println("CODE: " + getCode());
+    }
+
+    public Long getOrganizationId() {
+        return organizationId;
+    }
+
+    public void setOrganizationId(Long organizationId) {
+        this.organizationId = organizationId;
+    }
+
+    public Long getOrgApplicationId() {
+        return orgApplicationId;
+    }
+
+    public void setOrgApplicationId(Long signomixApplicationId) {
+        this.orgApplicationId = signomixApplicationId;
+    }
+
+    public Properties getApplicationConfig() {
+        return applicationConfig;
+    }
+
+    public void setApplicationConfig(String applicationConfig) {
+        try {
+            Properties props = new Properties();
+            props.load(new StringReader(applicationConfig));
+            this.applicationConfig = props;
+        } catch (IOException ex) {
+            this.applicationConfig = new Properties();
+        }
     }
 
     public boolean isVirtual() {
@@ -187,7 +228,7 @@ public class Device {
         }
     }
 
-        /**
+    /**
      * @return the team
      */
     public String getAdministrators() {
@@ -198,7 +239,7 @@ public class Device {
      * @param team the team to set
      */
     public void setAdministrators(String team) {
-        this.administrators = team!=null?team:"";
+        this.administrators = team != null ? team : "";
         if (!this.administrators.startsWith(",")) {
             this.administrators = "," + this.administrators;
         }
@@ -640,6 +681,14 @@ public class Device {
      */
     public void setRetentionTime(long retentionTime) {
         this.retentionTime = retentionTime;
+    }
+
+    public String getConfiguration() {
+        return configuration;
+    }
+
+    public void setConfiguration(String configuration) {
+        this.configuration = configuration;
     }
 
 }

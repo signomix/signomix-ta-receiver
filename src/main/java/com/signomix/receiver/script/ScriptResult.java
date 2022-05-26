@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Properties;
 
 import com.signomix.common.iot.ChannelData;
 import com.signomix.receiver.event.IotEvent;
@@ -25,6 +26,15 @@ public class ScriptResult {
     HashMap<String, ChannelData> measures;
     HashMap<String, ArrayList> dataEvents;
     ArrayList<IotEvent> events;
+    Properties applicationConfig;
+    public Properties getApplicationConfig() {
+        return applicationConfig;
+    }
+
+    public void setApplicationConfig(Properties applicationConfig) {
+        this.applicationConfig = applicationConfig;
+    }
+
     /**
      * Each map in the output list can include data with different timestamps
      * This way, output can hold several data points

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -20,6 +21,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
 
@@ -56,6 +58,7 @@ public class ReceiverResourceGeneric {
     public String sendOKString() {
         return "OK";
     }
+
     @Path("/receiver/io")
     @OPTIONS
     public String sendOKString2() {
@@ -96,7 +99,8 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseTextData(inHeaderEui, authorizationRequired, input);
+        Device device = service.getDevice(inHeaderEui);
+        IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -115,11 +119,13 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseTextData(inHeaderEui, authorizationRequired, input);
+        Device device = service.getDevice(inHeaderEui);
+        IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
-            String result=service.processDataAndReturnResponse(iotData);
+            String standardResult = service.processDataAndReturnResponse(iotData);
+            String result = runDedicatedResponder(device, standardResult);
             return Response.ok(result).build();
         }
     }
@@ -139,7 +145,7 @@ public class ReceiverResourceGeneric {
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
-            result=service.processDataAndReturnResponse(iotData);
+            result = service.processDataAndReturnResponse(iotData);
         }
         if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
             return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
@@ -182,7 +188,7 @@ public class ReceiverResourceGeneric {
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
-            String result=service.processDataAndReturnResponse(iotData);
+            String result = service.processDataAndReturnResponse(iotData);
             return Response.ok(result).build();
         }
     }
@@ -194,26 +200,31 @@ public class ReceiverResourceGeneric {
         LOG.debug("sent");
     }
 
-    private IotData2 runDedicatedParser(String eui, String input) {
+    private IotData2 runDedicatedParser(Device device, String input) {
         // put your specific code here
-        return null;
-    }
-
-    private IotData2 parseTextData(String eui, boolean authRequired, String input) {
-        IotData2 data = runDedicatedParser(eui, input);
-        if (null != data) {
-            return data;
+        if (null == device || device.getApplicationConfig().size() == 0) {
+            return null;
         }
-        data = new IotData2();
-        data.dev_eui = eui;
+        Properties appConfig = device.getApplicationConfig();
+        IotData2 data = new IotData2();
+        data.dev_eui = device.getEUI();
         HashMap<String, Object> options = new HashMap<>();
-        // options.put("eui", eui);
-        // options.put("euiInHeader", ""+euiHeaderFirst);
+        // options.put("key", (String) appConfig.get("key"));
+        // options.put("algorithm", (String) appConfig.get("algorithm"));
+        Iterator it = appConfig.keySet().iterator();
+        String key;
+        while (it.hasNext()) {
+            key = (String) it.next();
+            options.put(key, appConfig.get(key));
+        }
         PayloadParserIface parser;
         try {
-            Class clazz = Class.forName("com.signomix.receiver.PayloadParser");
+            Class clazz = Class.forName((String) appConfig.get("parser"));
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
             data.payload_fields = (ArrayList) parser.parse(input, options);
+            data.payload_fields.forEach((m) -> {
+                LOG.info(m);
+            });
             if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
                 data.dev_eui = getEuiParamValue(data.payload_fields);
             }
@@ -221,6 +232,44 @@ public class ReceiverResourceGeneric {
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
             return null;
+        }
+        data.setTimestampUTC();
+        return data;
+    }
+
+    private String runDedicatedResponder(Device device, String originalResponse) {
+        if (null == device || device.getApplicationConfig().size() == 0) {
+            return null;
+        }
+        Properties appConfig = device.getApplicationConfig();
+        ResponseFormatterIface formatter;
+        String result = null;
+        try {
+            Class clazz = Class.forName((String) appConfig.get("formatter"));
+            formatter = (ResponseFormatterIface) clazz.getDeclaredConstructor().newInstance();
+            result = formatter.format(appConfig, originalResponse);
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+            LOG.error(e.getMessage());
+            return null;
+        }
+        return result;
+    }
+
+    private IotData2 parseTextData(Device device, boolean authRequired, String input) {
+        IotData2 data = runDedicatedParser(device, input);
+        if (null != data) {
+            return data;
+        }
+        data = new IotData2();
+        data.dev_eui = device.getEUI();
+        HashMap<String, Object> options = new HashMap<>();
+        // options.put("eui", eui);
+        // options.put("euiInHeader", ""+euiHeaderFirst);
+        PayloadParserIface parser = new com.signomix.receiver.PayloadParser();
+        data.payload_fields = (ArrayList) parser.parse(input, options);
+        if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
+            data.dev_eui = getEuiParamValue(data.payload_fields);
         }
         data.normalize();
         data.setTimestampUTC();

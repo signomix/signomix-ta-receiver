@@ -151,9 +151,10 @@ public class IotDatabaseDao implements IotDatabaseIface {
     public Device getDevice(String userID, String deviceEUI, boolean withShared) throws IotDatabaseException {
         String query;
         if (withShared) {
-            query = "select eui,name,userid,type,team,channels,code,decoder,key,description,lastseen,tinterval,lastframe,template,pattern,downlink,commandscript,appid,appeui,groups,alert,devid,active,project,latitude,longitude,altitude,state,retention,administrators,framecheck from devices where upper(eui)=upper(?) and (userid = ? or team like ? or administrators like ?)";
+            query = buildDeviceQuery()
+                    + " AND (upper(d.eui)=upper(?) AND (d.userid = ? OR d.team like ? OR d.administrators like ?))";
         } else {
-            query = "select eui,name,userid,type,team,channels,code,decoder,key,description,lastseen,tinterval,lastframe,template,pattern,downlink,commandscript,appid,appeui,groups,alert,devid,active,project,latitude,longitude,altitude,state,retention,administrators,framecheck from devices where upper(eui)=upper(?) and userid = ?";
+            query = buildDeviceQuery() + " AND ( upper(d.eui)=upper(?) and d.userid = ?)";
         }
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query);) {
             pstmt.setString(1, deviceEUI);
@@ -176,7 +177,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
 
     @Override
     public Device getDevice(String deviceEUI) throws IotDatabaseException {
-        String query = "select eui,name,userid,type,team,channels,code,decoder,key,description,lastseen,tinterval,lastframe,template,pattern,downlink,commandscript,appid,appeui,groups,alert,devid,active,project,latitude,longitude,altitude,state,retention,administrators,framecheck from devices where upper(eui) = upper(?)";
+        String query = buildDeviceQuery() + " AND ( upper(d.eui) = upper(?))";
         if (deviceEUI == null || deviceEUI.isEmpty()) {
             return null;
         }
@@ -278,7 +279,12 @@ public class IotDatabaseDao implements IotDatabaseIface {
     }
 
     private Device buildDevice(ResultSet rs) throws SQLException {
-        // eui,name,userid,type,team,channels,code,decoder,key,description,lastseen,tinterval
+        // select
+        // eui,name,userid,type,team,channels,code,decoder,key,description,
+        // lastseen,tinterval,lastframe,template,pattern,downlink,commandscript,appid,groups,alert,
+        // appeui,devid,active,project,latitude,longitude,altitude,state,retention,administrators,
+        // framecheck,configuration,organization,organizationapp,a.config from devices
+        // as d left join applications as a
         Device d = new Device();
         d.setEUI(rs.getString(1));
         d.setName(rs.getString(2));
@@ -298,9 +304,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
         d.setDownlink(rs.getString(16));
         d.setCommandScript(rs.getString(17));
         d.setApplicationID(rs.getString(18));
-        d.setApplicationEUI(rs.getString(19));
-        d.setGroups(rs.getString(20));
-        d.setAlertStatus(rs.getInt(21));
+        d.setGroups(rs.getString(19));
+        d.setAlertStatus(rs.getInt(20));
+        d.setApplicationEUI(rs.getString(21));
         d.setDeviceID(rs.getString(22));
         d.setActive(rs.getBoolean(23));
         d.setProject(rs.getString(24));
@@ -311,6 +317,10 @@ public class IotDatabaseDao implements IotDatabaseIface {
         d.setRetentionTime(rs.getLong(29));
         d.setAdministrators(rs.getString(30));
         d.setCheckFrames(rs.getBoolean(31));
+        d.setConfiguration(rs.getString(32));
+        d.setOrganizationId(rs.getLong(33));
+        d.setOrgApplicationId(rs.getLong(34));
+        d.setApplicationConfig(rs.getString(35));
         return d;
     }
 
@@ -517,6 +527,16 @@ public class IotDatabaseDao implements IotDatabaseIface {
         a.setPayload(rs.getString(7));
         a.setCreatedAt(rs.getLong(12));
         return a;
+    }
+
+    private String buildDeviceQuery() {
+        String query = "SELECT"
+                + " d.eui, d.name, d.userid, d.type, d.team, d.channels, d.code, d.decoder, d.key, d.description, d.lastseen, d.tinterval,"
+                + " d.lastframe, d.template, d.pattern, d.downlink, d.commandscript, d.appid, d.groups, d.alert,"
+                + " d.appeui, d.devid, d.active, d.project, d.latitude, d.longitude, d.altitude, d.state, d.retention,"
+                + " d.administrators, d.framecheck, d.configuration, d.organization, d.organizationapp, a.configuration FROM devices AS d"
+                + " LEFT JOIN applications AS a WHERE d.organizationapp=a.id";
+        return query;
     }
 
 }

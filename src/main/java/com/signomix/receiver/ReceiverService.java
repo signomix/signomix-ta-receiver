@@ -59,7 +59,7 @@ public class ReceiverService {
     }
 
     private String processData(IotData2 data) {
-        LOG.debug("DATA FROM EUI: " + data.getDeviceEUI());
+        LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL };
         Device device = getDeviceChecked(data, expected);
@@ -80,6 +80,7 @@ public class ReceiverService {
         try {
             scriptResult = getProcessingResult(inputList, device, data, dataString);
             // data to save
+            LOG.info("outputList.size()==" + scriptResult.getOutput().size());
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
@@ -182,9 +183,11 @@ public class ReceiverService {
     private ScriptResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
             String dataString)
             throws Exception {
-        return processor.getProcessingResult(inputList, device,
+                ScriptResult result=processor.getProcessingResult(inputList, device,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
                 iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
+                result.setApplicationConfig(device.getApplicationConfig());
+        return result;
     }
 
     ArrayList<ChannelData> fixValues(Device device, ArrayList<ChannelData> values) {
@@ -211,6 +214,7 @@ public class ReceiverService {
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
         try {
+            LOG.info("saveData list.size():"+list.size());
             dao.putData(device, fixValues(device, list));
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -296,6 +300,18 @@ public class ReceiverService {
             }
         }
         return values;
+    }
+
+    public Device getDevice(String eui){
+        Device device = null;
+        //Device gateway = null;
+        try {
+            device = dao.getDevice(eui);
+            // gateway = getDevice(data.getGatewayEUI());
+        } catch (IotDatabaseException e) {
+            LOG.error(e.getMessage());
+        }
+        return device;
     }
 
     private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
