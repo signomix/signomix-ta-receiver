@@ -26,12 +26,12 @@ public class ScriptResult {
     HashMap<String, ChannelData> measures;
     HashMap<String, ArrayList> dataEvents;
     ArrayList<IotEvent> events;
-    Properties applicationConfig;
-    public Properties getApplicationConfig() {
+    HashMap<String,Object> applicationConfig;
+    public HashMap<String,Object> getApplicationConfig() {
         return applicationConfig;
     }
 
-    public void setApplicationConfig(Properties applicationConfig) {
+    public void setApplicationConfig(HashMap<String,Object> applicationConfig) {
         this.applicationConfig = applicationConfig;
     }
 

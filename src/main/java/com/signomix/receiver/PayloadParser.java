@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+import com.signomix.common.api.PayloadParserIface;
+
 import org.jboss.logging.Logger;
 
 public class PayloadParser implements PayloadParserIface {

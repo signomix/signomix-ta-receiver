@@ -21,6 +21,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import com.signomix.common.api.PayloadParserIface;
+import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
@@ -202,26 +204,17 @@ public class ReceiverResourceGeneric {
 
     private IotData2 runDedicatedParser(Device device, String input) {
         // put your specific code here
-        if (null == device || device.getApplicationConfig().size() == 0) {
+        if (null == device) {
             return null;
         }
-        Properties appConfig = device.getApplicationConfig();
+        HashMap<String,Object> appConfig = device.getApplicationConfig();
         IotData2 data = new IotData2();
         data.dev_eui = device.getEUI();
-        HashMap<String, Object> options = new HashMap<>();
-        // options.put("key", (String) appConfig.get("key"));
-        // options.put("algorithm", (String) appConfig.get("algorithm"));
-        Iterator it = appConfig.keySet().iterator();
-        String key;
-        while (it.hasNext()) {
-            key = (String) it.next();
-            options.put(key, appConfig.get(key));
-        }
         PayloadParserIface parser;
         try {
             Class clazz = Class.forName((String) appConfig.get("parser"));
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
-            data.payload_fields = (ArrayList) parser.parse(input, options);
+            data.payload_fields = (ArrayList) parser.parse(input, appConfig);
             data.payload_fields.forEach((m) -> {
                 LOG.info(m);
             });
@@ -238,16 +231,16 @@ public class ReceiverResourceGeneric {
     }
 
     private String runDedicatedResponder(Device device, String originalResponse) {
-        if (null == device || device.getApplicationConfig().size() == 0) {
+        if (null == device) {
             return null;
         }
-        Properties appConfig = device.getApplicationConfig();
-        ResponseFormatterIface formatter;
+        HashMap<String,Object> appConfig = device.getApplicationConfig();
+        ResponseTransformerIface formatter;
         String result = null;
         try {
             Class clazz = Class.forName((String) appConfig.get("formatter"));
-            formatter = (ResponseFormatterIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.format(appConfig, originalResponse);
+            formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
+            result = formatter.transform(appConfig, originalResponse);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());

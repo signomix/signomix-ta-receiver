@@ -5,12 +5,12 @@
 package com.signomix.common.iot;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.Properties;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Description
@@ -68,7 +68,7 @@ public class Device {
     private String administrators;
     private String configuration;
     private Long orgApplicationId;
-    private Properties applicationConfig;
+    private HashMap<String, Object> applicationConfig;
     private Long organizationId;
 
     // TODO: change uid to uidHex and add validation (is it hex value)
@@ -128,17 +128,17 @@ public class Device {
         this.orgApplicationId = signomixApplicationId;
     }
 
-    public Properties getApplicationConfig() {
+    public HashMap<String, Object> getApplicationConfig() {
         return applicationConfig;
     }
 
     public void setApplicationConfig(String applicationConfig) {
+        HashMap<String, Object> mapping;
         try {
-            Properties props = new Properties();
-            props.load(new StringReader(applicationConfig));
-            this.applicationConfig = props;
+            mapping = new ObjectMapper().readValue(applicationConfig, HashMap.class);
+            this.applicationConfig = mapping;
         } catch (IOException ex) {
-            this.applicationConfig = new Properties();
+            this.applicationConfig = new HashMap<>();
         }
     }
 

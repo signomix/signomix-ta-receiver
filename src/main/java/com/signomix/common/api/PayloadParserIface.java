@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.common.api;
 
 import java.util.List;
 import java.util.Map;
