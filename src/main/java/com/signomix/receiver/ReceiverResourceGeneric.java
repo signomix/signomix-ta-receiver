@@ -102,6 +102,10 @@ public class ReceiverResourceGeneric {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
         Device device = service.getDevice(inHeaderEui);
+        if (null == device) {
+            LOG.warn("unknown device " + inHeaderEui);
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
         IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
@@ -122,6 +126,10 @@ public class ReceiverResourceGeneric {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
         Device device = service.getDevice(inHeaderEui);
+        if (null == device) {
+            LOG.warn("unknown device " + inHeaderEui);
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
         IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
@@ -207,7 +215,7 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        HashMap<String,Object> appConfig = device.getApplicationConfig();
+        HashMap<String, Object> appConfig = device.getApplicationConfig();
         IotData2 data = new IotData2();
         data.dev_eui = device.getEUI();
         PayloadParserIface parser;
@@ -216,7 +224,7 @@ public class ReceiverResourceGeneric {
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
             data.payload_fields = (ArrayList) parser.parse(input, appConfig);
             data.payload_fields.forEach((m) -> {
-                LOG.info(m);
+                LOG.debug(m);
             });
             if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
                 data.dev_eui = getEuiParamValue(data.payload_fields);
@@ -234,7 +242,7 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        HashMap<String,Object> appConfig = device.getApplicationConfig();
+        HashMap<String, Object> appConfig = device.getApplicationConfig();
         ResponseTransformerIface formatter;
         String result = null;
         try {

@@ -46,9 +46,9 @@ public class IotData2 implements IotDataIface {
 
     @Override
     public String[] getPayloadFieldNames() {
-        String[] names=new String[payload_fields.size()];
-        for(int i=0; i<payload_fields.size();i++){
-            names[i]=(String)payload_fields.get(i).get("name");
+        String[] names = new String[payload_fields.size()];
+        for (int i = 0; i < payload_fields.size(); i++) {
+            names[i] = (String) payload_fields.get(i).get("name");
         }
         return names;
     }
@@ -99,9 +99,13 @@ public class IotData2 implements IotDataIface {
         this.applicationID = applicationID;
     }
 
-    public void setTimestampUTC(){
+    public void setTimestampUTC() {
         // timestamp
-        timestampUTC=DateTool.parseTimestamp(timestamp, time, true);
+        try {
+            timestampUTC = DateTool.parseTimestamp(timestamp, time, true);
+        } catch (Exception e) {
+            timestampUTC = new Timestamp(System.currentTimeMillis());
+        }
     }
 
     @Override
