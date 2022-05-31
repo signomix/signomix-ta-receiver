@@ -231,6 +231,7 @@ public class ReceiverResourceGeneric {
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+                    e.printStackTrace();
             LOG.error(e.getMessage());
             return null;
         }
@@ -254,6 +255,7 @@ public class ReceiverResourceGeneric {
             LOG.error(e.getMessage());
             return null;
         }
+        LOG.debug("response to transform:"+originalResponse+" size:"+originalResponse.length());
         LOG.debug(result);
         return result;
     }
