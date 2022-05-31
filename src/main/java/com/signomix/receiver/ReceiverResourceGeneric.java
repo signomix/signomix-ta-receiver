@@ -248,12 +248,13 @@ public class ReceiverResourceGeneric {
         try {
             Class clazz = Class.forName((String) appConfig.get("formatter"));
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.transform(appConfig, originalResponse);
+            result = formatter.transform(originalResponse, appConfig);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
             return null;
         }
+        LOG.debug(result);
         return result;
     }
 

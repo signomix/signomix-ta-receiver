@@ -1,7 +1,7 @@
 package com.signomix.common.api;
 
-import java.util.HashMap;
+import java.util.Map;
 
 public interface ResponseTransformerIface {
-    public String transform(HashMap<String,Object> appConfig, String payload);
+    public String transform(String payload, Map<String,Object> options);
 }
