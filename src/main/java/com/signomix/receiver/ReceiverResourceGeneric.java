@@ -243,6 +243,7 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
+        LOG.debug("Command to send: "+originalResponse);
         HashMap<String, Object> appConfig = device.getApplicationConfig();
         ResponseTransformerIface formatter;
         String result = null;
@@ -256,7 +257,7 @@ public class ReceiverResourceGeneric {
             return null;
         }
         LOG.debug("response to transform:"+originalResponse+" size:"+originalResponse.length());
-        LOG.debug(result);
+        LOG.debug("response transformed:"+result);
         return result;
     }
 
