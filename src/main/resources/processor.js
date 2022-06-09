@@ -144,7 +144,7 @@ sgx0.xaddList = function (timestamp) {
 
 var processData = function (eui, dataReceived, channelReader, userID, dataTimestamp, 
     latitude, longitude, altitude, state, alert,
-    devLatitude, devLongitude, devAltitude, newCommand, requestData) {
+    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.receiver.event.IotEvent");
     var ScriptResult = Java.type("com.signomix.receiver.script.ScriptResult");
@@ -166,6 +166,8 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     sgx.alert=alert
     sgx.virtualCommand=newCommand
     sgx.requestData=requestData
+    sgx.deviceConfig=devConfig
+    sgx.applicationConfig=appConfig
     
     //put original values. 
     if (dataReceived.length > 0) {

@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -77,6 +78,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         Double devLongitude = device.getLongitude();
         Double devAltitude = device.getAltitude();
 
+        String deviceConfig=device.getConfiguration();
+        HashMap<String,Object> applicationConfig=device.getApplicationConfig();
+
         Invocable invocable;
         ScriptResult result = new ScriptResult();
         if (values == null) {
@@ -92,7 +96,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             invocable = (Invocable) engine;
             result = (ScriptResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
-                    devLatitude, devLongitude, devAltitude, command, requestData);
+                    devLatitude, devLongitude, devAltitude, command, requestData,deviceConfig,applicationConfig);
                     LOG.debug("result.output.size=="+result.getOutput().size());
                     LOG.debug("result.measures.size=="+result.getMeasures().size());
         } catch (NoSuchMethodException e) {
