@@ -1,16 +1,18 @@
 /// default script
-var ScriptResult = Java.type("com.signomix.receiver.script.ScriptResult");
+var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
+var ProcessorResultHelper = Java.type("com.signomix.receiver.script.ProcessorResultHelper");
 var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
 
 //deprecated
-var result=new ScriptResult()
+var result=new ProcessorResult()
 var dataReceived=[]
 var channelReader={}
 //
 
 var sgx0 = {}
 sgx0.dataReceived=[]
-sgx0.result=new ScriptResult()
+sgx0.result=new ProcessorResult()
+sgx0.helper=new ProcessorResultHelper()
 sgx0.dataTimestamp=0
 sgx0.channelReader={}
 
@@ -147,7 +149,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.receiver.event.IotEvent");
-    var ScriptResult = Java.type("com.signomix.receiver.script.ScriptResult");
+    var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
     var channelData={};
 
     var sgx=Object.create(sgx0)
@@ -158,7 +160,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     if(sgx.longitude==null){sgx.longitude=devLongitude}
     sgx.altitude=altitude
     if(sgx.altitude==null){sgx.altitude=devAltitude}
-    sgx.result=new ScriptResult()
+    sgx.result=new ProcessorResult()
     sgx.dataReceived=dataReceived
     sgx.dataTimestamp=Number(dataTimestamp)
     sgx.channelReader=channelReader
@@ -186,12 +188,12 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
 var processRawData = function (eui, requestBody, channelReader, userID, dataTimestamp) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.receiver.event.IotEvent");
-    var ScriptResult = Java.type("com.signomix.receiver.script.ScriptResult");
+    var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
     var channelData={};
 
     var sgx=Object.create(sgx0)
     sgx.eui=eui
-    sgx.result=new ScriptResult()
+    sgx.result=new ProcessorResult()
     sgx.dataReceived=[]
     sgx.dataTimestamp=dataTimestamp
     sgx.channelReader=channelReader

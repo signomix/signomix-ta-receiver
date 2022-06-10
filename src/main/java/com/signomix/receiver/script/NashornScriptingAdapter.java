@@ -62,7 +62,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     }
 
     @Override
-    public ScriptResult processData1(ArrayList<ChannelData> values,
+    public ProcessorResult processData1(ArrayList<ChannelData> values,
             Device device,
             long dataTimestamp,
             Double latitude, Double longitude, Double altitude,
@@ -82,7 +82,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         HashMap<String,Object> applicationConfig=device.getApplicationConfig();
 
         Invocable invocable;
-        ScriptResult result = new ScriptResult();
+        ProcessorResult result = new ProcessorResult();
         if (values == null) {
             return result;
         }
@@ -94,7 +94,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         try {
             engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
             invocable = (Invocable) engine;
-            result = (ScriptResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
+            result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
                     devLatitude, devLongitude, devAltitude, command, requestData,deviceConfig,applicationConfig);
                     LOG.debug("result.output.size=="+result.getOutput().size());

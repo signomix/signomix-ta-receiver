@@ -16,7 +16,7 @@ import com.signomix.receiver.IotDatabaseIface;
  */
 public interface ScriptingAdapterIface {
 
-        public ScriptResult processData1(ArrayList<ChannelData> values, Device device, long dataTimestamp,
+        public ProcessorResult processData1(ArrayList<ChannelData> values, Device device, long dataTimestamp,
                         Double latitude, Double longitude, Double altitude,
                         String command, String requestData, IotDatabaseIface dao) throws ScriptAdapterException;
 
@@ -27,7 +27,7 @@ public interface ScriptingAdapterIface {
                         long dataTimestamp) throws ScriptAdapterException;
 
         /*
-         * public ScriptResult processData(ArrayList<ChannelData> values, Device device,
+         * public ProcessorResult processData(ArrayList<ChannelData> values, Device device,
          * long dataTimestamp,
          * Double latitude, Double longitude, Double altitude, Double state,
          * int alert, String command, String requestData, IotDatabaseIface dao)

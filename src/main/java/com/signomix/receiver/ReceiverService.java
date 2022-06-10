@@ -17,7 +17,7 @@ import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.event.IotEvent;
-import com.signomix.receiver.script.ScriptResult;
+import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import org.jboss.logging.Logger;
@@ -58,6 +58,20 @@ public class ReceiverService {
         processData(data);
     }
 
+    /**
+     * Sends data to dedicated microservice
+     * @param inputList
+     * @param device
+     * @param iotData
+     * @param dataString
+     * @return data processing result
+     */
+    private ProcessorResult callProcessorService(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
+            String dataString) {
+                //TODO
+        return null;
+    }
+
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         String result = "";
@@ -72,13 +86,16 @@ public class ReceiverService {
         for (int i = 0; i < inputList.size(); i++) {
             LOG.debug(inputList.get(i).toString());
         }
-        ScriptResult scriptResult = null;
+        ProcessorResult scriptResult = null;
         ArrayList<ArrayList> outputList;
         // String dataString = data.getSerializedData();
         String dataString = null;
         boolean statusUpdated = false;
         try {
-            scriptResult = getProcessingResult(inputList, device, data, dataString);
+            scriptResult = callProcessorService(inputList, device, data, dataString);
+            if (null == scriptResult) {
+                scriptResult = getProcessingResult(inputList, device, data, dataString);
+            }
             // data to save
             LOG.info("outputList.size()==" + scriptResult.getOutput().size());
             outputList = scriptResult.getOutput();
@@ -97,7 +114,7 @@ public class ReceiverService {
             statusUpdated = true;
         } catch (Exception e) {
             e.printStackTrace();
-            //TODO: notification
+            // TODO: notification
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI());
@@ -180,13 +197,13 @@ public class ReceiverService {
         return result;
     }
 
-    private ScriptResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
+    private ProcessorResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
             String dataString)
             throws Exception {
-                ScriptResult result=processor.getProcessingResult(inputList, device,
+        ProcessorResult result = processor.getProcessingResult(inputList, device,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
                 iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
-                result.setApplicationConfig(device.getApplicationConfig());
+        result.setApplicationConfig(device.getApplicationConfig());
         return result;
     }
 
@@ -214,7 +231,7 @@ public class ReceiverService {
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
         try {
-            LOG.info("saveData list.size():"+list.size());
+            LOG.info("saveData list.size():" + list.size());
             dao.putData(device, fixValues(device, list));
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -302,9 +319,9 @@ public class ReceiverService {
         return values;
     }
 
-    public Device getDevice(String eui){
+    public Device getDevice(String eui) {
         Device device = null;
-        //Device gateway = null;
+        // Device gateway = null;
         try {
             device = dao.getDevice(eui);
             // gateway = getDevice(data.getGatewayEUI());

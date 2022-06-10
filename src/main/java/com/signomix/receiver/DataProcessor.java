@@ -16,7 +16,7 @@ import com.signomix.common.iot.Device;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
-import com.signomix.receiver.script.ScriptResult;
+import com.signomix.receiver.script.ProcessorResult;
 
 import org.jboss.logging.Logger;
 
@@ -45,7 +45,7 @@ public class DataProcessor {
             String command,
             IotDatabaseIface dao) throws Exception {
         //ScriptingAdapterIface scriptingAdapter = new GraalVMScriptingAdapter();
-        ScriptResult scriptResult = null;
+        ProcessorResult scriptResult = null;
         try {
             LOG.debug("listOfValues.size()=="+listOfValues.size());
             scriptResult = scriptingAdapter.processData1(
@@ -117,7 +117,7 @@ public class DataProcessor {
         return result;
     }
 
-    public ScriptResult getProcessingResult(
+    public ProcessorResult getProcessingResult(
             ArrayList<ChannelData> listOfValues,
             Device device,
             long dataTimestamp,
@@ -127,7 +127,7 @@ public class DataProcessor {
             String requestData,
             String command,
             IotDatabaseIface dao) throws Exception {
-        ScriptResult scriptResult = null;
+        ProcessorResult scriptResult = null;
         try {
             LOG.debug("listOfValues.size()==" + listOfValues.size());
             LOG.info("listOfValues.size()==" + listOfValues.size());

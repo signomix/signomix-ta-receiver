@@ -8,25 +8,25 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Properties;
+
+import org.jboss.logging.Logger;
 
 import com.signomix.common.iot.ChannelData;
 import com.signomix.receiver.event.IotEvent;
-
-import org.jboss.logging.Logger;
 
 /**
  *
  * @author Grzegorz Skorupa <g.skorupa at gmail.com>
  */
-public class ScriptResult {
-    private static final Logger LOG = Logger.getLogger(ScriptResult.class);
+public class ProcessorResult {
+    private static final Logger LOG = Logger.getLogger(ProcessorResult.class);
 
-    //ArrayList<MeasureValue> measures;
     HashMap<String, ChannelData> measures;
     HashMap<String, ArrayList> dataEvents;
     ArrayList<IotEvent> events;
     HashMap<String,Object> applicationConfig;
+
+
     public HashMap<String,Object> getApplicationConfig() {
         return applicationConfig;
     }
@@ -41,9 +41,9 @@ public class ScriptResult {
      */
     ListOfMaps output = new ListOfMaps();
     public Double deviceState;
-    private boolean listsUsed = false;
+    boolean listsUsed = false;
 
-    public ScriptResult() {
+    public ProcessorResult() {
         dataEvents = new HashMap<>();
         measures = new HashMap<>();
         events = new ArrayList<>();
@@ -94,7 +94,6 @@ public class ScriptResult {
     }
 
     public void addCommand(String toDevice, String fromDevice, String payload, boolean hexRepresentation, boolean overwrite) {
-        //events.add(new Event(this.getClass().getSimpleName(), Event.CATEGORY_GENERIC, "COMMAND", null, payload));
         IotEvent event = new IotEvent();
         event.setOrigin(fromDevice+"@"+toDevice);
         if (hexRepresentation) {
