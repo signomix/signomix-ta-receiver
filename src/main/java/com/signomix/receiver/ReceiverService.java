@@ -58,6 +58,10 @@ public class ReceiverService {
         processData(data);
     }
 
+    @ConsumeEvent(value = "ttndata-no-response")
+    void processTtnData(IotData2 data) {
+        processData(data);
+    }
     /**
      * Sends data to dedicated microservice
      * @param inputList
