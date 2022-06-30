@@ -42,7 +42,11 @@ public class ReceiverResourceTtn {
     Boolean euiHeaderFirst;
 
     public void onApplicationStart(@Observes StartupEvent event) {
+        try{
         bus.registerCodec(new IotDataMessageCodec());
+        }catch(Exception e){
+            
+        }
     }
 
     @Path("/ttn3")
