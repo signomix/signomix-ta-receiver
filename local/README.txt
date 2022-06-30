@@ -1,0 +1,1 @@
+Folder for local files: docs, configs etc. that shouldn't be pushed to Signomix repo
