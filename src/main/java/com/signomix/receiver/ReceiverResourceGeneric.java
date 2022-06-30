@@ -52,7 +52,10 @@ public class ReceiverResourceGeneric {
     Boolean euiHeaderFirst;
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        bus.registerCodec(new IotDataMessageCodec());
+        try{
+            bus.registerCodec(new IotDataMessageCodec());
+        }catch(Exception e){
+        }
     }
 
     @Path("/receiver/in")
