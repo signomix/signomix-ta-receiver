@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Properties;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -19,16 +18,17 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import com.signomix.common.api.PayloadParserIface;
 import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
 
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -139,7 +139,10 @@ public class ReceiverResourceGeneric {
         } else {
             String standardResult = service.processDataAndReturnResponse(iotData);
             String result = runDedicatedResponder(device, standardResult);
-            return Response.ok(result).build();
+            Map<String,String> headers=getDedicatedResponderHeaders(device);
+            ResponseBuilder rb = Response.ok(result);
+            headers.keySet().forEach(key->{rb.header(key, headers.get(key));});
+            return rb.build();
         }
     }
 
@@ -261,6 +264,25 @@ public class ReceiverResourceGeneric {
         }
         LOG.debug("response to transform:"+originalResponse+" size:"+originalResponse.length());
         LOG.debug("response transformed:"+result);
+        return result;
+    }
+
+    private Map<String,String> getDedicatedResponderHeaders(Device device) {
+        if (null == device) {
+            return null;
+        }
+        HashMap<String, Object> appConfig = device.getApplicationConfig();
+        ResponseTransformerIface formatter;
+        Map result = null;
+        try {
+            Class clazz = Class.forName((String) appConfig.get("formatter"));
+            formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
+            result = formatter.getHeaders(appConfig,device.getConfiguration());
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
+                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+            LOG.error(e.getMessage());
+            return null;
+        }
         return result;
     }
 
