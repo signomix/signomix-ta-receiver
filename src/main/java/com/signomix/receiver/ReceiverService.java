@@ -192,6 +192,7 @@ public class ReceiverService {
                 } else {
                     result = commandPayload;
                 }
+                LOG.debug("COMMANDID/PAYLOAD:"+command.getId()+"/"+commandPayload);
                 dao.removeCommand(command.getId());
                 dao.putCommandLog(command.getOrigin(), command);
             }
@@ -226,7 +227,8 @@ public class ReceiverService {
     private void saveCommand(IotEvent commandEvent) {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
-            dao.putCommandLog(origin[0], commandEvent);
+            dao.putDeviceCommand(origin[0], commandEvent);
+            //dao.putCommandLog(origin[0], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

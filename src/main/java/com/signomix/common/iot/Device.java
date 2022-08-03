@@ -691,4 +691,19 @@ public class Device {
         this.configuration = configuration;
     }
 
+    public HashMap<String, Object> getConfigurationMap() {
+        if(null==configuration || configuration.trim().isEmpty()){
+            System.out.println("EMPTY CONFIG");
+            return new HashMap<>();
+        }
+        HashMap<String, Object> mapping;
+        try {
+            mapping = new ObjectMapper().readValue(configuration.trim(), HashMap.class);
+            return mapping;
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return new HashMap<>();
+        }
+    }
+    
 }

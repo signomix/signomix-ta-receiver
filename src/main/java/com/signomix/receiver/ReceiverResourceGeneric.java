@@ -102,12 +102,12 @@ public class ReceiverResourceGeneric {
             @HeaderParam("X-device-eui") String inHeaderEui, String input) {
         LOG.debug("input: " + input);
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header found").build();
         }
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
         }
         IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
@@ -138,6 +138,7 @@ public class ReceiverResourceGeneric {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
             String standardResult = service.processDataAndReturnResponse(iotData);
+            LOG.debug("STANDARD RESULT:"+standardResult);
             String result = runDedicatedResponder(device, standardResult);
             Map<String,String> headers=getDedicatedResponderHeaders(device);
             ResponseBuilder rb = Response.ok(result);
@@ -221,7 +222,9 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        HashMap<String, Object> appConfig = device.getApplicationConfig();
+        HashMap<String, Object> appConfig = device.getConfigurationMap(); //device.getApplicationConfig();
+        // to expose the device EUI to a parser
+        appConfig.put("dev_eui", device.getEUI());
         IotData2 data = new IotData2();
         data.dev_eui = device.getEUI();
         PayloadParserIface parser;
@@ -250,13 +253,13 @@ public class ReceiverResourceGeneric {
             return null;
         }
         LOG.debug("Command to send: "+originalResponse);
-        HashMap<String, Object> appConfig = device.getApplicationConfig();
+        HashMap<String, Object> devConfig = device.getConfigurationMap();
         ResponseTransformerIface formatter;
         String result = null;
         try {
-            Class clazz = Class.forName((String) appConfig.get("formatter"));
+            Class clazz = Class.forName((String) devConfig.get("formatter"));
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.transform(originalResponse, appConfig);
+            result = formatter.transform(originalResponse, devConfig);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
