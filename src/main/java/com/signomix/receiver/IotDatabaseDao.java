@@ -326,17 +326,19 @@ public class IotDatabaseDao implements IotDatabaseIface {
 
     @Override
     public IotEvent getFirstCommand(String deviceEUI) throws IotDatabaseException {
-        String query = "select id,category,type,payload,createdat from commands where origin like ? order by createdat limit 1";
+        String query = "select id,category,type,origin,payload,createdat from commands where origin like ? order by createdat limit 1";
         IotEvent result = null;
         try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
-            pst.setString(1, "%@" + deviceEUI);
+            //pst.setString(1, "%@" + deviceEUI);
+            pst.setString(1, deviceEUI);
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
                 // result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null,
                 // rs.getString(4));
-                result = new IotEvent(rs.getString(3), rs.getString(4));
+                result = new IotEvent(rs.getString(3), rs.getString(5));
                 result.setId(rs.getLong(1));
                 result.setCategory(rs.getString(2));
+                result.setOrigin(rs.getString(4));
                 result.setCreatedAt(rs.getLong(5));
             }
             return result;
