@@ -335,11 +335,13 @@ public class IotDatabaseDao implements IotDatabaseIface {
             if (rs.next()) {
                 // result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null,
                 // rs.getString(4));
-                result = new IotEvent(rs.getString(3), rs.getString(5));
+                result = new IotEvent();
                 result.setId(rs.getLong(1));
                 result.setCategory(rs.getString(2));
+                result.setType(rs.getString(3));
                 result.setOrigin(rs.getString(4));
-                result.setCreatedAt(rs.getLong(5));
+                result.setPayload(rs.getString(5));
+                result.setCreatedAt(rs.getLong(6));
             }
             return result;
         } catch (SQLException e) {
@@ -381,7 +383,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
     @Override
     public void putDeviceCommand(String deviceEUI, IotEvent commandEvent) throws IotDatabaseException {
         String query = "insert into commands (id,category,type,origin,payload,createdat) values (?,?,?,?,?,?);";
-        String query2 = "merge into commands key (category,type,origin) values (?,?,?,?,?,?)";
+        String query2 = "merge into commands (id,category,type,origin,payload,createdat) key (id) values (?,?,?,?,?,?)";
         String command = (String) commandEvent.getPayload();
         boolean overwriteMode = false;
         if (command.startsWith("&")) {

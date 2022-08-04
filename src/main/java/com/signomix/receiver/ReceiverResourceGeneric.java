@@ -254,6 +254,7 @@ public class ReceiverResourceGeneric {
         }
         LOG.debug("Command to send: "+originalResponse);
         HashMap<String, Object> devConfig = device.getConfigurationMap();
+        devConfig.put("dev_eui",device.getEUI());
         ResponseTransformerIface formatter;
         String result = null;
         try {
