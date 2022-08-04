@@ -329,8 +329,8 @@ public class IotDatabaseDao implements IotDatabaseIface {
         String query = "select id,category,type,origin,payload,createdat from commands where origin like ? order by createdat limit 1";
         IotEvent result = null;
         try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
-            //pst.setString(1, "%@" + deviceEUI);
-            pst.setString(1, deviceEUI);
+            pst.setString(1, "%@" + deviceEUI);
+            //pst.setString(1, deviceEUI);
             ResultSet rs = pst.executeQuery();
             if (rs.next()) {
                 // result = new IotEvent(deviceEUI, rs.getString(2), rs.getString(3), null,
