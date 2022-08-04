@@ -348,6 +348,52 @@ public class IotDatabaseDao implements IotDatabaseIface {
             throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
         }
     }
+    @Override
+    public long getMaxCommandId() throws IotDatabaseException {
+        String query = "SELECT  max(commands.id), max(commandslog.id) FROM commands CROSS JOIN commandslog";
+        long result = 0;
+        long v1=0;
+        long v2=0;
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                v1=rs.getLong(1);
+                v1=rs.getLong(2);
+            }
+            if(v1>v2){
+                result=v1;
+            }else{
+                result=v2;
+            }
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION);
+        }
+        return result;
+    }
+    @Override
+    public long getMaxCommandId(String deviceEui) throws IotDatabaseException {
+        String query = "SELECT  max(commands.id), max(commandslog.id) FROM commands CROSS JOIN commandslog "
+        +"WHERE commands.origin=commandslog.origin AND commands.origin like %@"+deviceEui;
+        long result = 0;
+        long v1=0;
+        long v2=0;
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                v1=rs.getLong(1);
+                v1=rs.getLong(2);
+            }
+            if(v1>v2){
+                result=v1;
+            }else{
+                result=v2;
+            }
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION);
+        }
+        return result;
+    }
+
 
     @Override
     public void removeCommand(long id) throws IotDatabaseException {

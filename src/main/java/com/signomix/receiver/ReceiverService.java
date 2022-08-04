@@ -228,6 +228,9 @@ public class ReceiverService {
     private void saveCommand(IotEvent commandEvent) {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
+            IotEvent ev=commandEvent;
+            //TODO: it should be call to signomix-main
+            ev.setId(dao.getMaxCommandId(origin[1]));
             dao.putDeviceCommand(origin[0], commandEvent);
             //dao.putCommandLog(origin[0], commandEvent);
         } catch (IotDatabaseException e) {

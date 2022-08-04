@@ -26,6 +26,8 @@ public interface IotDatabaseIface {
     public void removeCommand(long id) throws IotDatabaseException;
     public void putCommandLog(String deviceEUI, IotEvent command) throws IotDatabaseException;
     public void putDeviceCommand(String deviceEUI, IotEvent commandEvent) throws IotDatabaseException; 
+    public long getMaxCommandId() throws IotDatabaseException;
+    public long getMaxCommandId(String deviceEui) throws IotDatabaseException;
     //notifications
     public void addAlert(IotEvent alert) throws IotDatabaseException;
     public List getAlerts(String userID, boolean descending) throws IotDatabaseException;
