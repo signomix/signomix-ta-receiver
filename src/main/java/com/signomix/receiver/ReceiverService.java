@@ -133,7 +133,8 @@ public class ReceiverService {
         // commands and notifications
         for (int i = 0; i < events.size(); i++) {
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
-                    || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())) {
+                    || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())
+                    || IotEvent.ACTUATOR_PLAINCMD.equals(events.get(i).getType())) {
                 // commands
                 saveCommand(events.get(i));
             } else {

@@ -71,7 +71,8 @@ public class DataProcessor {
         // commands and notifications
         for (int i = 0; i < events.size(); i++) {
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
-                    || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())) {
+                    || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())
+                    || IotEvent.ACTUATOR_PLAINCMD.equals(events.get(i).getType())) {
                         messageService.sendCommand(events.get(i));
             } else {
                 recipients = new HashMap<>();
