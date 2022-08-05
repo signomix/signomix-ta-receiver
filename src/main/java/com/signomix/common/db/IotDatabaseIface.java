@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.common.db;
 
 import java.util.ArrayList;
 import java.util.List;

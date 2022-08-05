@@ -6,9 +6,9 @@ package com.signomix.receiver.script;
 
 import java.util.ArrayList;
 
+import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
-import com.signomix.receiver.IotDatabaseIface;
 
 /**
  *

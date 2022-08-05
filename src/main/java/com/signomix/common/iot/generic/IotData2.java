@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.signomix.common.DateTool;
-import com.signomix.common.IotDataIface;
+import com.signomix.common.db.IotDataIface;
 import com.signomix.common.iot.ChannelData;
 
 /**

@@ -11,14 +11,15 @@ import java.util.Iterator;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import org.jboss.logging.Logger;
+
+import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.NashornScriptingAdapter;
-import com.signomix.receiver.script.ScriptAdapterException;
 import com.signomix.receiver.script.ProcessorResult;
-
-import org.jboss.logging.Logger;
+import com.signomix.receiver.script.ScriptAdapterException;
 
 /**
  *

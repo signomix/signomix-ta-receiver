@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.signomix.common.HexTool;
-import com.signomix.common.IotDataIface;
+import com.signomix.common.db.IotDataIface;
 
 /**
  *

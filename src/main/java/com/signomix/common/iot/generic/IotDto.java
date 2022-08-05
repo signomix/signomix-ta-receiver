@@ -4,16 +4,8 @@
  */
 package com.signomix.common.iot.generic;
 
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
-
-import com.signomix.common.DateTool;
-import com.signomix.common.IotDataIface;
-import com.signomix.common.iot.ChannelData;
 
 /**
  *

@@ -9,7 +9,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import com.signomix.common.IotDataIface;
+import com.signomix.common.db.IotDataIface;
 
 /**
  *

@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.common.db;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
