@@ -1,5 +1,7 @@
 package com.signomix.receiver;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -10,6 +12,8 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+
 import com.signomix.common.HexTool;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
@@ -19,12 +23,16 @@ import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import org.jboss.logging.Logger;
 
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
+
+import javax.ws.rs.ProcessingException;
+import javax.ws.rs.WebApplicationException;
 
 @ApplicationScoped
 public class ReceiverService {
@@ -43,6 +51,12 @@ public class ReceiverService {
 
     ScriptingAdapterIface scriptingAdapter;
     IotDatabaseIface dao;
+
+    @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
+    String appKey;
+    @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
+    String coreHost;
+
 
     public void onApplicationStart(@Observes StartupEvent event) {
         dao = new IotDatabaseDao();
@@ -229,12 +243,12 @@ public class ReceiverService {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
             IotEvent ev=commandEvent;
-            //TODO: it should be call to signomix-main
-            ev.setId(dao.getMaxCommandId(origin[1]));
+            ev.setId(getNewCommandId(origin[1]));
             dao.putDeviceCommand(origin[0], commandEvent);
-            //dao.putCommandLog(origin[0], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
+            e.printStackTrace();
+        }catch(Exception e){
             e.printStackTrace();
         }
     }
@@ -340,6 +354,38 @@ public class ReceiverService {
         }
         return device;
     }
+
+    long getNewCommandId(String deviceEUI) throws Exception {
+        try {
+            try {
+                CoreSystemService client = RestClientBuilder.newBuilder()
+                        .baseUri(new URI(coreHost+"/api/system/commandid"))
+                        .followRedirects(true)
+                        .build(CoreSystemService.class);
+                return Long.parseLong(client.getNewCommandId(appKey,deviceEUI));
+            } catch (URISyntaxException ex) {
+                LOG.error(ex.getMessage());
+                // TODO: notyfikacja użytkownika o błędzie
+                throw new Exception();
+            } catch (ProcessingException ex) {
+                LOG.error(ex.getMessage());
+                throw new Exception();
+            } catch (WebApplicationException ex) {
+                ex.printStackTrace();
+                LOG.error(ex.getMessage());
+                System.out.println("WEB APP EXCEPTION");
+                throw new Exception();
+            } catch (Exception ex) {
+                LOG.error(ex.getMessage());
+                // TODO: notyfikacja użytkownika o błędzie
+                throw new Exception();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            throw new Exception();
+        }
+    }
+
 
     private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
         Device device = null;
