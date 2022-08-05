@@ -4,7 +4,7 @@
 */
 package com.signomix.common.iot;
 
-import com.signomix.receiver.event.IotEvent;
+import com.signomix.common.event.IotEvent;
 
 /**
  *

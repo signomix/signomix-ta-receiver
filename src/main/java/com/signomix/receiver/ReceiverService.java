@@ -22,12 +22,12 @@ import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseDao;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.virtual.VirtualData;
-import com.signomix.receiver.event.IotEvent;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 

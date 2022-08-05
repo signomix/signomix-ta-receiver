@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.signomix.receiver.event;
+package com.signomix.common.event;
 
 import java.time.Instant;
 

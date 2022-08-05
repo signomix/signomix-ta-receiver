@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.MessageEnvelope;
 import com.signomix.common.User;
-import com.signomix.receiver.event.IotEvent;
+import com.signomix.common.event.IotEvent;
 
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;

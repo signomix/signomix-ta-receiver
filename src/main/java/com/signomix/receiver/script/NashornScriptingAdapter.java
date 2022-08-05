@@ -24,10 +24,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.MessageService;
-import com.signomix.receiver.event.IotEvent;
 
 import io.quarkus.runtime.StartupEvent;
 

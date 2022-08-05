@@ -3,10 +3,10 @@ package com.signomix.common.db;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
-import com.signomix.receiver.event.IotEvent;
 
 import io.agroal.api.AgroalDataSource;
 

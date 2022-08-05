@@ -11,8 +11,8 @@ import java.util.Iterator;
 
 import org.jboss.logging.Logger;
 
+import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
-import com.signomix.receiver.event.IotEvent;
 
 /**
  *
