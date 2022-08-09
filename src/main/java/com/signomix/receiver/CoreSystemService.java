@@ -1,5 +1,7 @@
 package com.signomix.receiver;
 
+import java.util.Map;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
@@ -11,6 +13,6 @@ import org.jboss.resteasy.annotations.jaxrs.QueryParam;
 public interface CoreSystemService {
 
     @GET
-    String getNewCommandId(@QueryParam String appkey, @QueryParam String eui);
+    Map getNewCommandId(@QueryParam String appkey, @QueryParam String eui);
 
 }

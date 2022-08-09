@@ -147,6 +147,7 @@ public class ReceiverService {
 
         // commands and notifications
         for (int i = 0; i < events.size(); i++) {
+            LOG.debug("event " + i + " (" + device.getEUI() + ")");
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_PLAINCMD.equals(events.get(i).getType())) {
@@ -208,9 +209,11 @@ public class ReceiverService {
                 } else {
                     result = commandPayload;
                 }
-                LOG.debug("COMMANDID/PAYLOAD:"+command.getId()+"/"+commandPayload);
+                LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + "):" + command.getId() + "/" + commandPayload);
                 dao.removeCommand(command.getId());
                 dao.putCommandLog(command.getOrigin(), command);
+            } else {
+                LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + ") IS NULL");
             }
         } catch (IotDatabaseException e) {
             e.printStackTrace();
@@ -243,13 +246,14 @@ public class ReceiverService {
     private void saveCommand(IotEvent commandEvent) {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
-            IotEvent ev=commandEvent;
+            LOG.debug("saving command (" + origin[1] + ")");
+            IotEvent ev = commandEvent;
             ev.setId(getNewCommandId(origin[1]));
-            dao.putDeviceCommand(origin[0], commandEvent);
+            dao.putDeviceCommand(origin[1], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -360,10 +364,16 @@ public class ReceiverService {
         try {
             try {
                 CoreSystemService client = RestClientBuilder.newBuilder()
-                        .baseUri(new URI(coreHost+"/api/system/commandid"))
+                        .baseUri(new URI(coreHost + "/api/system/commandid"))
                         .followRedirects(true)
                         .build(CoreSystemService.class);
-                return Long.parseLong(client.getNewCommandId(appKey,deviceEUI));
+                long result;
+                try {
+                    result = (Long) client.getNewCommandId(appKey, deviceEUI).get("value");
+                } catch (Exception e) {
+                    result = (Integer) client.getNewCommandId(appKey, deviceEUI).get("value");
+                }
+                return result;
             } catch (URISyntaxException ex) {
                 LOG.error(ex.getMessage());
                 // TODO: notyfikacja użytkownika o błędzie
