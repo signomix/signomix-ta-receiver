@@ -100,6 +100,10 @@ public class ReceiverService {
             // TODO: result.setData(authMessage);
             return result;
         }
+        String parserError=getFirstParserErrorValue(data);
+        if(null!=parserError && !parserError.isEmpty()){
+            return "ERROR: "+parserError;
+        }
         data.prepareIotValues();
         ArrayList<ChannelData> inputList = decodePayload(data, device);
         for (int i = 0; i < inputList.size(); i++) {
@@ -445,6 +449,17 @@ public class ReceiverService {
             return null;
         }
         return device;
+    }
+
+    private String getFirstParserErrorValue(IotData2 data){
+        Map map;
+        for(int i=0; i<data.payload_fields.size(); i++){
+            map=data.payload_fields.get(i);
+            if(null!=map.get("parser_error")){
+                return (String)map.get("parser_error");
+            }
+        }
+        return "";
     }
 
 }

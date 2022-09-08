@@ -140,7 +140,7 @@ public class ReceiverResourceGeneric {
             String standardResult = service.processDataAndReturnResponse(iotData);
             LOG.debug("STANDARD RESULT:"+standardResult);
             String result = runDedicatedResponder(device, standardResult);
-            Map<String,String> headers=getDedicatedResponderHeaders(device);
+            Map<String,String> headers=getDedicatedResponderHeaders(device, standardResult);
             ResponseBuilder rb = Response.ok(result);
             headers.keySet().forEach(key->{rb.header(key, headers.get(key));});
             return rb.build();
@@ -222,16 +222,20 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        HashMap<String, Object> appConfig = device.getConfigurationMap(); //device.getApplicationConfig();
+        HashMap<String, Object> devConfig = device.getConfigurationMap(); //device.getApplicationConfig();
+        String className=(String)devConfig.get("parser");
+        if(null==className||className.isEmpty()){
+            return null;
+        }
         // to expose the device EUI to a parser
-        appConfig.put("dev_eui", device.getEUI());
+        devConfig.put("dev_eui", device.getEUI());
         IotData2 data = new IotData2();
         data.dev_eui = device.getEUI();
         PayloadParserIface parser;
         try {
-            Class clazz = Class.forName((String) appConfig.get("parser"));
+            Class clazz = Class.forName(className);
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
-            data.payload_fields = (ArrayList) parser.parse(input, appConfig);
+            data.payload_fields = (ArrayList) parser.parse(input, devConfig);
             data.payload_fields.forEach((m) -> {
                 LOG.debug(m);
             });
@@ -256,36 +260,42 @@ public class ReceiverResourceGeneric {
         HashMap<String, Object> devConfig = device.getConfigurationMap();
         devConfig.put("dev_eui",device.getEUI());
         ResponseTransformerIface formatter;
-        String result = null;
+        String result = originalResponse;
+        String className=(String)devConfig.get("formatter");
+        if(null==className||className.isEmpty()){
+            return result;
+        }
         try {
-            Class clazz = Class.forName((String) devConfig.get("formatter"));
+            Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
             result = formatter.transform(originalResponse, devConfig);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
-            return null;
         }
         LOG.debug("response to transform:"+originalResponse+" size:"+originalResponse.length());
         LOG.debug("response transformed:"+result);
         return result;
     }
 
-    private Map<String,String> getDedicatedResponderHeaders(Device device) {
+    private Map<String,String> getDedicatedResponderHeaders(Device device, String response) {
         if (null == device) {
             return null;
         }
-        HashMap<String, Object> appConfig = device.getApplicationConfig();
+        HashMap<String, Object> devConfig = device.getConfigurationMap();
         ResponseTransformerIface formatter;
-        Map result = null;
+        Map result = new HashMap<>();
+        String className=(String)devConfig.get("formatter");
+        if(null==className||className.isEmpty()){
+            return result;
+        }
         try {
-            Class clazz = Class.forName((String) appConfig.get("formatter"));
+            Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.getHeaders(appConfig,device.getConfiguration());
+            result = formatter.getHeaders(devConfig,device.getConfiguration(), response);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
-            return null;
         }
         return result;
     }
