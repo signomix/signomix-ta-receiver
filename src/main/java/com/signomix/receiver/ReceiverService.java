@@ -57,6 +57,8 @@ public class ReceiverService {
     String appKey;
     @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
     String coreHost;
+    @ConfigProperty(name = "device.status.update.integrated")
+    Boolean deviceStatusUpdateIntegrated;
 
 
     public void onApplicationStart(@Observes StartupEvent event) {
@@ -309,6 +311,10 @@ public class ReceiverService {
     }
 
     private void updateDeviceStatus(String eui, Double newStatus) {
+        if(!deviceStatusUpdateIntegrated){
+            //TEST
+            return;
+        }
         try {
             dao.updateDeviceStatus(eui, newStatus, System.currentTimeMillis(), -1, "", "");
         } catch (IotDatabaseException e) {
@@ -318,6 +324,10 @@ public class ReceiverService {
     }
 
     private void updateHealthStatus(String eui) {
+        if(!deviceStatusUpdateIntegrated){
+            //TEST
+            return;
+        }
         try {
             dao.updateDeviceStatus(eui, null, System.currentTimeMillis(), -1, "", "");
         } catch (IotDatabaseException e) {
