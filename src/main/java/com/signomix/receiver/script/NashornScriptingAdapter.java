@@ -23,8 +23,8 @@ import javax.script.ScriptException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import com.signomix.common.EventEnvelope;
 import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.MessageService;
@@ -181,7 +181,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
      * @param message
      */
     private void fireEvent(int source, Device device, String message) {
-        IotEvent ev = new IotEvent();
+        /*IotEvent ev = new IotEvent();
         ev.setOrigin(device.getUserID() + "\t" + device.getDeviceID());
         if (source == 1) {
             ev.setPayload("Decoder script (1): " + message);
@@ -189,8 +189,18 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             ev.setPayload("Data processor script (1): " + message);
         }
         ev.setType(IotEvent.GENERAL);
-        messageService.sendErrorInfo(ev);
-
+        messageService.sendErrorInfo(ev);*/
+        String payload;
+        if (source == 1) {
+            payload="Decoder script (1): " + message;
+        }else{
+            payload="Data processor script (1): " + message;
+        }
+        EventEnvelope wrapper=new EventEnvelope();
+        wrapper.type=EventEnvelope.ERROR;
+        wrapper.id=device.getEUI();
+        wrapper.payload=payload;
+        messageService.sendEvent(wrapper);
     }
 
 }
