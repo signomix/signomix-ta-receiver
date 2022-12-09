@@ -268,7 +268,7 @@ public class ReceiverResourceGeneric {
         try {
             Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.transform(originalResponse, devConfig);
+            result = formatter.transform(originalResponse, devConfig, service.getMessageService());
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());

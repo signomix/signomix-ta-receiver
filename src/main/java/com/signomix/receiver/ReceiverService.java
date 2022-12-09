@@ -79,6 +79,11 @@ public class ReceiverService {
     void processTtnData(IotData2 data) {
         processData(data);
     }
+
+    public MessageService getMessageService(){
+        return messageService;
+    }
+    
     /**
      * Sends data to dedicated microservice
      * @param inputList
