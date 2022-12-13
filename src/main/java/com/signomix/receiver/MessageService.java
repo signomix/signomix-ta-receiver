@@ -47,7 +47,7 @@ public class MessageService {
         eventsEmitter.send(event);
     }*/
     public void sendEvent(EventEnvelope wrapper) {
-        LOG.info("sending error to MQ");
+        LOG.info("sending event to MQ");
         String encodedMessage;
         ObjectMapper objectMapper = new ObjectMapper();
         try {
@@ -87,6 +87,21 @@ public class MessageService {
 
     public void sendCommand(IotEvent event) {
         LOG.info("sending command to MQ");
-
+        String[] origin = event.getOrigin().split("\t");
+        User user = new User();
+        user.uid = origin[0];
+        MessageEnvelope wrapper = new MessageEnvelope();
+        wrapper.type = event.getType();
+        wrapper.eui = origin[1];
+        wrapper.message = (String) event.getPayload();
+        wrapper.user = user;
+        String encodedMessage;
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            encodedMessage = objectMapper.writeValueAsString(event);
+            eventEmitter.send(encodedMessage.getBytes());
+        } catch (JsonProcessingException ex) {
+            LOG.error(ex.getMessage());
+        }
     }
 }

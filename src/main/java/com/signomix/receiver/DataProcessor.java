@@ -132,7 +132,6 @@ public class DataProcessor {
         ProcessorResult scriptResult = null;
         try {
             LOG.debug("listOfValues.size()==" + listOfValues.size());
-            LOG.info("listOfValues.size()==" + listOfValues.size());
             scriptResult = scriptingAdapter.processData1(
                     listOfValues,
                     device,
