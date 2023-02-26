@@ -70,7 +70,7 @@ sgx0.getMaximumOf = function (channelName, scope) {
 }
 sgx0.getNewMaximumOf = function (channelName, scope, newValue) {
     try {
-        return this.channelReader.getMaximalValue(channelName, scope).getValue();
+        return this.channelReader.getMaximalValue(channelName, scope, newValue).getValue();
     } catch (err) { return null }
 }
 sgx0.getSumOf = function (channelName, scope) {

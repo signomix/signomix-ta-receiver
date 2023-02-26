@@ -17,8 +17,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.Alert;
 import com.signomix.common.iot.ChannelData;
-import com.signomix.common.iot.DataQuery;
-import com.signomix.common.iot.DataQueryException;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
 
@@ -810,6 +808,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
     @Override
     public ChannelData getMinimalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
         ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(null!=newValue){
+            list.add(newValue);
+        }
         if(list.size()==0){
             ChannelData cd=new ChannelData();
             cd.setNullValue();
@@ -817,10 +818,12 @@ public class IotDatabaseDao implements IotDatabaseIface {
             cd.setTimestamp(System.currentTimeMillis());
             return cd;
         }
-        Double result=Double.valueOf(list.get(0));
+        double result=list.get(0).doubleValue();
+        double nextValue;
         for(int i=1; i<list.size(); i++){
-            if(result.compareTo(list.get(i))>0){
-                result=Double.valueOf(list.get(i));
+            nextValue=list.get(i).doubleValue();
+            if(result>nextValue){
+                result=nextValue;
             }
         }
         return new ChannelData(channel, result, System.currentTimeMillis());
@@ -829,6 +832,9 @@ public class IotDatabaseDao implements IotDatabaseIface {
     @Override
     public ChannelData getMaximalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
         ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(null!=newValue){
+            list.add(newValue);
+        }
         if(list.size()==0){
             ChannelData cd=new ChannelData();
             cd.setNullValue();
@@ -836,10 +842,12 @@ public class IotDatabaseDao implements IotDatabaseIface {
             cd.setTimestamp(System.currentTimeMillis());
             return cd;
         }
-        Double result=Double.valueOf(list.get(0));
+        double result=list.get(0).doubleValue();
+        double nextValue;
         for(int i=1; i<list.size(); i++){
-            if(result.compareTo(list.get(i))<0){
-                result=Double.valueOf(list.get(i));
+            nextValue=list.get(i).doubleValue();
+            if(result<nextValue){
+                result=nextValue;
             }
         }
         return new ChannelData(channel, result, System.currentTimeMillis());
