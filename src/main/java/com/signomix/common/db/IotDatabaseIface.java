@@ -36,4 +36,9 @@ public interface IotDatabaseIface {
     public void removeAlerts(String userID, long checkpoint) throws IotDatabaseException;
     public void removeOutdatedAlerts(long checkpoint) throws IotDatabaseException;
     public int getChannelIndex(String deviceEUI, String channel) throws IotDatabaseException;
+
+    public ChannelData getAverageValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException;
+    public ChannelData getMinimalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException;
+    public ChannelData getMaximalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException;
+    public ChannelData getSummaryValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException;
 }

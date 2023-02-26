@@ -76,11 +76,11 @@ public class ReceiverResourceGeneric {
     @Produces(MediaType.TEXT_PLAIN)
     public Response getAsForm(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
-        LOG.debug("form received");
+        LOG.info("form received");
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form);
+        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -158,7 +158,7 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
-        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form);
+        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
@@ -332,7 +332,7 @@ public class ReceiverResourceGeneric {
         return null;
     }
 
-    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form) {
+    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form, String authKey) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
         data.payload_fields = new ArrayList<>();
@@ -368,6 +368,7 @@ public class ReceiverResourceGeneric {
         data.normalize();
         data.setTimestampUTC();
         data.authRequired = authRequired;
+        data.authKey=authKey;
         return data;
     }
 

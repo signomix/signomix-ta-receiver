@@ -1,8 +1,9 @@
 package com.signomix.common.iot.ttn3;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -129,15 +130,15 @@ public class TtnData3 extends TtnData implements IotDataIface {
 
     @Override
     public void normalize() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz");
+        DateTimeFormatter sdf = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'");
         try {
-            timestamp = sdf.parse(timestampStr1).getTime();
-        } catch (ParseException ex) {
+            timestamp = LocalDateTime.parse(timestampStr1, sdf).toEpochSecond(ZoneOffset.UTC)*1000;
+        } catch (DateTimeParseException ex) {
             timestamp = System.currentTimeMillis();
         }
         try {
-            receivedUplinkTimestamp = sdf.parse(timestampStr2).getTime();
-        } catch (ParseException ex) {
+            receivedUplinkTimestamp = LocalDateTime.parse(timestampStr2, sdf).toEpochSecond(ZoneOffset.UTC)*1000;
+        } catch (DateTimeParseException ex) {
             receivedUplinkTimestamp = System.currentTimeMillis();
         }
         if (null != decodedPayload) {

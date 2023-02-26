@@ -4,17 +4,17 @@ var ProcessorResultHelper = Java.type("com.signomix.receiver.script.ProcessorRes
 var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
 
 //deprecated
-var result=new ProcessorResult()
-var dataReceived=[]
-var channelReader={}
+var result = new ProcessorResult()
+var dataReceived = []
+var channelReader = {}
 //
 
 var sgx0 = {}
-sgx0.dataReceived=[]
-sgx0.result=new ProcessorResult()
-sgx0.helper=new ProcessorResultHelper()
-sgx0.dataTimestamp=0
-sgx0.channelReader={}
+sgx0.dataReceived = []
+sgx0.result = new ProcessorResult()
+sgx0.helper = new ProcessorResultHelper()
+sgx0.dataTimestamp = 0
+sgx0.channelReader = {}
 
 sgx0.accept = function (name) {
     for (i = 0; i < this.dataReceived.length; i++) {
@@ -44,34 +44,50 @@ sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
 }
 sgx0.getAverageOf = function (channelName, scope) {
-    return this.channelReader.getAverageValue(channelName, scope).getValue();
+    try {
+        return this.channelReader.getAverageValue(channelName, scope).getValue();
+    } catch (err) { return null }
 }
 sgx0.getNewAverageOf = function (channelName, scope, newValue) {
-    return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+    try {
+        return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+    } catch (err) { return null }
 }
 sgx0.getMinimumOf = function (channelName, scope) {
-    return this.channelReader.getMinimalValue(channelName, scope).getValue();
+    try {
+        return this.channelReader.getMinimalValue(channelName, scope).getValue();
+    } catch (err) { return null }
 }
 sgx0.getNewMinimumOf = function (channelName, scope, newValue) {
-    return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
+    try {
+        return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
+    } catch (err) { return null }
 }
 sgx0.getMaximumOf = function (channelName, scope) {
-    return this.channelReader.getMaximalValue(channelName, scope).getValue();
+    try {
+        return this.channelReader.getMaximalValue(channelName, scope).getValue();
+    } catch (err) { return null }
 }
 sgx0.getNewMaximumOf = function (channelName, scope, newValue) {
-    return this.channelReader.getMaximalValue(channelName, scope).getValue();
+    try {
+        return this.channelReader.getMaximalValue(channelName, scope).getValue();
+    } catch (err) { return null }
 }
 sgx0.getSumOf = function (channelName, scope) {
-    return this.channelReader.getSummaryValue(channelName, scope).getValue();
+    try {
+        return this.channelReader.getSummaryValue(channelName, scope).getValue();
+    } catch (err) { return null }
 }
 sgx0.getNewSumOf = function (channelName, scope, newValue) {
-    return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+    try {
+        return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+    } catch (err) { return null }
 }
 sgx0.getLastValue = function (channelName) {
-    var tmpLastData=this.channelReader.getLastData(channelName);
-    if(tmpLastData!=null){
+    var tmpLastData = this.channelReader.getLastData(channelName);
+    if (tmpLastData != null) {
         return tmpLastData.value
-    }else{
+    } else {
         return null
     }
 }
@@ -85,14 +101,14 @@ sgx0.getOutput = function () {
     return this.result.getOutput();
 }
 sgx0.getTimestamp = function (channelName) {
-    var ts=0
+    var ts = 0
     for (i = 0; i < this.dataReceived.length; i++) {
         if (this.dataReceived[i].getName() == channelName) {
-            ts=this.dataReceived[i].getTimestamp()
+            ts = this.dataReceived[i].getTimestamp()
             break
         }
     }
-    if(ts==0) ts=Date.now()
+    if (ts == 0) ts = Date.now()
     return ts;
 }
 sgx0.getTimestampUTC = function (y, m, d, h, min, s) {
@@ -118,63 +134,63 @@ sgx0.put = function (name, newValue, timestamp) {
     this.result.putData(this.eui, name, newValue, timestamp);
 }
 
-sgx0.setState = function(newState){
+sgx0.setState = function (newState) {
     this.result.setDeviceState(newState);
 }
 
-sgx0.reverseHex=function(hexStr){
-    if (!(typeof hexStr === 'string' || hexStr instanceof String)){
+sgx0.reverseHex = function (hexStr) {
+    if (!(typeof hexStr === 'string' || hexStr instanceof String)) {
         return 0
     }
-    if(hexStr.length % 2 !== 0){
+    if (hexStr.length % 2 !== 0) {
         return 0
     }
-    var result=''
-    for(i=hexStr.length-2;i>=0;i=i-2){
-        result=result+hexStr.substring(i,i+2)
+    var result = ''
+    for (i = hexStr.length - 2; i >= 0; i = i - 2) {
+        result = result + hexStr.substring(i, i + 2)
     }
     return result
 }
 sgx0.swap32 = function (val) {
     return ((val & 0xFF) << 24)
-            | ((val & 0xFF00) << 8)
-            | ((val >> 8) & 0xFF00)
-            | ((val >> 24) & 0xFF);
+        | ((val & 0xFF00) << 8)
+        | ((val >> 8) & 0xFF00)
+        | ((val >> 24) & 0xFF);
 }
-sgx0.distance = function(latitude1, longitude1, latitude2, longitude2){
+sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
     return this.result.getDistance(latitude1, longitude1, latitude2, longitude2);
 }
 sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
 }
 
-var processData = function (eui, dataReceived, channelReader, userID, dataTimestamp, 
+var processData = function (eui, dataReceived, channelReader, userID, dataTimestamp,
     latitude, longitude, altitude, state, alert,
     devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
-    var channelData={};
+    var channelData = {};
 
-    var sgx=Object.create(sgx0)
-    sgx.eui=eui
-    sgx.latitude=latitude
-    if(sgx.latitude==null){sgx.latitude=devLatitude}
-    sgx.longitude=longitude
-    if(sgx.longitude==null){sgx.longitude=devLongitude}
-    sgx.altitude=altitude
-    if(sgx.altitude==null){sgx.altitude=devAltitude}
-    sgx.result=new ProcessorResult()
-    sgx.dataReceived=dataReceived
-    sgx.dataTimestamp=Number(dataTimestamp)
-    sgx.channelReader=channelReader
-    sgx.state=state
-    sgx.alert=alert
-    sgx.virtualCommand=newCommand
-    sgx.requestData=requestData
-    sgx.deviceConfig=devConfig
-    sgx.applicationConfig=appConfig
-    
+    var sgx = Object.create(sgx0)
+    sgx.eui = eui
+    sgx.latitude = latitude
+    if (sgx.latitude == null) { sgx.latitude = devLatitude }
+    sgx.longitude = longitude
+    if (sgx.longitude == null) { sgx.longitude = devLongitude }
+    sgx.altitude = altitude
+    if (sgx.altitude == null) { sgx.altitude = devAltitude }
+    sgx.result = new ProcessorResult()
+    sgx.dataReceived = dataReceived
+    sgx.dataTimestamp = Number(dataTimestamp)
+    sgx.channelReader = channelReader
+    sgx.state = state
+    sgx.alert = alert
+    sgx.virtualCommand = newCommand
+    sgx.requestData = requestData
+    sgx.deviceConfig = devConfig
+    sgx.applicationConfig = appConfig
+
     //put original values. 
     if (dataReceived.length > 0) {
         for (i = 0; i < dataReceived.length; i++) {
@@ -185,7 +201,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     }
     sgx.result.setDeviceState(state);
     //injectedCode
-    
+
     return sgx.result;
 }
 
@@ -193,14 +209,14 @@ var processRawData = function (eui, requestBody, channelReader, userID, dataTime
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
-    var channelData={};
+    var channelData = {};
 
-    var sgx=Object.create(sgx0)
-    sgx.eui=eui
-    sgx.result=new ProcessorResult()
-    sgx.dataReceived=[]
-    sgx.dataTimestamp=dataTimestamp
-    sgx.channelReader=channelReader
+    var sgx = Object.create(sgx0)
+    sgx.eui = eui
+    sgx.result = new ProcessorResult()
+    sgx.dataReceived = []
+    sgx.dataTimestamp = dataTimestamp
+    sgx.channelReader = channelReader
 
     //injectedCode
     return sgx.result;

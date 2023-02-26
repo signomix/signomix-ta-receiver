@@ -10,15 +10,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jboss.logging.Logger;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.Alert;
 import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.DataQuery;
+import com.signomix.common.iot.DataQueryException;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
-
-import org.jboss.logging.Logger;
 
 import io.agroal.api.AgroalDataSource;
 
@@ -141,7 +143,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
             pst.setDouble(31, device.getState());
             pst.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
         }
 
@@ -222,8 +224,177 @@ public class IotDatabaseDao implements IotDatabaseIface {
     @Override
     public List<List> getValues(String userID, String deviceID, String dataQuery)
             throws IotDatabaseException {
-        // TODO Auto-generated method stub
-        return null;
+
+                return null;
+
+                /* DataQuery dq;
+                try {
+                    dq = DataQuery.parse(dataQuery);
+                } catch (DataQueryException ex) {
+                    throw new IotDatabaseException(ex.getCode(), "DataQuery " + ex.getMessage(), null);
+                }
+                if (dq.isVirtual()) {
+                    return getVirtualDeviceMeasures(userID, deviceID, dq);
+                }
+                if (null != dq.getGroup()) {
+                    String channelName = dq.getChannelName();
+                    if (null == channelName) {
+                        channelName = "";
+                    }
+                    // return getValuesOfGroup(userID, dq.getGroup(), channelName.split(","),
+                    // defaultGroupInterval, dq);
+                    return new ArrayList<>();
+                }
+        
+                int limit = dq.getLimit();
+                if (dq.average > 0) {
+                    limit = dq.average;
+                }
+                if (dq.minimum > 0) {
+                    limit = dq.minimum;
+                }
+                if (dq.maximum > 0) {
+                    limit = dq.maximum;
+                }
+                if (dq.summary > 0) {
+                    limit = dq.summary;
+                }
+                List<List> result = new ArrayList<>();
+                if (dq.getNewValue() != null) {
+                    limit = limit - 1;
+                }
+        
+                if (null == dq.getChannelName() || "*".equals(dq.getChannelName())) {
+                    // TODO
+                    result.add(getValues(userID, deviceID, limit, dq));
+                    return result;
+                }
+                boolean singleChannel = !dq.getChannelName().contains(",");
+                if (singleChannel) {
+                    result.add(getChannelValues(userID, deviceID, dq.getChannelName(), limit, dq)); // project
+                } else {
+                    String[] channels = dq.getChannelName().split(",");
+                    List<ChannelData>[] temp = new ArrayList[channels.length];
+                    for (int i = 0; i < channels.length; i++) {
+                        temp[i] = getChannelValues(userID, deviceID, channels[i], limit, dq); // project
+                    }
+                    List<ChannelData> values;
+                    for (int i = 0; i < limit; i++) {
+                        values = new ArrayList<>();
+                        for (int j = 0; j < channels.length; j++) {
+                            if (temp[j].size() > i) {
+                                values.add(temp[j].get(i));
+                            }
+                        }
+                        if (values.size() > 0) {
+                            result.add(values);
+                        }
+                    }
+                }
+                if (!singleChannel) {
+                    return result;
+                }
+        
+                ChannelData data = new ChannelData(dq.getChannelName(), 0.0, System.currentTimeMillis());
+                data.setNullValue();
+                List<ChannelData> subResult = new ArrayList<>();
+                Double actualValue = null;
+                Double tmpValue;
+                int size = 0;
+                if (dq.average > 0) {
+                    if (result.size() > 0) {
+                        size = result.get(0).size();
+                        for (int i = 0; i < size; i++) {
+                            if (i == 0) {
+                                actualValue = ((ChannelData) result.get(0).get(i)).getValue();
+                            } else {
+                                actualValue = actualValue + ((ChannelData) result.get(0).get(i)).getValue();
+                            }
+                        }
+                    }
+                    if (dq.getNewValue() != null) {
+                        if (null != actualValue) {
+                            actualValue = actualValue + dq.getNewValue();
+                        } else {
+                            actualValue = dq.getNewValue();
+                        }
+                        data.setValue(actualValue / (size + 1));
+                    } else {
+                        if (size > 0) {
+                            data.setValue(actualValue / size);
+                        }
+                    }
+                    subResult.add(data);
+                    result.clear();
+                    result.add(subResult);
+                } else if (dq.maximum > 0) {
+                    actualValue = Double.MIN_VALUE;
+                    if (result.size() > 0) {
+                        size = result.get(0).size();
+                        for (int i = 0; i < size; i++) {
+                            tmpValue = ((ChannelData) result.get(0).get(i)).getValue();
+                            if (tmpValue.compareTo(actualValue) > 0) {
+                                actualValue = tmpValue;
+                            }
+                        }
+                    }
+                    if (dq.getNewValue() != null && dq.getNewValue() > actualValue) {
+                        actualValue = dq.getNewValue();
+                    }
+                    if (actualValue.compareTo(Double.MIN_VALUE) > 0) {
+                        data.setValue(actualValue);
+                    }
+                    subResult.add(data);
+                    result.clear();
+                    result.add(subResult);
+                } else if (dq.minimum > 0) {
+                    actualValue = Double.MAX_VALUE;
+                    if (result.size() > 0) {
+                        size = result.get(0).size();
+                        for (int i = 0; i < size; i++) {
+                            tmpValue = ((ChannelData) result.get(0).get(i)).getValue();
+                            if (tmpValue.compareTo(actualValue) < 0) {
+                                actualValue = tmpValue;
+                            }
+                        }
+                    }
+                    if (dq.getNewValue() != null && dq.getNewValue() < actualValue) {
+                        actualValue = dq.getNewValue();
+                    }
+                    if (actualValue.compareTo(Double.MAX_VALUE) < 0) {
+                        data.setValue(actualValue);
+                    }
+                    subResult.add(data);
+                    result.clear();
+                    result.add(subResult);
+                } else if (dq.summary > 0) {
+                    actualValue = null;
+                    if (result.size() > 0) {
+                        size = result.get(0).size();
+                        for (int i = 0; i < size; i++) {
+                            if (i == 0) {
+                                actualValue = ((ChannelData) result.get(0).get(i)).getValue();
+                            } else {
+                                actualValue = actualValue + ((ChannelData) result.get(0).get(i)).getValue();
+                            }
+                        }
+                    }
+                    if (dq.getNewValue() != null) {
+                        if (null == actualValue) {
+                            actualValue = actualValue + dq.getNewValue();
+                        } else {
+                            actualValue = dq.getNewValue();
+                        }
+                    }
+                    if (null != actualValue) {
+                        data.setValue(actualValue);
+                    }
+                    subResult.add(data);
+                    result.clear();
+                    result.add(subResult);
+                }
+        
+                return result; */
     }
 
     @Override
@@ -585,12 +756,115 @@ public class IotDatabaseDao implements IotDatabaseIface {
 
     private String buildDeviceQuery() {
         String query = "SELECT"
-                + " d.eui, d.name, d.userid, d.type, d.team, d.channels, d.code, d.decoder, d.key, d.description, d.lastseen, d.tinterval,"
+                + " d.eui, d.name, d.userid, d.type, d.team, d.channels, d.code, d.decoder, d.devicekey, d.description, d.lastseen, d.tinterval,"
                 + " d.lastframe, d.template, d.pattern, d.downlink, d.commandscript, d.appid, d.groups, d.alert,"
                 + " d.appeui, d.devid, d.active, d.project, d.latitude, d.longitude, d.altitude, d.state, d.retention,"
                 + " d.administrators, d.framecheck, d.configuration, d.organization, d.organizationapp, a.configuration FROM devices AS d"
                 + " LEFT JOIN applications AS a WHERE d.organizationapp=a.id";
         return query;
     }
+
+
+    private ArrayList<Double> getLastValues(String deviceEUI, String channel, int scope)  throws IotDatabaseException{
+        ArrayList<Double> result=new ArrayList<>();
+        int channelIndex = getChannelIndex(deviceEUI, channel);
+        if (channelIndex <= 0) {
+            return result;
+        }
+        String columnName = "d" + channelIndex;
+        String query = "select " + columnName + " from devicedata where eui=? order by tstamp desc limit ?";
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pst = conn.prepareStatement(query);) {
+            pst.setString(1, deviceEUI);
+            pst.setInt(2, scope);
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                result.add(rs.getDouble(1));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public ChannelData getAverageValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
+        ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(null!=newValue){
+            list.add(newValue);
+        }
+        if(list.size()==0){
+            ChannelData cd=new ChannelData();
+            cd.setNullValue();
+            cd.setName(channel);
+            cd.setTimestamp(System.currentTimeMillis());
+            return cd;
+        }
+        Double result=0.0;
+        for(int i=0; i<list.size(); i++){
+            result=Double.sum(result, list.get(i));
+        }
+        result=result/list.size();
+        return new ChannelData(channel, result, System.currentTimeMillis());
+    }
+
+    @Override
+    public ChannelData getMinimalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
+        ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(list.size()==0){
+            ChannelData cd=new ChannelData();
+            cd.setNullValue();
+            cd.setName(channel);
+            cd.setTimestamp(System.currentTimeMillis());
+            return cd;
+        }
+        Double result=Double.valueOf(list.get(0));
+        for(int i=1; i<list.size(); i++){
+            if(result.compareTo(list.get(i))>0){
+                result=Double.valueOf(list.get(i));
+            }
+        }
+        return new ChannelData(channel, result, System.currentTimeMillis());
+    }
+
+    @Override
+    public ChannelData getMaximalValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
+        ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(list.size()==0){
+            ChannelData cd=new ChannelData();
+            cd.setNullValue();
+            cd.setName(channel);
+            cd.setTimestamp(System.currentTimeMillis());
+            return cd;
+        }
+        Double result=Double.valueOf(list.get(0));
+        for(int i=1; i<list.size(); i++){
+            if(result.compareTo(list.get(i))<0){
+                result=Double.valueOf(list.get(i));
+            }
+        }
+        return new ChannelData(channel, result, System.currentTimeMillis());
+    }
+
+    @Override
+    public ChannelData getSummaryValue(String userID, String deviceID, String channel, int scope, Double newValue) throws IotDatabaseException {
+        ArrayList<Double> list=getLastValues(deviceID, channel, scope);
+        if(null!=newValue){
+            list.add(newValue);
+        }
+        if(list.size()==0){
+            ChannelData cd=new ChannelData();
+            cd.setNullValue();
+            cd.setName(channel);
+            cd.setTimestamp(System.currentTimeMillis());
+            return cd;
+        }
+        Double result=0.0;
+        for(int i=0; i<list.size(); i++){
+            result=Double.sum(result, list.get(i));
+        }
+        return new ChannelData(channel, result, System.currentTimeMillis());
+    }
+
+    
 
 }

@@ -60,7 +60,6 @@ public class ReceiverService {
     @ConfigProperty(name = "device.status.update.integrated")
     Boolean deviceStatusUpdateIntegrated;
 
-
     public void onApplicationStart(@Observes StartupEvent event) {
         dao = new IotDatabaseDao();
         dao.setDatasource(ds);
@@ -101,7 +100,7 @@ public class ReceiverService {
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         String result = "";
-        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL };
+        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPCSTACK };
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
@@ -438,11 +437,12 @@ public class ReceiverService {
                 secret = gateway.getKey();
             }
             try {
-                if (!data.getAuthKey().equals(secret)) {
-                    LOG.warn("Authorization key don't match for " + device.getEUI());
+                if (null==data.getAuthKey() || !data.getAuthKey().equals(secret)) {
+                    LOG.warn("Authorization key don't match for " + device.getEUI()+" :"+data.getAuthKey()+":"+secret);
                     return null;
                 }
             } catch (Exception ex) { // catch (UserException ex) {
+                ex.printStackTrace();
                 LOG.warn(ex.getMessage());
                 return null;
             }
