@@ -43,44 +43,50 @@ sgx0.addNotification = function (newType, newMessage) {
 sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
 }
-sgx0.getAverageOf = function (channelName, scope) {
+
+sgx0.getAverageOf = function (channelName, scope, newValue) {
+    if (isNaN(scope)) {
+        throw new Error('scope is not a number');
+    }
+    if (scope<1) {
+        throw new Error('scope must be greater than 0');
+    }
     try {
-        return this.channelReader.getAverageValue(channelName, scope).getValue();
+        if (newValue == undefined) {
+            return this.channelReader.getAverageValue(channelName, scope).getValue();
+        } else {
+            if (isNaN(newValue)) {
+                throw new Error('newValue is not a number');
+            }
+            return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+        }
     } catch (err) { return null }
 }
-sgx0.getNewAverageOf = function (channelName, scope, newValue) {
+sgx0.getMinimumOf = function (channelName, scope, newValue) {
     try {
-        return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+        if (newValue == undefined) {
+            return this.channelReader.getMinimalValue(channelName, scope).getValue();
+        } else {
+            return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
+        }
     } catch (err) { return null }
 }
-sgx0.getMinimumOf = function (channelName, scope) {
+sgx0.getMaximumOf = function (channelName, scope, newValue) {
     try {
-        return this.channelReader.getMinimalValue(channelName, scope).getValue();
+        if (newValue == undefined) {
+            return this.channelReader.getMaximalValue(channelName, scope).getValue();
+        } else {
+            return this.channelReader.getMaximalValue(channelName, scope, newValue).getValue();
+        }
     } catch (err) { return null }
 }
-sgx0.getNewMinimumOf = function (channelName, scope, newValue) {
+sgx0.getSumOf = function (channelName, scope, newValue) {
     try {
-        return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
-    } catch (err) { return null }
-}
-sgx0.getMaximumOf = function (channelName, scope) {
-    try {
-        return this.channelReader.getMaximalValue(channelName, scope).getValue();
-    } catch (err) { return null }
-}
-sgx0.getNewMaximumOf = function (channelName, scope, newValue) {
-    try {
-        return this.channelReader.getMaximalValue(channelName, scope, newValue).getValue();
-    } catch (err) { return null }
-}
-sgx0.getSumOf = function (channelName, scope) {
-    try {
-        return this.channelReader.getSummaryValue(channelName, scope).getValue();
-    } catch (err) { return null }
-}
-sgx0.getNewSumOf = function (channelName, scope, newValue) {
-    try {
-        return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+        if (newValue == undefined) {
+            return this.channelReader.getSummaryValue(channelName, scope).getValue();
+        } else {
+            return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+        }
     } catch (err) { return null }
 }
 sgx0.getLastValue = function (channelName) {
