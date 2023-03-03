@@ -245,11 +245,17 @@ public class ProcessorResult {
     public Double getDeviceState() {
         return deviceState;
     }
+    public Double getDeviceStatus() {
+        return deviceState;
+    }
 
     /**
      * @param deviceState the deviceState to set
      */
     public void setDeviceState(Double deviceState) {
         this.deviceState = deviceState;
+    }
+    public void setDeviceStatus(Double deviceStatus) {
+        this.deviceState = deviceStatus;
     }
 }

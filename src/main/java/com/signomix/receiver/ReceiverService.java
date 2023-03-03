@@ -79,6 +79,11 @@ public class ReceiverService {
         processData(data);
     }
 
+    @ConsumeEvent(value = "chirpstackdata-no-response")
+    void processChirpstackData(IotData2 data) {
+        processData(data);
+    }
+
     public MessageService getMessageService(){
         return messageService;
     }
@@ -100,7 +105,7 @@ public class ReceiverService {
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         String result = "";
-        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPCSTACK };
+        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK, DeviceType.LORA };
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);

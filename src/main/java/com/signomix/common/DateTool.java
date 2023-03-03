@@ -9,6 +9,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 public class DateTool {
+
+    public static String CHIRPSTACK_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX";
+
     public static Timestamp parseTimestamp(String input, String secondaryInput, boolean useSystemTimeOnError) {
         String timeString = input.replace('~', '+');
         Timestamp ts = null;
@@ -52,6 +55,10 @@ public class DateTool {
                 return getTimestamp(timeString, "yyyy-MM-dd'T'HHmmss.SSSX");
             } catch (Exception e2) {
             }
+            try {
+                return getTimestamp(timeString, CHIRPSTACK_TIME_FORMAT);
+            } catch (Exception e2) {
+            } 
             try {
                 ts = Timestamp.from(Instant.parse(secondaryInput));
                 return ts;

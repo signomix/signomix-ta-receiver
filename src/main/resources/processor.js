@@ -44,50 +44,69 @@ sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
 }
 
-sgx0.getAverageOf = function (channelName, scope, newValue) {
+sgx0.getAverage = function (channelName, scope, newValue) {
     if (isNaN(scope)) {
         throw new Error('scope is not a number');
     }
-    if (scope<1) {
+    if (scope < 1) {
         throw new Error('scope must be greater than 0');
     }
-    try {
-        if (newValue == undefined) {
-            return this.channelReader.getAverageValue(channelName, scope).getValue();
-        } else {
-            if (isNaN(newValue)) {
-                throw new Error('newValue is not a number');
-            }
-            return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+    if (newValue == undefined) {
+        return this.channelReader.getAverageValue(channelName, scope).getValue();
+    } else {
+        if (isNaN(newValue)) {
+            throw new Error('newValue is not a number');
         }
-    } catch (err) { return null }
+        return this.channelReader.getAverageValue(channelName, scope, newValue).getValue();
+    }
 }
-sgx0.getMinimumOf = function (channelName, scope, newValue) {
-    try {
-        if (newValue == undefined) {
-            return this.channelReader.getMinimalValue(channelName, scope).getValue();
-        } else {
-            return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
+sgx0.getMinimum = function (channelName, scope, newValue) {
+    if (isNaN(scope)) {
+        throw new Error('scope is not a number');
+    }
+    if (scope < 1) {
+        throw new Error('scope must be greater than 0');
+    }
+    if (newValue == undefined) {
+        return this.channelReader.getMinimalValue(channelName, scope).getValue();
+    } else {
+        if (isNaN(newValue)) {
+            throw new Error('newValue is not a number');
         }
-    } catch (err) { return null }
+        return this.channelReader.getMinimalValue(channelName, scope, newValue).getValue();
+    }
 }
-sgx0.getMaximumOf = function (channelName, scope, newValue) {
-    try {
-        if (newValue == undefined) {
-            return this.channelReader.getMaximalValue(channelName, scope).getValue();
-        } else {
-            return this.channelReader.getMaximalValue(channelName, scope, newValue).getValue();
+sgx0.getMaximum = function (channelName, scope, newValue) {
+    if (isNaN(scope)) {
+        throw new Error('scope is not a number');
+    }
+    if (scope < 1) {
+        throw new Error('scope must be greater than 0');
+    }
+    if (newValue == undefined) {
+        return this.channelReader.getMaximalValue(channelName, scope).getValue();
+    } else {
+        if (isNaN(newValue)) {
+            throw new Error('newValue is not a number');
         }
-    } catch (err) { return null }
+        return this.channelReader.getMaximalValue(channelName, scope, newValue).getValue();
+    }
 }
-sgx0.getSumOf = function (channelName, scope, newValue) {
-    try {
-        if (newValue == undefined) {
-            return this.channelReader.getSummaryValue(channelName, scope).getValue();
-        } else {
-            return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+sgx0.getSum = function (channelName, scope, newValue) {
+    if (isNaN(scope)) {
+        throw new Error('scope is not a number');
+    }
+    if (scope < 1) {
+        throw new Error('scope must be greater than 0');
+    }
+    if (newValue == undefined) {
+        return this.channelReader.getSummaryValue(channelName, scope).getValue();
+    } else {
+        if (isNaN(newValue)) {
+            throw new Error('newValue is not a number');
         }
-    } catch (err) { return null }
+        return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+    }
 }
 sgx0.getLastValue = function (channelName) {
     var tmpLastData = this.channelReader.getLastData(channelName);
@@ -141,7 +160,10 @@ sgx0.put = function (name, newValue, timestamp) {
 }
 
 sgx0.setState = function (newState) {
-    this.result.setDeviceState(newState);
+    this.result.setDeviceStatus(newState);
+}
+sgx0.setStatus = function (newStatus) {
+    this.result.setDeviceStatus(newStatus);
 }
 
 sgx0.reverseHex = function (hexStr) {
@@ -171,7 +193,7 @@ sgx0.xaddList = function (timestamp) {
 }
 
 var processData = function (eui, dataReceived, channelReader, userID, dataTimestamp,
-    latitude, longitude, altitude, state, alert,
+    latitude, longitude, altitude, status, alert,
     devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
@@ -190,7 +212,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     sgx.dataReceived = dataReceived
     sgx.dataTimestamp = Number(dataTimestamp)
     sgx.channelReader = channelReader
-    sgx.state = state
+    sgx.status = status
     sgx.alert = alert
     sgx.virtualCommand = newCommand
     sgx.requestData = requestData
@@ -205,7 +227,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
             sgx.result.log(channelData.toString());
         }
     }
-    sgx.result.setDeviceState(state);
+    sgx.result.setDeviceStatus(status);
     //injectedCode
 
     return sgx.result;

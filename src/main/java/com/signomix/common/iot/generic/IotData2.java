@@ -127,7 +127,11 @@ public class IotData2 implements IotDataIface {
                 try{
                     tempMap.put("value", ((Long) payload_fields.get(i).get("value")).doubleValue());
                 }catch(ClassCastException e1){
-                    tempMap.put("value", (String) payload_fields.get(i).get("value"));
+                    try{
+                        tempMap.put("value", ((Integer) payload_fields.get(i).get("value")).doubleValue());
+                    }catch(ClassCastException e2){
+                        tempMap.put("value", (String) payload_fields.get(i).get("value"));
+                    }
                 }
             }
             payload_fields.set(i, tempMap);

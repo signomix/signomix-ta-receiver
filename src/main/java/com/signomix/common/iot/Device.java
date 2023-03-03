@@ -23,7 +23,7 @@ public class Device {
     public static String TTN = "TTN";
     public static String GATEWAY = "GATEWAY";
     public static String VIRTUAL = "VIRTUAL";
-    public static String LORA = "LORA";
+    public static String CHIRPSTACK = "CHIRPSTACK";
     public static String KPN = "KPN";
     public static String EXTERNAL = "EXTERNAL";
 
