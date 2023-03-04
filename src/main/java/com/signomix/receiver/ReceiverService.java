@@ -65,12 +65,12 @@ public class ReceiverService {
         dao.setDatasource(ds);
     }
 
-    String processDataAndReturnResponse(IotData2 data) {
+    public String processDataAndReturnResponse(IotData2 data) {
         return processData(data);
     }
 
     @ConsumeEvent(value = "iotdata-no-response")
-    void processDataNoResponse(IotData2 data) {
+    public void processDataNoResponse(IotData2 data) {
         processData(data);
     }
 

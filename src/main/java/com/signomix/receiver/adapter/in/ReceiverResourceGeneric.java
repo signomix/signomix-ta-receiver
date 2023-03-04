@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.receiver.adapter.in;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -29,6 +29,8 @@ import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
+import com.signomix.receiver.IotDataMessageCodec;
+import com.signomix.receiver.ReceiverService;
 
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
