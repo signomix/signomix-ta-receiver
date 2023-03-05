@@ -126,7 +126,7 @@ sgx0.getOutput = function () {
     return this.result.getOutput();
 }
 sgx0.getTimestamp = function (channelName) {
-    var ts = 0
+    /* var ts = 0
     for (i = 0; i < this.dataReceived.length; i++) {
         if (this.dataReceived[i].getName() == channelName) {
             ts = this.dataReceived[i].getTimestamp()
@@ -134,7 +134,8 @@ sgx0.getTimestamp = function (channelName) {
         }
     }
     if (ts == 0) ts = Date.now()
-    return ts;
+    return ts; */
+    return this.dataTimestamp
 }
 sgx0.getTimestampUTC = function (y, m, d, h, min, s) {
     return Date.UTC(y, m - 1, d, h, min, s);
