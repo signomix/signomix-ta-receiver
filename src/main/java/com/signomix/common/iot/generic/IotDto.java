@@ -16,7 +16,6 @@ public class IotDto {
     public String dev_eui;
     public String gateway_eui;
     public ArrayList<Map> payload_fields;
-    public boolean authRequired = false;
     public long timestamp;
     public String clientname;
 

@@ -67,7 +67,7 @@ public class ChirpstackRestAdapter {
      */
 
     @POST
-    @Path("/receiver/chirpstack/up")
+    @Path("/receiver/chirpstack")
     @Transactional
     @Produces(MediaType.TEXT_PLAIN)
     public Response handle(@HeaderParam("Authorization") String authKey, String event,

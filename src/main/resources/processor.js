@@ -157,7 +157,11 @@ sgx0.getStringValue = function (channelName) {
     return null;
 }
 sgx0.put = function (name, newValue, timestamp) {
-    this.result.putData(this.eui, name, newValue, timestamp);
+    if(timestamp==undefined){
+        this.result.putData(this.eui, name, newValue, this.dataTimestamp);
+    }else{
+        this.result.putData(this.eui, name, newValue, timestamp);
+    }
 }
 
 sgx0.setState = function (newState) {
@@ -193,7 +197,7 @@ sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
 }
 
-var processData = function (eui, dataReceived, channelReader, userID, dataTimestamp,
+var processData = function (eui, dataReceived, channelReader, userID, receivedDataTimestamp,
     latitude, longitude, altitude, status, alert,
     devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
@@ -211,7 +215,7 @@ var processData = function (eui, dataReceived, channelReader, userID, dataTimest
     if (sgx.altitude == null) { sgx.altitude = devAltitude }
     sgx.result = new ProcessorResult()
     sgx.dataReceived = dataReceived
-    sgx.dataTimestamp = Number(dataTimestamp)
+    sgx.dataTimestamp = Number(receivedDataTimestamp)
     sgx.channelReader = channelReader
     sgx.status = status
     sgx.alert = alert
