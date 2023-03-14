@@ -32,6 +32,7 @@ import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
 
@@ -371,6 +372,7 @@ public class ReceiverService {
         return values;
     }
 
+    @CacheResult(cacheName = "device-cache")
     public Device getDevice(String eui) {
         Device device = null;
         // Device gateway = null;
@@ -420,21 +422,14 @@ public class ReceiverService {
         }
     }
 
-
-    private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
-        Device device = null;
+    public Device getDeviceChecked(String eui, String authKey, boolean authRequired, DeviceType[] expectedTypes) {
         Device gateway = null;
-        try {
-            device = dao.getDevice(data.getDeviceEUI());
-            // gateway = getDevice(data.getGatewayEUI());
-        } catch (IotDatabaseException e) {
-            LOG.error(e.getMessage());
-        }
+        Device device = getDevice(eui);
         if (null == device) {
-            LOG.warn("Device " + data.getDeviceEUI() + " is not registered");
+            LOG.warn("Device " + eui + " is not registered");
             return null;
         }
-        if (data.authRequired) {
+        if (authRequired) {
             String secret;
             if (gateway == null) {
                 secret = device.getKey();
@@ -442,8 +437,8 @@ public class ReceiverService {
                 secret = gateway.getKey();
             }
             try {
-                if (null==data.getAuthKey() || !data.getAuthKey().equals(secret)) {
-                    LOG.warn("Authorization key don't match for " + device.getEUI()+" :"+data.getAuthKey()+":"+secret);
+                if (null==authKey || !authKey.equals(secret)) {
+                    LOG.warn("Authorization key don't match for " + device.getEUI()+" :"+authKey+":"+secret);
                     return null;
                 }
             } catch (Exception ex) { // catch (UserException ex) {
@@ -461,7 +456,7 @@ public class ReceiverService {
             }
         }
         if (!deviceFound) {
-            LOG.warn("Device " + data.getDeviceEUI() + " type is not valid");
+            LOG.warn("Device " + eui + " type is not valid");
             return null;
         }
         if (!device.isActive()) {
@@ -469,6 +464,9 @@ public class ReceiverService {
             return null;
         }
         return device;
+    }
+    private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
+        return getDeviceChecked(data.getDeviceEUI(), data.getAuthKey(), data.authRequired, expectedTypes);
     }
 
     private String getFirstParserErrorValue(IotData2 data){

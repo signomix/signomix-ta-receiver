@@ -54,9 +54,9 @@ public class ReceiverResourceGeneric {
     Boolean euiHeaderFirst;
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        try{
+        try {
             bus.registerCodec(new IotDataMessageCodec());
-        }catch(Exception e){
+        } catch (Exception e) {
         }
     }
 
@@ -82,6 +82,18 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
+        // When eui in request header
+        // Then device can be checked
+        if (euiHeaderFirst) {
+            Device device = service.getDevice(inHeaderEui);
+            if (null == device) {
+                LOG.warn("unknown device " + inHeaderEui);
+                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            }
+            if (!device.isActive()) {
+                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            }
+        }
         IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
@@ -106,10 +118,14 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header found").build();
         }
+        // In this case device EUI mus be in request header
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
             return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+        }
+        if (!device.isActive()) {
+            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
         }
         IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
@@ -130,21 +146,27 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
+        // In this case device EUI mus be in request header
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
+        if (!device.isActive()) {
+            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
         }
         IotData2 iotData = parseTextData(device, authorizationRequired, input);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
         } else {
             String standardResult = service.processDataAndReturnResponse(iotData);
-            LOG.debug("STANDARD RESULT:"+standardResult);
+            LOG.debug("STANDARD RESULT:" + standardResult);
             String result = runDedicatedResponder(device, standardResult);
-            Map<String,String> headers=getDedicatedResponderHeaders(device, standardResult);
+            Map<String, String> headers = getDedicatedResponderHeaders(device, standardResult);
             ResponseBuilder rb = Response.ok(result);
-            headers.keySet().forEach(key->{rb.header(key, headers.get(key));});
+            headers.keySet().forEach(key -> {
+                rb.header(key, headers.get(key));
+            });
             return rb.build();
         }
     }
@@ -159,6 +181,18 @@ public class ReceiverResourceGeneric {
         String result;
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        // When eui in request header
+        // Then device can be checked
+        if (euiHeaderFirst) {
+            Device device = service.getDevice(inHeaderEui);
+            if (null == device) {
+                LOG.warn("unknown device " + inHeaderEui);
+                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            }
+            if (!device.isActive()) {
+                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            }
         }
         IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
         if (null == iotData) {
@@ -184,6 +218,18 @@ public class ReceiverResourceGeneric {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
+        // When eui in request header
+        // Then device can be checked
+        if (euiHeaderFirst) {
+            Device device = service.getDevice(inHeaderEui);
+            if (null == device) {
+                LOG.warn("unknown device " + inHeaderEui);
+                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            }
+            if (!device.isActive()) {
+                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            }
+        }
         IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
         if (null == iotData) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
@@ -202,6 +248,18 @@ public class ReceiverResourceGeneric {
         LOG.debug("input: " + dataObject.toString());
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        // When eui in request header
+        // Then device can be checked
+        if (euiHeaderFirst) {
+            Device device = service.getDevice(inHeaderEui);
+            if (null == device) {
+                LOG.warn("unknown device " + inHeaderEui);
+                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            }
+            if (!device.isActive()) {
+                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            }
         }
         IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
         if (null == iotData) {
@@ -224,9 +282,9 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        HashMap<String, Object> devConfig = device.getConfigurationMap(); //device.getApplicationConfig();
-        String className=(String)devConfig.get("parser");
-        if(null==className||className.isEmpty()){
+        HashMap<String, Object> devConfig = device.getConfigurationMap(); // device.getApplicationConfig();
+        String className = (String) devConfig.get("parser");
+        if (null == className || className.isEmpty()) {
             return null;
         }
         // to expose the device EUI to a parser
@@ -246,7 +304,7 @@ public class ReceiverResourceGeneric {
             }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
-                    e.printStackTrace();
+            e.printStackTrace();
             LOG.error(e.getMessage());
             return null;
         }
@@ -258,13 +316,13 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        LOG.debug("Command to send: "+originalResponse);
+        LOG.debug("Command to send: " + originalResponse);
         HashMap<String, Object> devConfig = device.getConfigurationMap();
-        devConfig.put("dev_eui",device.getEUI());
+        devConfig.put("dev_eui", device.getEUI());
         ResponseTransformerIface formatter;
         String result = originalResponse;
-        String className=(String)devConfig.get("formatter");
-        if(null==className||className.isEmpty()){
+        String className = (String) devConfig.get("formatter");
+        if (null == className || className.isEmpty()) {
             return result;
         }
         try {
@@ -275,26 +333,26 @@ public class ReceiverResourceGeneric {
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
         }
-        LOG.debug("response to transform:"+originalResponse+" size:"+originalResponse.length());
-        LOG.debug("response transformed:"+result);
+        LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
+        LOG.debug("response transformed:" + result);
         return result;
     }
 
-    private Map<String,String> getDedicatedResponderHeaders(Device device, String response) {
+    private Map<String, String> getDedicatedResponderHeaders(Device device, String response) {
         if (null == device) {
             return null;
         }
         HashMap<String, Object> devConfig = device.getConfigurationMap();
         ResponseTransformerIface formatter;
         Map result = new HashMap<>();
-        String className=(String)devConfig.get("formatter");
-        if(null==className||className.isEmpty()){
+        String className = (String) devConfig.get("formatter");
+        if (null == className || className.isEmpty()) {
             return result;
         }
         try {
             Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.getHeaders(devConfig,device.getConfiguration(), response);
+            result = formatter.getHeaders(devConfig, device.getConfiguration(), response);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
@@ -334,7 +392,8 @@ public class ReceiverResourceGeneric {
         return null;
     }
 
-    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form, String authKey) {
+    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form,
+            String authKey) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
         data.payload_fields = new ArrayList<>();
@@ -370,7 +429,7 @@ public class ReceiverResourceGeneric {
         data.normalize();
         data.setTimestampUTC();
         data.authRequired = authRequired;
-        data.authKey=authKey;
+        data.authKey = authKey;
         return data;
     }
 
@@ -405,6 +464,22 @@ public class ReceiverResourceGeneric {
                 .append("OK")
                 .append("</button></body></html>");
         return sb.toString();
+    }
+
+    private Response isDeviceActive(String eui, String inHeaderEui){
+        // When eui in request header
+        // Then device can be checked
+        if (euiHeaderFirst) {
+            Device device = service.getDevice(inHeaderEui);
+            if (null == device) {
+                LOG.warn("unknown device " + inHeaderEui);
+                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            }
+            if (!device.isActive()) {
+                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            }
+        }
+        return Response.ok().build();
     }
 
 }
