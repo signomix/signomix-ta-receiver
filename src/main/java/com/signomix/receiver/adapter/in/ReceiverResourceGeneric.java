@@ -50,7 +50,7 @@ public class ReceiverResourceGeneric {
     @ConfigProperty(name = "device.authorization.required")
     Boolean authorizationRequired;
 
-    @ConfigProperty(name = "device.eui.header.first")
+    @ConfigProperty(name = "device.eui.header.required")
     Boolean euiHeaderFirst;
 
     public void onApplicationStart(@Observes StartupEvent event) {

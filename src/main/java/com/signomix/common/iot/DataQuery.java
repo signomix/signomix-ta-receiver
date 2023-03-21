@@ -10,12 +10,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.signomix.common.DateTool;
+import org.jboss.logging.Logger;
 
 /**
  *
  * @author greg
  */
 public class DataQuery {
+    private static final Logger LOG = Logger.getLogger(DataQuery.class);
 
     private int limit;
     public int average;
@@ -41,6 +43,17 @@ public class DataQuery {
         return toTs;
     }
 
+    /**
+     * Calculates ending timestamp 1 millisecond earlier.
+     * @return toTs decreased by 1 millisecond
+     *
+     */
+    public Timestamp getToTsExclusive() {
+        Timestamp sooner = new Timestamp(toTs.getTime() - 1);
+        sooner.setNanos(toTs.getNanos());
+        return sooner;
+    }
+
     public DataQuery() {
         limit = 0;
         average = 0;
@@ -52,8 +65,10 @@ public class DataQuery {
         newValue = null;
         group = null;
         state = null;
-        fromTs = new Timestamp(0);
-        toTs = new Timestamp(System.currentTimeMillis());
+        // fromTs = new Timestamp(0);
+        // toTs = new Timestamp(System.currentTimeMillis());
+        fromTs = null;
+        toTs = null;
         virtual = false;
         dateParamPresent = false;
     }
@@ -62,7 +77,7 @@ public class DataQuery {
         // TODO: in case of number format exception - log SEVERE event
         // TODO: parsing exception
         // TODO: 'to' or 'from' parameter removes 'last' (setLimit(0))
-        System.out.println(query);
+        LOG.debug(query);
         DataQuery dq = new DataQuery();
         String q = query.trim();
         if (q.equalsIgnoreCase("last")) {
@@ -349,11 +364,11 @@ public class DataQuery {
     public void setFromTs(String fromStr) {
         try {
             fromTs = DateTool.parseTimestamp(fromStr, null, false);
-            if(null!=fromTs){
+            if (null != fromTs) {
                 dateParamPresent = true;
             }
         } catch (Exception ex) {
-            
+
         }
     }
 
@@ -365,7 +380,7 @@ public class DataQuery {
     public void setToTs(String toStr) {
         try {
             toTs = DateTool.parseTimestamp(toStr, null, true);
-            if(null!=toTs){
+            if (null != toTs) {
                 dateParamPresent = true;
             }
         } catch (Exception ex) {

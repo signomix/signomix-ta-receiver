@@ -21,6 +21,7 @@ import com.signomix.common.iot.Device;
 import com.signomix.common.iot.virtual.VirtualData;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.cache.CacheResult;
 
 public class IotDatabaseDao implements IotDatabaseIface {
     private static final Logger LOG = Logger.getLogger(IotDatabaseDao.class);
@@ -38,12 +39,14 @@ public class IotDatabaseDao implements IotDatabaseIface {
     @Override
     public void updateDeviceStatus(String eui, Double newStatus, long timestamp, long lastFrame, String downlink,
             String deviceId) throws IotDatabaseException {
+                LOG.info("Updating device status. Timestamp="+timestamp);
         Device device = getDevice(eui);
         if (device == null) {
+            LOG.warn("Device "+eui+" not found");
             throw new IotDatabaseException(IotDatabaseException.NOT_FOUND, "device not found", null);
         }
         device.setState(newStatus);
-        Device previous = getDevice(device.getEUI());
+        //Device previous = getDevice(device.getEUI());
         String query;
         if (null != newStatus) {
             query = "update devices set lastseen=?,lastframe=?,downlink=?,devid=?,state=? where eui=?";
@@ -70,6 +73,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
             e.printStackTrace();
             throw new IotDatabaseException(IotDatabaseException.SQL_EXCEPTION, e.getMessage(), e);
         } catch (Exception e) {
+            e.printStackTrace();
             throw new IotDatabaseException(IotDatabaseException.UNKNOWN, e.getMessage(), null);
         }
     }
@@ -175,6 +179,7 @@ public class IotDatabaseDao implements IotDatabaseIface {
         }
     }
 
+    @CacheResult(cacheName = "device-cache")
     @Override
     public Device getDevice(String deviceEUI) throws IotDatabaseException {
         String query = buildDeviceQuery() + " AND ( upper(d.eui) = upper(?))";

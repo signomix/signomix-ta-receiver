@@ -33,6 +33,7 @@ import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.cache.CacheResult;
+import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
 
@@ -116,6 +117,7 @@ public class ReceiverService {
         if(null!=parserError && !parserError.isEmpty()){
             return "ERROR: "+parserError;
         }
+        data.setTimestampUTC();
         data.prepareIotValues();
         ArrayList<ChannelData> inputList = decodePayload(data, device);
         for (int i = 0; i < inputList.size(); i++) {
@@ -142,13 +144,18 @@ public class ReceiverService {
             }
             // device status
             if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
+                LOG.info("updateDeviceStatus");
                 updateDeviceStatus(device.getEUI(), scriptResult.getDeviceState());
             } else if (device.isActive()) {
+                Log.info("updateHealthStatus");
                 updateHealthStatus(device.getEUI());
+            }else{
+                LOG.info("device: active "+device.isActive()+" status "+device.getState()+" script device status "+scriptResult.getDeviceState());
             }
             statusUpdated = true;
         } catch (Exception e) {
             e.printStackTrace();
+            LOG.error(e.getMessage());
             // TODO: notification
         }
         if (!statusUpdated) {
@@ -323,26 +330,32 @@ public class ReceiverService {
     private void updateDeviceStatus(String eui, Double newStatus) {
         if(!deviceStatusUpdateIntegrated){
             //TEST
+            LOG.info("Device status update skipped.");
             return;
         }
         try {
             dao.updateDeviceStatus(eui, newStatus, System.currentTimeMillis(), -1, "", "");
+            LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+            LOG.error(e.getMessage());
         }
     }
 
     private void updateHealthStatus(String eui) {
         if(!deviceStatusUpdateIntegrated){
             //TEST
+            LOG.info("Device health status update skipped.");
             return;
         }
         try {
             dao.updateDeviceStatus(eui, null, System.currentTimeMillis(), -1, "", "");
+            LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+            LOG.error(e.getMessage());
         }
     }
 
@@ -372,8 +385,8 @@ public class ReceiverService {
         return values;
     }
 
-    @CacheResult(cacheName = "device-cache")
     public Device getDevice(String eui) {
+        LOG.debug("getDevice");
         Device device = null;
         // Device gateway = null;
         try {

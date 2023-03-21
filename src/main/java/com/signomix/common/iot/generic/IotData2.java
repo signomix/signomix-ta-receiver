@@ -65,6 +65,9 @@ public class IotData2 implements IotDataIface {
 
     @Override
     public long getTimestamp() {
+        if(null == timestampUTC){
+            return System.currentTimeMillis();
+        }
         return timestampUTC.getTime();
     }
 
@@ -124,12 +127,12 @@ public class IotData2 implements IotDataIface {
             try {
                 tempMap.put("value", (Double) payload_fields.get(i).get("value"));
             } catch (ClassCastException e) {
-                try{
+                try {
                     tempMap.put("value", ((Long) payload_fields.get(i).get("value")).doubleValue());
-                }catch(ClassCastException e1){
-                    try{
+                } catch (ClassCastException e1) {
+                    try {
                         tempMap.put("value", ((Integer) payload_fields.get(i).get("value")).doubleValue());
-                    }catch(ClassCastException e2){
+                    } catch (ClassCastException e2) {
                         tempMap.put("value", (String) payload_fields.get(i).get("value"));
                     }
                 }
@@ -208,7 +211,11 @@ public class IotData2 implements IotDataIface {
             if (this.getTimeField() != null) {
                 mval.setTimestamp(this.getTimeField().toEpochMilli());
             } else {
-                mval.setTimestamp(this.getTimestamp());
+                try {
+                    mval.setTimestamp(this.getTimestamp());
+                } catch (Exception e) {
+                    mval.setTimestamp(System.currentTimeMillis());
+                }
             }
             if (mval.getTimestamp() == 0) {
                 mval.setTimestamp(System.currentTimeMillis());
