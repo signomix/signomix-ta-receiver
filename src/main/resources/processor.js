@@ -15,6 +15,23 @@ sgx0.result = new ProcessorResult()
 sgx0.helper = new ProcessorResultHelper()
 sgx0.dataTimestamp = 0
 sgx0.channelReader = {}
+sgx0.malformed = ''
+
+sgx0.verify = function (received, receivedStatus) {
+    this.dataReceived = []
+    var tmpChannelData
+    for (var i = 0; i < received.length; i++) {
+        if (!(received[i] == null)) {
+            tmpChannelData = new ChannelData(this.eui, received[i].name, received[i].value, received[i].timestamp);
+            this.dataReceived.push(tmpChannelData)
+            this.result.putData(tmpChannelData);
+            this.result.log(tmpChannelData.toString());
+        } else {
+            malformed = received
+        }
+    }
+    this.state = receivedStatus
+}
 
 sgx0.accept = function (name) {
     for (i = 0; i < this.dataReceived.length; i++) {
@@ -157,9 +174,9 @@ sgx0.getStringValue = function (channelName) {
     return null;
 }
 sgx0.put = function (name, newValue, timestamp) {
-    if(timestamp==undefined){
+    if (timestamp == undefined) {
         this.result.putData(this.eui, name, newValue, this.dataTimestamp);
-    }else{
+    } else {
         this.result.putData(this.eui, name, newValue, timestamp);
     }
 }
@@ -223,18 +240,21 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     sgx.requestData = requestData
     sgx.deviceConfig = devConfig
     sgx.applicationConfig = appConfig
-
-    //put original values. 
-    if (dataReceived.length > 0) {
-        for (i = 0; i < dataReceived.length; i++) {
-            channelData = dataReceived[i];
-            sgx.result.putData(channelData);
-            sgx.result.log(channelData.toString());
-        }
-    }
+    sgx.verify(dataReceived, status)
+    //put original values. (todo: replace with verify)
+    //if (dataReceived.length > 0) {
+    //    for (i = 0; i < dataReceived.length; i++) {
+    //        channelData = dataReceived[i];
+    //        sgx.result.putData(channelData);
+    //        sgx.result.log(channelData.toString());
+    //    }
+    //}
     sgx.result.setDeviceStatus(status);
-    //injectedCode
-
+    try {
+        //injectedCode
+    } catch (processorError) {
+        sgx.addNotification('error', 'Device '+eui+'processor script error: '+processorError)
+    }
     return sgx.result;
 }
 
@@ -250,7 +270,11 @@ var processRawData = function (eui, requestBody, channelReader, userID, dataTime
     sgx.dataReceived = []
     sgx.dataTimestamp = dataTimestamp
     sgx.channelReader = channelReader
-
-    //injectedCode
+    //sgx.verify(dataReceived, state)
+    try {
+        //injectedCode
+    } catch (processorError) {
+        sgx.addNotification('error', 'Device '+eui+'processor script error: '+processorError)
+    }
     return sgx.result;
 }

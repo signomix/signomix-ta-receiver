@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+
 import org.jboss.logging.Logger;
 
 public class DateTool {
@@ -19,17 +20,18 @@ public class DateTool {
     private static int MONTH_MILLIS = WEEK_MILLIS * 4;
     private static int HOUR_MILLIS = 3600 * 1000;
     private static int MINUTE_MILLIS = 60 * 1000;
-    
+
     public static String CHIRPSTACK_TIME_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX";
 
     private static final Logger LOG = Logger.getLogger(DateTool.class);
 
-    public static Timestamp parseTimestamp(String input, String secondaryInput, boolean useSystemTimeOnError) 
-    throws Exception {
+    public static Timestamp parseTimestamp(String input, String secondaryInput, boolean useSystemTimeOnError)
+            throws Exception {
         if (null == input || input.isEmpty()) {
-            throw new Exception("Unparsable timestamp");
+            return null;
         }
-        String timeString = input.replace('~', '+');
+        String timeString = input.replace('~', '+').replace('_','/');
+        LOG.info("TIMESTRING:"+timeString);
         Timestamp ts = null;
         if (input.startsWith("-")) {
             int multiplicand = 1;
@@ -44,6 +46,9 @@ public class DateTool {
                 millis = Long.parseLong(input.substring(1, 2));
                 unitSymbol = input.charAt(2);
                 zoneId = input.substring(zonePosition + 1).replaceFirst("\\.", "/");
+            }
+            if (isInSeconds(millis)) {
+                millis = millis * 1000;
             }
             switch (unitSymbol) {
                 case 'M':
@@ -82,41 +87,61 @@ public class DateTool {
             try {
                 ts = new Timestamp(Long.parseLong(timeString));
                 return ts;
-            } catch (Exception e3) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
+            }
+            try {
+                return getTimestamp(timeString, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
             try {
                 return getTimestamp(timeString, "yyyy-MM-dd'T'HH:mm:ssX");
-            } catch (Exception e1) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
             try {
                 return getTimestamp(timeString, "yyyy-MM-dd'T'HH:mm:ss.SSSX");
-            } catch (Exception e2) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
             try {
                 return getTimestamp(timeString, "yyyy-MM-dd'T'HHmmssX");
-            } catch (Exception e1) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
             try {
                 return getTimestamp(timeString, "yyyy-MM-dd'T'HHmmss.SSSX");
-            } catch (Exception e2) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
             try {
                 return getTimestamp(timeString, CHIRPSTACK_TIME_FORMAT);
-            } catch (Exception e2) {
-            } 
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
+            }
             try {
                 ts = Timestamp.from(Instant.parse(secondaryInput));
                 return ts;
-            } catch (Exception e4) {
+            } catch (Exception e) {
+                LOG.warn(e.getMessage());
             }
         }
         if (useSystemTimeOnError) {
+            LOG.warn("Using system time");
             return new Timestamp(System.currentTimeMillis());
         } else {
+            LOG.warn("Unparsable timestamp");
             throw new Exception("Unparsable timestamp");
         }
     }
 
+    private static Timestamp getTimestamp(String input, DateTimeFormatter formatter)
+            throws IllegalArgumentException, DateTimeParseException, DateTimeException, NullPointerException {
+        ZonedDateTime zdtInstanceAtOffset = ZonedDateTime.parse(input, formatter);
+        ZonedDateTime zdtInstanceAtUTC = zdtInstanceAtOffset.withZoneSameInstant(ZoneOffset.UTC);
+        return Timestamp.from(zdtInstanceAtUTC.toInstant());
+    }
     private static Timestamp getTimestamp(String input, String pattern)
             throws IllegalArgumentException, DateTimeParseException, DateTimeException, NullPointerException {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
@@ -146,5 +171,10 @@ public class DateTool {
         long offset = startOfDayInEurope2.getOffset().getTotalSeconds() * 1000;
         result = Timestamp.valueOf(startOfDayInEurope2.toLocalDateTime()).getTime() - offset;
         return result;
+    }
+
+    private static boolean isInSeconds(long timestamp) {
+        Instant instant = Instant.ofEpochMilli(timestamp);
+        return instant.toEpochMilli() != timestamp;
     }
 }

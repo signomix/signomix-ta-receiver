@@ -32,7 +32,6 @@ import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import io.agroal.api.AgroalDataSource;
-import io.quarkus.cache.CacheResult;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
