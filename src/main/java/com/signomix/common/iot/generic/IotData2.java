@@ -121,6 +121,9 @@ public class IotData2 implements IotDataIface {
         }
         // Data channel names should be lowercase. We can fix user mistakes here.
         HashMap<String, Object> tempMap;
+        if(null==payload_fields){
+            payload_fields=new ArrayList<>();
+        }
         for (int i = 0; i < payload_fields.size(); i++) {
             tempMap = new HashMap<>();
             tempMap.put("name", ((String) payload_fields.get(i).get("name")).toLowerCase());

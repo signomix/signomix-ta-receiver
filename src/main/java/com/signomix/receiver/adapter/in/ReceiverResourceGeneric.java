@@ -230,11 +230,15 @@ public class ReceiverResourceGeneric {
                 return Response.status(Status.NOT_FOUND).entity("device is not active").build();
             }
         }
-        IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
-        if (null == iotData) {
+        try {
+            IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, authKey, dataObject);
+            if (null == iotData) {
+                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            } else {
+                send(iotData);
+            }
+        } catch (Exception e) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
-        } else {
-            send(iotData);
         }
         return Response.ok("OK").build();
     }
@@ -261,12 +265,16 @@ public class ReceiverResourceGeneric {
                 return Response.status(Status.NOT_FOUND).entity("device is not active").build();
             }
         }
-        IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, dataObject);
-        if (null == iotData) {
+        try {
+            IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, authKey, dataObject);
+            if (null == iotData) {
+                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            } else {
+                String result = service.processDataAndReturnResponse(iotData);
+                return Response.ok(result).build();
+            }
+        } catch (Exception e) {
             return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
-        } else {
-            String result = service.processDataAndReturnResponse(iotData);
-            return Response.ok(result).build();
         }
     }
 
@@ -433,7 +441,7 @@ public class ReceiverResourceGeneric {
         return data;
     }
 
-    private IotData2 parseJson(String eui, boolean authRequired, IotDto dataObject) {
+    private IotData2 parseJson(String eui, boolean authRequired, String authKey, IotDto dataObject) {
         IotData2 data = new IotData2();
         data.dev_eui = eui;
         if (null != dataObject.dev_eui && !dataObject.dev_eui.isEmpty()) {
@@ -442,9 +450,11 @@ public class ReceiverResourceGeneric {
         data.gateway_eui = dataObject.gateway_eui;
         data.timestamp = "" + dataObject.timestamp;
         data.clientname = dataObject.clientname;
+        data.payload = dataObject.payload;
         data.payload_fields = dataObject.payload_fields;
         data.normalize();
         data.setTimestampUTC();
+        data.authKey = authKey;
         data.authRequired = authRequired;
         return data;
     }
@@ -466,7 +476,7 @@ public class ReceiverResourceGeneric {
         return sb.toString();
     }
 
-    private Response isDeviceActive(String eui, String inHeaderEui){
+    private Response isDeviceActive(String eui, String inHeaderEui) {
         // When eui in request header
         // Then device can be checked
         if (euiHeaderFirst) {

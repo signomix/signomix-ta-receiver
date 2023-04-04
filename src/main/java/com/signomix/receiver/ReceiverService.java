@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Base64.Decoder;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -28,8 +29,8 @@ import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.virtual.VirtualData;
+import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
-import com.signomix.receiver.script.ScriptingAdapterIface;
 
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.logging.Log;
@@ -51,7 +52,10 @@ public class ReceiverService {
     @Inject
     DataProcessor processor;
 
-    ScriptingAdapterIface scriptingAdapter;
+    @Inject
+    NashornScriptingAdapter scriptingAdapter;
+    //ScriptingAdapterIface scriptingAdapter;
+    
     IotDatabaseIface dao;
 
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
@@ -359,6 +363,10 @@ public class ReceiverService {
     }
 
     private ArrayList<ChannelData> decodePayload(IotData2 data, Device device) {
+        if(null==device){
+            LOG.warn("device is null");
+            return new ArrayList<>();
+        }
         if (!data.getDataList().isEmpty()) {
             LOG.debug("data list not empty");
             return data.getDataList();
@@ -366,19 +374,28 @@ public class ReceiverService {
         ArrayList<ChannelData> values = new ArrayList<>();
         if (data.getPayloadFieldNames() == null || data.getPayloadFieldNames().length == 0) {
             if (null != data.getPayload()) {
-                byte[] decodedPayload = Base64.getDecoder().decode(data.getPayload().getBytes());
+                Decoder decoder = Base64.getDecoder();
+                if(null==decoder){
+                    LOG.warn("decoder is null");
+                    return values;
+                }
+                byte[] decodedPayload = decoder.decode(data.getPayload().getBytes());
+                if(null==decodedPayload){
+                    LOG.warn("decodedPayload is null");
+                    return values;
+                }
                 try {
                     values = scriptingAdapter.decodeData(decodedPayload, device, data.getTimestamp());
                 } catch (Exception e) {
                     e.printStackTrace();
-                    return null;
+                    return values;
                 }
+            }else{
+                LOG.warn("payload_fields nor payload send");
             }
         } else {
-            LOG.debug("payloadFieldNamse not set");
             for (int i = 0; i < data.payload_fields.size(); i++) {
                 HashMap map = (HashMap) data.payload_fields.get(i);
-
             }
         }
         return values;
