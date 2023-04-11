@@ -16,6 +16,7 @@ public class IotDto {
     public String dev_eui;
     public String gateway_eui;
     public String payload;
+    public String hex_payload;
     public ArrayList<Map> payload_fields;
     public long timestamp;
     public String clientname;

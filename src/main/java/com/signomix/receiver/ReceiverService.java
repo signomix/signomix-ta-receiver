@@ -1,5 +1,6 @@
 package com.signomix.receiver;
 
+import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -54,8 +55,8 @@ public class ReceiverService {
 
     @Inject
     NashornScriptingAdapter scriptingAdapter;
-    //ScriptingAdapterIface scriptingAdapter;
-    
+    // ScriptingAdapterIface scriptingAdapter;
+
     IotDatabaseIface dao;
 
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
@@ -89,12 +90,13 @@ public class ReceiverService {
         processData(data);
     }
 
-    public MessageService getMessageService(){
+    public MessageService getMessageService() {
         return messageService;
     }
-    
+
     /**
      * Sends data to dedicated microservice
+     * 
      * @param inputList
      * @param device
      * @param iotData
@@ -103,22 +105,23 @@ public class ReceiverService {
      */
     private ProcessorResult callProcessorService(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
             String dataString) {
-                //TODO
+        // TODO
         return null;
     }
 
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         String result = "";
-        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK, DeviceType.LORA };
+        DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
+                DeviceType.LORA };
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
             return result;
         }
-        String parserError=getFirstParserErrorValue(data);
-        if(null!=parserError && !parserError.isEmpty()){
-            return "ERROR: "+parserError;
+        String parserError = getFirstParserErrorValue(data);
+        if (null != parserError && !parserError.isEmpty()) {
+            return "ERROR: " + parserError;
         }
         data.setTimestampUTC();
         data.prepareIotValues();
@@ -152,8 +155,9 @@ public class ReceiverService {
             } else if (device.isActive()) {
                 Log.info("updateHealthStatus");
                 updateHealthStatus(device.getEUI());
-            }else{
-                LOG.info("device: active "+device.isActive()+" status "+device.getState()+" script device status "+scriptResult.getDeviceState());
+            } else {
+                LOG.info("device: active " + device.isActive() + " status " + device.getState()
+                        + " script device status " + scriptResult.getDeviceState());
             }
             statusUpdated = true;
         } catch (Exception e) {
@@ -331,8 +335,8 @@ public class ReceiverService {
     }
 
     private void updateDeviceStatus(String eui, Double newStatus) {
-        if(!deviceStatusUpdateIntegrated){
-            //TEST
+        if (!deviceStatusUpdateIntegrated) {
+            // TEST
             LOG.info("Device status update skipped.");
             return;
         }
@@ -347,8 +351,8 @@ public class ReceiverService {
     }
 
     private void updateHealthStatus(String eui) {
-        if(!deviceStatusUpdateIntegrated){
-            //TEST
+        if (!deviceStatusUpdateIntegrated) {
+            // TEST
             LOG.info("Device health status update skipped.");
             return;
         }
@@ -363,7 +367,7 @@ public class ReceiverService {
     }
 
     private ArrayList<ChannelData> decodePayload(IotData2 data, Device device) {
-        if(null==device){
+        if (null == device) {
             LOG.warn("device is null");
             return new ArrayList<>();
         }
@@ -374,13 +378,14 @@ public class ReceiverService {
         ArrayList<ChannelData> values = new ArrayList<>();
         if (data.getPayloadFieldNames() == null || data.getPayloadFieldNames().length == 0) {
             if (null != data.getPayload()) {
+                LOG.debug("base64Payload: " + data.getPayload());
                 Decoder decoder = Base64.getDecoder();
-                if(null==decoder){
+                if (null == decoder) {
                     LOG.warn("decoder is null");
                     return values;
                 }
                 byte[] decodedPayload = decoder.decode(data.getPayload().getBytes());
-                if(null==decodedPayload){
+                if (null == decodedPayload) {
                     LOG.warn("decodedPayload is null");
                     return values;
                 }
@@ -390,7 +395,20 @@ public class ReceiverService {
                     e.printStackTrace();
                     return values;
                 }
-            }else{
+            } else if (null != data.getHexPayload()) {
+                LOG.debug("hexPayload: " + data.getHexPayload());
+                byte[] byteArray = getByteArray(data.getHexPayload());
+                if (null == byteArray) {
+                    LOG.warn("decodedPayload is null");
+                    return values;
+                }
+                try {
+                    values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return values;
+                }
+            } else {
                 LOG.warn("payload_fields nor payload send");
             }
         } else {
@@ -399,6 +417,23 @@ public class ReceiverService {
             }
         }
         return values;
+    }
+
+    private byte[] getByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                    + Character.digit(s.charAt(i + 1), 16));
+        }
+        return data;
+        /*
+         * // converting string to integer value
+         * int val = Integer.parseInt(input, 16);
+         * // converting integer value to Byte Array
+         * BigInteger big = BigInteger.valueOf(val);
+         * return big.toByteArray();
+         */
     }
 
     public Device getDevice(String eui) {
@@ -466,8 +501,8 @@ public class ReceiverService {
                 secret = gateway.getKey();
             }
             try {
-                if (null==authKey || !authKey.equals(secret)) {
-                    LOG.warn("Authorization key don't match for " + device.getEUI()+" :"+authKey+":"+secret);
+                if (null == authKey || !authKey.equals(secret)) {
+                    LOG.warn("Authorization key don't match for " + device.getEUI() + " :" + authKey + ":" + secret);
                     return null;
                 }
             } catch (Exception ex) { // catch (UserException ex) {
@@ -494,16 +529,17 @@ public class ReceiverService {
         }
         return device;
     }
+
     private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
         return getDeviceChecked(data.getDeviceEUI(), data.getAuthKey(), data.authRequired, expectedTypes);
     }
 
-    private String getFirstParserErrorValue(IotData2 data){
+    private String getFirstParserErrorValue(IotData2 data) {
         Map map;
-        for(int i=0; i<data.payload_fields.size(); i++){
-            map=data.payload_fields.get(i);
-            if(null!=map.get("parser_error")){
-                return (String)map.get("parser_error");
+        for (int i = 0; i < data.payload_fields.size(); i++) {
+            map = data.payload_fields.get(i);
+            if (null != map.get("parser_error")) {
+                return (String) map.get("parser_error");
             }
         }
         return "";

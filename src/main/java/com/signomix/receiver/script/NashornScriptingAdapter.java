@@ -100,10 +100,12 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
                     LOG.debug("result.output.size=="+result.getOutput().size());
                     LOG.debug("result.measures.size=="+result.getMeasures().size());
         } catch (NoSuchMethodException e) {
+            LOG.warn(e.getMessage());
             fireEvent(2, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD,
                     "ScriptingAdapter.no_such_method " + e.getMessage());
         } catch (ScriptException e) {
+            LOG.warn(e.getMessage());
             fireEvent(2, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION,
                     "ScriptingAdapter.script_exception " + e.getMessage());
@@ -121,9 +123,15 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             invocable = (Invocable) engine;
             list = (ArrayList) invocable.invokeFunction("decodeData", device.getDeviceID(), data, timestamp);
         } catch (NoSuchMethodException e) {
+            LOG.warn(e.getMessage());
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD, e.getMessage());
         } catch (ScriptException e) {
+            LOG.warn(e.getMessage());
+            fireEvent(1, device, e.getMessage());
+            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
+        }catch(Exception e){
+            LOG.warn(e.getMessage());
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
         }
@@ -131,6 +139,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     }
 
     @Override
+    /**
+     * not used
+     */
     public ArrayList<ChannelData> decodeHexData(String hexadecimalPayload, Device device,
             long timestamp) throws ScriptAdapterException {
         Invocable invocable;
@@ -143,6 +154,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD, e.getMessage());
         } catch (ScriptException e) {
+            fireEvent(1, device, e.getMessage());
+            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
+        }catch(Exception e){
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
         }

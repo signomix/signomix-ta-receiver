@@ -451,6 +451,7 @@ public class ReceiverResourceGeneric {
         data.timestamp = "" + dataObject.timestamp;
         data.clientname = dataObject.clientname;
         data.payload = dataObject.payload;
+        data.hexPayload=dataObject.hex_payload;
         data.payload_fields = dataObject.payload_fields;
         data.normalize();
         data.setTimestampUTC();

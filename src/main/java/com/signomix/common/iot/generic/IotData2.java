@@ -107,6 +107,7 @@ public class IotData2 implements IotDataIface {
         try {
             timestampUTC = DateTool.parseTimestamp(timestamp, time, true);
         } catch (Exception e) {
+            e.printStackTrace();
             timestampUTC = new Timestamp(System.currentTimeMillis());
         }
     }
