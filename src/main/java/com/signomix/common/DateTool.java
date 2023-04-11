@@ -55,9 +55,11 @@ public class DateTool {
                     multiplicand = MONTH_MILLIS;
                     break;
                 case 'w':
+                case 'W':
                     multiplicand = WEEK_MILLIS;
                     break;
                 case 'd':
+                case 'D':
                     multiplicand = DAY_MILLIS;
                     break;
                 case 'h':
@@ -69,23 +71,27 @@ public class DateTool {
                 default: // seconds
                     multiplicand = 1000;
             }
-            if (millis == 0 && multiplicand == DAY_MILLIS) {
-                // -0d means start of current day
-                ts = new Timestamp(getStartOfDayAsUTC(zoneId));
+            if (multiplicand == DAY_MILLIS) {
+                // -Xd means start of the day, X days back
+                ts = new Timestamp(getStartOfDaysBackAsUTC(millis, zoneId));
                 return ts;
             } else if (millis == 0 && multiplicand == MONTH_MILLIS) {
-                // -0d means start of current day
+                // -0M means start of current month
                 ts = new Timestamp(getStartOfMonthAsUTC(zoneId));
                 return ts;
-            } else if (millis != 0 && (multiplicand == DAY_MILLIS || multiplicand == MONTH_MILLIS)) {
+            } else if (millis != 0 &&  multiplicand == MONTH_MILLIS) {
                 // cannot be parsed (parsing error) - actual timestamp will be returned
             } else {
                 ts = new Timestamp(System.currentTimeMillis() - millis * multiplicand);
                 return ts;
             }
         } else {
+            long millis = Long.parseLong(timeString);
+            if(isInSeconds(millis)){
+                millis = millis * 1000;
+            }
             try {
-                ts = new Timestamp(Long.parseLong(timeString));
+                ts = new Timestamp(millis);
                 return ts;
             } catch (Exception e) {
                 LOG.warn(e.getMessage());
@@ -142,6 +148,7 @@ public class DateTool {
         ZonedDateTime zdtInstanceAtUTC = zdtInstanceAtOffset.withZoneSameInstant(ZoneOffset.UTC);
         return Timestamp.from(zdtInstanceAtUTC.toInstant());
     }
+
     private static Timestamp getTimestamp(String input, String pattern)
             throws IllegalArgumentException, DateTimeParseException, DateTimeException, NullPointerException {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
@@ -153,6 +160,16 @@ public class DateTool {
     public static long getStartOfDayAsUTC(String zoneId) {
         long result;
         LocalDate localDate = LocalDate.now(ZoneId.of(zoneId));
+        ZonedDateTime startOfDayInEurope2 = localDate.atTime(LocalTime.MIN)
+                .atZone(ZoneId.of(zoneId));
+        long offset = startOfDayInEurope2.getOffset().getTotalSeconds() * 1000;
+        result = Timestamp.valueOf(startOfDayInEurope2.toLocalDateTime()).getTime() - offset;
+        return result;
+    }
+
+    public static long getStartOfDaysBackAsUTC(long daysBack, String zoneId) {
+        long result;
+        LocalDate localDate = LocalDate.now(ZoneId.of(zoneId)).minusDays(daysBack);
         ZonedDateTime startOfDayInEurope2 = localDate.atTime(LocalTime.MIN)
                 .atZone(ZoneId.of(zoneId));
         long offset = startOfDayInEurope2.getOffset().getTotalSeconds() * 1000;
