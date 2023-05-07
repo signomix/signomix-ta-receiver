@@ -15,11 +15,12 @@ import com.signomix.common.User;
 import com.signomix.common.db.IotDatabaseDao;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
+import com.signomix.common.event.MessageServiceIface;
 
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.runtime.StartupEvent;
 
-public class MessageService {
+public class MessageService implements MessageServiceIface {
 
     private static final Logger LOG = Logger.getLogger(MessageService.class);
 
@@ -46,6 +47,7 @@ public class MessageService {
         LOG.info("sending error to MQ");
         eventsEmitter.send(event);
     }*/
+    @Override
     public void sendEvent(EventEnvelope wrapper) {
         LOG.info("sending event to MQ");
         String encodedMessage;
@@ -58,6 +60,7 @@ public class MessageService {
         }
     }
 
+    @Override
     public void sendNotification(IotEvent event) {
         LOG.info("sending notification to MQ, origin:" + event.getOrigin());
 
@@ -81,10 +84,12 @@ public class MessageService {
         }
     }
 
+    @Override
     public void sendData(IotEvent event) {
         LOG.info("sending data to MQ");
     }
 
+    @Override
     public void sendCommand(IotEvent event) {
         LOG.info("sending command to MQ");
         String[] origin = event.getOrigin().split("\t");

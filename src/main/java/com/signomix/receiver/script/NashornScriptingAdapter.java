@@ -25,9 +25,9 @@ import org.jboss.logging.Logger;
 
 import com.signomix.common.EventEnvelope;
 import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
-import com.signomix.receiver.MessageService;
 
 import io.quarkus.runtime.StartupEvent;
 
@@ -46,7 +46,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     String processorScriptLocation;
 
     @Inject
-    MessageService messageService;
+    MessageServiceIface messageService;
 
     private ScriptEngine engine;
     private String processorScript;
@@ -212,7 +212,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         }
         EventEnvelope wrapper=new EventEnvelope();
         wrapper.type=EventEnvelope.ERROR;
-        wrapper.id=device.getEUI();
+        wrapper.eui=device.getEUI();
         wrapper.payload=payload;
         messageService.sendEvent(wrapper);
     }

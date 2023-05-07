@@ -25,6 +25,7 @@ import com.signomix.common.db.IotDatabaseDao;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
+import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
@@ -48,7 +49,7 @@ public class ReceiverService {
     AgroalDataSource ds;
 
     @Inject
-    MessageService messageService;
+    MessageServiceIface messageService;
 
     @Inject
     DataProcessor processor;
@@ -90,7 +91,7 @@ public class ReceiverService {
         processData(data);
     }
 
-    public MessageService getMessageService() {
+    public MessageServiceIface getMessageService() {
         return messageService;
     }
 
@@ -114,6 +115,7 @@ public class ReceiverService {
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
+        String deviceId=data.deviceId;
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
@@ -151,10 +153,10 @@ public class ReceiverService {
             // device status
             if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
                 LOG.info("updateDeviceStatus");
-                updateDeviceStatus(device.getEUI(), scriptResult.getDeviceState());
+                updateDeviceStatus(device.getEUI(), scriptResult.getDeviceState(), device.getAlertStatus());
             } else if (device.isActive()) {
                 Log.info("updateHealthStatus");
-                updateHealthStatus(device.getEUI());
+                updateHealthStatus(device.getEUI(), device.getState(), device.getAlertStatus());
             } else {
                 LOG.info("device: active " + device.isActive() + " status " + device.getState()
                         + " script device status " + scriptResult.getDeviceState());
@@ -166,7 +168,7 @@ public class ReceiverService {
             // TODO: notification
         }
         if (!statusUpdated) {
-            updateHealthStatus(device.getEUI());
+            updateHealthStatus(device.getEUI(), device.getState(), device.getAlertStatus());
         }
         if (null == scriptResult) {
             return "";
@@ -334,15 +336,15 @@ public class ReceiverService {
         }
     }
 
-    private void updateDeviceStatus(String eui, Double newStatus) {
+    private void updateDeviceStatus(String eui, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
             LOG.info("Device status update skipped.");
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, newStatus, System.currentTimeMillis(), -1, "", "");
-            LOG.info("Device health status updated.");
+            dao.updateDeviceStatus(eui, newStatus, newAlertStatus);
+            LOG.info("Device status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -350,14 +352,14 @@ public class ReceiverService {
         }
     }
 
-    private void updateHealthStatus(String eui) {
+    private void updateHealthStatus(String eui, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
             LOG.info("Device health status update skipped.");
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, null, System.currentTimeMillis(), -1, "", "");
+            dao.updateDeviceStatus(eui, newStatus, newAlertStatus);
             LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -441,7 +443,7 @@ public class ReceiverService {
         Device device = null;
         // Device gateway = null;
         try {
-            device = dao.getDevice(eui);
+            device = dao.getDevice(eui,false);
             // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());

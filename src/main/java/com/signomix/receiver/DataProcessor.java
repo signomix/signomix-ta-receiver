@@ -15,6 +15,7 @@ import org.jboss.logging.Logger;
 
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
+import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.script.NashornScriptingAdapter;
@@ -30,7 +31,7 @@ public class DataProcessor {
     private static final Logger LOG = Logger.getLogger(DataProcessor.class);
 
     @Inject
-    MessageService messageService;
+    MessageServiceIface messageService;
 
     @Inject
     NashornScriptingAdapter scriptingAdapter;
