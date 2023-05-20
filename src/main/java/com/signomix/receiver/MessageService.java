@@ -1,8 +1,5 @@
 package com.signomix.receiver;
 
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
@@ -12,13 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.EventEnvelope;
 import com.signomix.common.MessageEnvelope;
 import com.signomix.common.User;
-import com.signomix.common.db.IotDatabaseDao;
-import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.event.MessageServiceIface;
-
-import io.agroal.api.AgroalDataSource;
-import io.quarkus.runtime.StartupEvent;
 
 public class MessageService implements MessageServiceIface {
 
@@ -31,22 +23,6 @@ public class MessageService implements MessageServiceIface {
     @Channel("notifications")
     Emitter<byte[]> iotEventEmitter;
 
-    @Inject
-    AgroalDataSource ds;
-
-    IotDatabaseIface dao;
-
-    public void onApplicationStart(@Observes StartupEvent event) {
-        dao = new IotDatabaseDao();
-        dao.setDatasource(ds);
-    }
-
-    /*public void sendErrorInfo(IotEvent event) {
-        EventEnvelope wrapper=new EventEnvelope();
-        wrapper.type=EventEnvelope.ERROR;
-        LOG.info("sending error to MQ");
-        eventsEmitter.send(event);
-    }*/
     @Override
     public void sendEvent(EventEnvelope wrapper) {
         LOG.info("sending event to MQ");
@@ -108,5 +84,29 @@ public class MessageService implements MessageServiceIface {
         } catch (JsonProcessingException ex) {
             LOG.error(ex.getMessage());
         }
+    }
+
+    @Override
+    public void sendDeviceEvent(EventEnvelope wrapper) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'sendDeviceEvent'");
+    }
+
+    @Override
+    public void sendDbEvent(EventEnvelope wrapper) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'sendDbEvent'");
+    }
+
+    @Override
+    public void sendAdminEmail(MessageEnvelope wrapper) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'sendAdminEmail'");
+    }
+
+    @Override
+    public void sendErrorInfo(EventEnvelope wrapper) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'sendErrorInfo'");
     }
 }

@@ -109,7 +109,7 @@
     <dependency>
       <groupId>com.signomix</groupId>
       <artifactId>signomix-common</artifactId>
-      <version>1.6.7</version>
+      <version>1.6.31</version>
     </dependency>
   </dependencies>
   <build>

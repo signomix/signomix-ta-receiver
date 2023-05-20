@@ -153,12 +153,12 @@ public class ReceiverService {
             // device status
             if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
                 LOG.info("updateDeviceStatus");
-                updateDeviceStatus(device.getEUI(), scriptResult.getDeviceState(), device.getAlertStatus());
+                updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), scriptResult.getDeviceState(), device.ALERT_OK);
             } else if (device.isActive()) {
                 Log.info("updateHealthStatus");
-                updateHealthStatus(device.getEUI(), device.getState(), device.getAlertStatus());
+                updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
             } else {
-                LOG.info("device: active " + device.isActive() + " status " + device.getState()
+                LOG.debug("device: active " + device.isActive() + " status " + device.getState()
                         + " script device status " + scriptResult.getDeviceState());
             }
             statusUpdated = true;
@@ -168,7 +168,7 @@ public class ReceiverService {
             // TODO: notification
         }
         if (!statusUpdated) {
-            updateHealthStatus(device.getEUI(), device.getState(), device.getAlertStatus());
+            updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
         }
         if (null == scriptResult) {
             return "";
@@ -336,14 +336,14 @@ public class ReceiverService {
         }
     }
 
-    private void updateDeviceStatus(String eui, Double newStatus, int newAlertStatus) {
+    private void updateDeviceStatus(String eui, long transmissionInterval, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
             LOG.info("Device status update skipped.");
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, newStatus, newAlertStatus);
+            dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             LOG.info("Device status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -352,14 +352,14 @@ public class ReceiverService {
         }
     }
 
-    private void updateHealthStatus(String eui, Double newStatus, int newAlertStatus) {
+    private void updateHealthStatus(String eui, long transmissionInterval, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
             LOG.info("Device health status update skipped.");
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, newStatus, newAlertStatus);
+            dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
