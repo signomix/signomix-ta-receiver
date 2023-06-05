@@ -1,6 +1,5 @@
 package com.signomix.receiver;
 
-import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -115,7 +114,7 @@ public class ReceiverService {
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
-        String deviceId=data.deviceId;
+        String deviceId = data.deviceId;
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
@@ -153,10 +152,12 @@ public class ReceiverService {
             // device status
             if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
                 LOG.info("updateDeviceStatus");
-                updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), scriptResult.getDeviceState(), device.ALERT_OK);
+                updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), scriptResult.getDeviceState(),
+                        device.ALERT_OK);
             } else if (device.isActive()) {
                 Log.info("updateHealthStatus");
-                updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
+                updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(),
+                        device.ALERT_OK);
             } else {
                 LOG.debug("device: active " + device.isActive() + " status " + device.getState()
                         + " script device status " + scriptResult.getDeviceState());
@@ -443,7 +444,7 @@ public class ReceiverService {
         Device device = null;
         // Device gateway = null;
         try {
-            device = dao.getDevice(eui,false);
+            device = dao.getDevice(eui, false);
             // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());
