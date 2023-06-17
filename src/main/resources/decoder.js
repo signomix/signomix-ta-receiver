@@ -23,7 +23,11 @@ var decode = function(eui, payload, timestamp){
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var List = Java.type("java.util.ArrayList");
     var result = new List();
-    //injectedCode
+    try {
+      //injectedCode
+    } catch (decoderError) {
+      result.add(new ChannelData(eui, "decodererror", 0, timestamp, decoderError.message))
+    }
     return result;
 }
 

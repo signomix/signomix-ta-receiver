@@ -32,7 +32,7 @@ import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
-
+import com.signomix.receiver.script.ScriptAdapterException;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
@@ -166,7 +166,7 @@ public class ReceiverService {
         } catch (Exception e) {
             e.printStackTrace();
             LOG.error(e.getMessage());
-            // TODO: notification
+            addNotifications(device, null, e.getMessage(), false);
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
@@ -187,6 +187,9 @@ public class ReceiverService {
                 // commands
                 saveCommand(events.get(i));
             } else {
+                // TODO: addNotifications
+                addNotifications(device, (IotEvent) events.get(i).clone(), null, true);
+                /*
                 recipients = new HashMap<>();
                 recipients.put(device.getUserID(), "");
                 if (device.getTeam() != null) {
@@ -209,6 +212,7 @@ public class ReceiverService {
                     }
                     messageService.sendNotification(newEvent);
                 }
+                */
             }
         }
         // data events
@@ -394,8 +398,13 @@ public class ReceiverService {
                 }
                 try {
                     values = scriptingAdapter.decodeData(decodedPayload, device, data.getTimestamp());
+                } catch (ScriptAdapterException ex) {
+                    ex.printStackTrace();
+                    addNotifications(device, null, ex.getMessage(), false);
+                    return values;
                 } catch (Exception e) {
                     e.printStackTrace();
+                    addNotifications(device, null, e.getMessage(), false);
                     return values;
                 }
             } else if (null != data.getHexPayload()) {
@@ -407,8 +416,13 @@ public class ReceiverService {
                 }
                 try {
                     values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
+                } catch (ScriptAdapterException ex) {
+                    ex.printStackTrace();
+                    addNotifications(device, null, ex.getMessage(), false);
+                    return values;
                 } catch (Exception e) {
                     e.printStackTrace();
+                    addNotifications(device, null, e.getMessage(), false);
                     return values;
                 }
             } else {
@@ -420,6 +434,45 @@ public class ReceiverService {
             }
         }
         return values;
+    }
+
+    private void addNotifications(Device device, IotEvent event, String errorMessage, boolean withMessage) {
+        HashMap<String, String> recipients = new HashMap<>();
+        recipients.put(device.getUserID(), "");
+        if (device.getTeam() != null) {
+            String[] r = device.getTeam().split(",");
+            for (int j = 0; j < r.length; j++) {
+                if (!r[j].isEmpty()) {
+                    recipients.put(r[j], "");
+                }
+            }
+        }
+        IotEvent errEvent=null;
+        if(null!=errorMessage) {
+            errEvent = new IotEvent("info",errorMessage);
+        }
+        Iterator itr = recipients.keySet().iterator();
+        while (itr.hasNext()) {
+            if (null != event) {
+                event.setOrigin(itr.next() + "\t" + device.getEUI());
+                try {
+                    dao.addAlert(event);
+                } catch (IotDatabaseException e) {
+                    e.printStackTrace();
+                }
+                if (withMessage) {
+                    messageService.sendNotification(event);
+                }
+            }
+            if(null!=errEvent) {
+                try {
+                    errEvent.setOrigin(itr.next() + "\t" + device.getEUI());
+                    dao.addAlert(errEvent);
+                } catch (IotDatabaseException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     private byte[] getByteArray(String s) {
