@@ -18,6 +18,7 @@ import javax.ws.rs.WebApplicationException;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseDao;
@@ -33,6 +34,7 @@ import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
+
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
@@ -73,6 +75,12 @@ public class ReceiverService {
 
     public String processDataAndReturnResponse(IotData2 data) {
         return processData(data);
+    }
+
+    public String processCsv(Device device, MultipartFormDataInput input){
+        BulkDataLoader loader = new BulkDataLoader();
+        String result=loader.loadBulkData(device, dao, input);
+        return result;
     }
 
     @ConsumeEvent(value = "iotdata-no-response")

@@ -23,6 +23,8 @@ import javax.ws.rs.core.Response.Status;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import com.signomix.common.api.PayloadParserIface;
 import com.signomix.common.api.ResponseTransformerIface;
@@ -278,6 +280,29 @@ public class ReceiverResourceGeneric {
         }
     }
 
+    @POST
+    @Path("/receiver/bulk")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response fileUpload(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, @MultipartForm MultipartFormDataInput input) {
+
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        // In this case device EUI mus be in request header
+        Device device = service.getDevice(inHeaderEui);
+        if (null == device) {
+            LOG.warn("unknown device " + inHeaderEui);
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
+        if (!device.isActive()) {
+            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+        }
+        String result = service.processCsv(device, input);
+        return Response.ok().entity(result).build();
+    }
+
     private void send(IotData2 iotData) {
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
@@ -451,7 +476,7 @@ public class ReceiverResourceGeneric {
         data.timestamp = "" + dataObject.timestamp;
         data.clientname = dataObject.clientname;
         data.payload = dataObject.payload;
-        data.hexPayload=dataObject.hex_payload;
+        data.hexPayload = dataObject.hex_payload;
         data.payload_fields = dataObject.payload_fields;
         data.normalize();
         data.setTimestampUTC();
