@@ -59,6 +59,9 @@ public class ReceiverService {
     NashornScriptingAdapter scriptingAdapter;
     // ScriptingAdapterIface scriptingAdapter;
 
+    @Inject
+    BulkDataLoader bulkDataLoader;
+
     IotDatabaseIface dao;
 
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
@@ -78,8 +81,7 @@ public class ReceiverService {
     }
 
     public String processCsv(Device device, MultipartFormDataInput input){
-        BulkDataLoader loader = new BulkDataLoader();
-        String result=loader.loadBulkData(device, dao, input);
+        String result=bulkDataLoader.loadBulkData(device, dao, input);
         return result;
     }
 
