@@ -31,6 +31,7 @@ import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
+import com.signomix.receiver.BulkLoaderResult;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
 
@@ -283,7 +284,7 @@ public class ReceiverResourceGeneric {
     @POST
     @Path("/receiver/bulk")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
     public Response fileUpload(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, @MultipartForm MultipartFormDataInput input) {
 
@@ -299,7 +300,7 @@ public class ReceiverResourceGeneric {
         if (!device.isActive()) {
             return Response.status(Status.NOT_FOUND).entity("device is not active").build();
         }
-        String result = service.processCsv(device, input);
+        BulkLoaderResult result = service.processCsv(device, input);
         return Response.ok().entity(result).build();
     }
 

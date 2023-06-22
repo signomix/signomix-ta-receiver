@@ -80,9 +80,8 @@ public class ReceiverService {
         return processData(data);
     }
 
-    public String processCsv(Device device, MultipartFormDataInput input){
-        String result=bulkDataLoader.loadBulkData(device, dao, input);
-        return result;
+    public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input){
+        return bulkDataLoader.loadBulkData(device, dao, input);
     }
 
     @ConsumeEvent(value = "iotdata-no-response")

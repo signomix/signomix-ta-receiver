@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 import javax.enterprise.context.RequestScoped;
+import javax.inject.Inject;
 
+import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
@@ -18,72 +20,99 @@ import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 
+import io.netty.channel.unix.Errors;
+
 @RequestScoped
 public class BulkDataLoader {
 
-    private ArrayList<String> channels = new ArrayList<>();
-    private Device device;
-    private IotDatabaseIface dao;
+    @Inject
+    Logger logger;
+
+    ArrayList<String> channels = new ArrayList<>();
     ArrayList<ChannelData> data = new ArrayList<>();
+    Device device;
+    IotDatabaseIface dao;
+    boolean withEui = false; // first column in CSV line is device EUI
+    BulkLoaderResult result = new BulkLoaderResult();
+    int errors = 0;
 
     public BulkDataLoader() {
     }
 
-    public String loadBulkData(Device device, IotDatabaseIface dao, MultipartFormDataInput input) {
-        long lineNumber = 0;
-        this.device = device;
+    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface dao, MultipartFormDataInput input) {
         this.dao = dao;
+        device = loadedDevice;
+        int lineNumber = 0;
+
 
         Map<String, List<InputPart>> uploadForm = input.getFormDataMap();
-        // List<String> fileNames = new ArrayList<>();
-        // String fileName = null;
         List<InputPart> inputParts = uploadForm.get("file");
 
         String str = null;
         for (InputPart inputPart : inputParts) {
             try {
-                // MultivaluedMap<String, String> header = inputPart.getHeaders();
-                // fileName = getFileName(header);
-                // fileNames.add(fileName);
                 InputStream inputStream = inputPart.getBody(InputStream.class, null);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                 while ((str = reader.readLine()) != null) {
-                    if (str.trim().isEmpty() || str.startsWith("#")) {
+                    str=str.trim();
+                    // skip empty lines and comments
+                    if (str.isEmpty() || str.startsWith("#")) {
                         continue;
                     }
-                    if(processLine(str, lineNumber)){
+                    // process line
+                    if (processLine(str, lineNumber)) {
                         lineNumber++;
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error(e.getMessage(), e);
+                errors++;
             }
         }
-        return "Device EUI " + device.getEUI() + " - records loaded: " + (lineNumber - 1) + "\n";
+        result.errors = errors;
+        result.loadedRecords = lineNumber-1;
+        result.deviceEui = device.getEUI();
+        return result;
     }
 
-    private boolean processLine(String line, long lineNumber) {
+    private boolean processLine(String line, int lineNumber) {
+        logger.debug(lineNumber + ": " + line);
         String[] parts = line.split(";");
         String channelName;
         if (lineNumber == 0) {
-            // header
+            // header line
             for (int i = 2; i < parts.length; i++) {
                 channels.add(parts[i]);
             }
-            return false;
+            // if header first column is "eui" then parser will expect device EUI in first column of each line
+            if ("eui".equals(parts[0])) {
+                withEui = true;
+            }
+            logger.debug("header: " + channels.toString());
+            return true;
         } else {
-            String deviceEUI = parts[0];
-            if (!deviceEUI.equalsIgnoreCase(device.getEUI())) {
-                // invalid device EUI
-                return false;
+            // data line
+            int tstampPos = withEui ? 1 : 0;
+            int firstValuePos = withEui ? 2 : 1;
+            // check eui if needed
+            if (withEui) {
+                String deviceEUI = parts[0];
+                if (!deviceEUI.equalsIgnoreCase(device.getEUI())) {
+                    // invalid device EUI - ignore line
+                    errors++;
+                    return false;
+                }
             }
-            String timestampString = parts[1];
+            String timestampString = parts[tstampPos];
             long timestamp = getTimestamp(timestampString);
+            logger.debug("timestamp: " + timestampString + " - " + timestamp);
             if (timestamp == 0) {
-                // invalid timestamp
+                // timestamp cannot be parsed - ignore line
+                errors++;
                 return false;
             }
-            for (int i = 2; i < parts.length; i++) {
+            // parse values
+            for (int i = firstValuePos; i < parts.length; i++) {
                 channelName = channels.get(i - 2);
                 ChannelData cd = new ChannelData();
                 cd.setDeviceEUI(device.getEUI());
@@ -92,16 +121,20 @@ public class BulkDataLoader {
                 try {
                     cd.setValue(Double.parseDouble(parts[i]));
                 } catch (NumberFormatException e) {
-                    // invalid value
+                    // value cannot be parsed - set null
+                    errors++;
                     cd.setNullValue();
                 }
                 data.add(cd);
-                try {
-                    dao.putData(device, data);
-                } catch (IotDatabaseException e) {
-                    e.printStackTrace();
-                }
             }
+            // line parsed - save data
+            try {
+                dao.putData(device, data);
+            } catch (IotDatabaseException e) {
+                logger.error(e.getMessage(), e);
+                return false;
+            }
+            data.clear();
         }
         return true;
     }
@@ -109,9 +142,9 @@ public class BulkDataLoader {
     private long getTimestamp(String timestampString) {
         long timestamp = 0;
         try {
-            timestamp = DateTool.parseTimestamp(timestampString,null,false).getTime();
+            timestamp = DateTool.parseTimestamp(timestampString, null, false).getTime();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("invalid timestamp: " + timestampString);
         }
         return timestamp;
     }
