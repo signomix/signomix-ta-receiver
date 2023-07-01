@@ -80,7 +80,7 @@ public class ReceiverService {
         return processData(data);
     }
 
-    public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input){
+    public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input) {
         return bulkDataLoader.loadBulkData(device, dao, input);
     }
 
@@ -175,7 +175,7 @@ public class ReceiverService {
         } catch (Exception e) {
             e.printStackTrace();
             LOG.error(e.getMessage());
-            addNotifications(device, null, e.getMessage(), false);
+            //addNotifications(device, null, e.getMessage(), false);
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
@@ -199,29 +199,29 @@ public class ReceiverService {
                 // TODO: addNotifications
                 addNotifications(device, (IotEvent) events.get(i).clone(), null, true);
                 /*
-                recipients = new HashMap<>();
-                recipients.put(device.getUserID(), "");
-                if (device.getTeam() != null) {
-                    String[] r = device.getTeam().split(",");
-                    for (int j = 0; j < r.length; j++) {
-                        if (!r[j].isEmpty()) {
-                            recipients.put(r[j], "");
-                        }
-                    }
-                }
-                Iterator itr = recipients.keySet().iterator();
-                while (itr.hasNext()) {
-                    IotEvent newEvent = (IotEvent) events.get(i).clone();
-                    newEvent.setOrigin(itr.next() + "\t" + device.getEUI());
-                    try {
-                        dao.addAlert(newEvent);
-                    } catch (IotDatabaseException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                    messageService.sendNotification(newEvent);
-                }
-                */
+                 * recipients = new HashMap<>();
+                 * recipients.put(device.getUserID(), "");
+                 * if (device.getTeam() != null) {
+                 * String[] r = device.getTeam().split(",");
+                 * for (int j = 0; j < r.length; j++) {
+                 * if (!r[j].isEmpty()) {
+                 * recipients.put(r[j], "");
+                 * }
+                 * }
+                 * }
+                 * Iterator itr = recipients.keySet().iterator();
+                 * while (itr.hasNext()) {
+                 * IotEvent newEvent = (IotEvent) events.get(i).clone();
+                 * newEvent.setOrigin(itr.next() + "\t" + device.getEUI());
+                 * try {
+                 * dao.addAlert(newEvent);
+                 * } catch (IotDatabaseException e) {
+                 * // TODO Auto-generated catch block
+                 * e.printStackTrace();
+                 * }
+                 * messageService.sendNotification(newEvent);
+                 * }
+                 */
             }
         }
         // data events
@@ -387,59 +387,51 @@ public class ReceiverService {
             LOG.warn("device is null");
             return new ArrayList<>();
         }
-        if (!data.getDataList().isEmpty()) {
-            LOG.debug("data list not empty");
-            return data.getDataList();
-        }
         ArrayList<ChannelData> values = new ArrayList<>();
-        if (data.getPayloadFieldNames() == null || data.getPayloadFieldNames().length == 0) {
+        /*
+         * if (!data.getDataList().isEmpty()) {
+         * LOG.debug("data list not empty");
+         * return data.getDataList();
+         * }
+         */
+
+        byte[] emptyBytes = {};
+        byte[] byteArray = null;
+        String decoderScript = device.getEncoderUnescaped();
+        if (null != decoderScript && decoderScript.length() > 0) {
             if (null != data.getPayload()) {
                 LOG.debug("base64Payload: " + data.getPayload());
-                Decoder decoder = Base64.getDecoder();
-                if (null == decoder) {
+                Decoder base64Decoder = Base64.getDecoder();
+                if (null == base64Decoder) {
                     LOG.warn("decoder is null");
                     return values;
                 }
-                byte[] decodedPayload = decoder.decode(data.getPayload().getBytes());
-                if (null == decodedPayload) {
-                    LOG.warn("decodedPayload is null");
-                    return values;
-                }
-                try {
-                    values = scriptingAdapter.decodeData(decodedPayload, device, data.getTimestamp());
-                } catch (ScriptAdapterException ex) {
-                    ex.printStackTrace();
-                    addNotifications(device, null, ex.getMessage(), false);
-                    return values;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addNotifications(device, null, e.getMessage(), false);
-                    return values;
-                }
+                byteArray = base64Decoder.decode(data.getPayload().getBytes());
             } else if (null != data.getHexPayload()) {
                 LOG.debug("hexPayload: " + data.getHexPayload());
-                byte[] byteArray = getByteArray(data.getHexPayload());
-                if (null == byteArray) {
-                    LOG.warn("decodedPayload is null");
-                    return values;
-                }
-                try {
-                    values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
-                } catch (ScriptAdapterException ex) {
-                    ex.printStackTrace();
-                    addNotifications(device, null, ex.getMessage(), false);
-                    return values;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addNotifications(device, null, e.getMessage(), false);
-                    return values;
-                }
+                byteArray = getByteArray(data.getHexPayload());
             } else {
-                LOG.warn("payload_fields nor payload send");
+                LOG.debug("payload is null");
+                byteArray = emptyBytes;
             }
-        } else {
-            for (int i = 0; i < data.payload_fields.size(); i++) {
-                HashMap map = (HashMap) data.payload_fields.get(i);
+            if (null == byteArray) {
+                byteArray = emptyBytes;
+            }
+            try {
+                values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
+            } catch (ScriptAdapterException ex) {
+                ex.printStackTrace();
+                addNotifications(device, null, ex.getMessage(), false);
+                values = new ArrayList<>();
+            } catch (Exception e) {
+                e.printStackTrace();
+                addNotifications(device, null, e.getMessage(), false);
+                values = new ArrayList<>();
+            }
+        }
+        if (!data.getDataList().isEmpty()) {
+            for (int i = 0; i < data.getDataList().size(); i++) {
+                values.add(data.getDataList().get(i));
             }
         }
         return values;
@@ -456,9 +448,9 @@ public class ReceiverService {
                 }
             }
         }
-        IotEvent errEvent=null;
-        if(null!=errorMessage) {
-            errEvent = new IotEvent("info",errorMessage);
+        IotEvent errEvent = null;
+        if (null != errorMessage) {
+            errEvent = new IotEvent("info", errorMessage);
         }
         Iterator itr = recipients.keySet().iterator();
         while (itr.hasNext()) {
@@ -473,7 +465,7 @@ public class ReceiverService {
                     messageService.sendNotification(event);
                 }
             }
-            if(null!=errEvent) {
+            if (null != errEvent) {
                 try {
                     errEvent.setOrigin(itr.next() + "\t" + device.getEUI());
                     dao.addAlert(errEvent);

@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.IotDataMessageCodec;
-import com.signomix.receiver.application.exception.ServiceException;
 import com.signomix.receiver.domain.uplink.ChirpstackUplink;
 
 import io.quarkus.runtime.StartupEvent;
@@ -43,7 +42,7 @@ import io.vertx.mutiny.core.eventbus.EventBus;
 public class ChirpstackRestAdapter {
     private static final Logger LOG = Logger.getLogger(ChirpstackRestAdapter.class);
 
-    @ConfigProperty(name = "com.signomix.receiver.exception.api.param.missing")
+    @ConfigProperty(name = "signomix.receiver.exception.api.param.missing")
     String missingParameterException;
     @ConfigProperty(name = "device.authorization.required")
     Boolean authorizationRequired;
@@ -71,9 +70,10 @@ public class ChirpstackRestAdapter {
     @Transactional
     @Produces(MediaType.TEXT_PLAIN)
     public Response handle(@HeaderParam("Authorization") String authKey, String event,
-            @QueryParam("event") String eventType) throws ServiceException {
+            @QueryParam("event") String eventType)/*  throws ServiceException */ {
         if (null == eventType) {
-            throw new ServiceException(missingParameterException);
+            //throw new ServiceException(missingParameterException);
+            return Response.status(Status.BAD_REQUEST).entity("event parammeter missing").build();
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();

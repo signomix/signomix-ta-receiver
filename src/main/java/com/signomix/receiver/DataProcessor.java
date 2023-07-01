@@ -36,7 +36,7 @@ public class DataProcessor {
     @Inject
     NashornScriptingAdapter scriptingAdapter;
 
-    /*
+    
     public Object[] processValues(
             ArrayList<ChannelData> listOfValues,
             Device device,
@@ -120,7 +120,7 @@ public class DataProcessor {
         };
         return result;
     }
-*/
+
     public ProcessorResult getProcessingResult(
             ArrayList<ChannelData> listOfValues,
             Device device,

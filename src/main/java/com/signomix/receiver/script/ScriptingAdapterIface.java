@@ -23,8 +23,8 @@ public interface ScriptingAdapterIface {
         public ArrayList<ChannelData> decodeData(byte[] data, Device device, long dataTimestamp)
                         throws ScriptAdapterException;
 
-        public ArrayList<ChannelData> decodeHexData(String hexPayload, Device device,
-                        long dataTimestamp) throws ScriptAdapterException;
+        //public ArrayList<ChannelData> decodeHexData(String hexPayload, Device device,
+        //                long dataTimestamp) throws ScriptAdapterException;
 
         /*
          * public ProcessorResult processData(ArrayList<ChannelData> values, Device device,

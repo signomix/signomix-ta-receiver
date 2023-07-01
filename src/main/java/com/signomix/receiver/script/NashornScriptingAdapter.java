@@ -55,14 +55,15 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     public void onApplicationStart(@Observes StartupEvent event) {
         processorScript = readScript(processorScriptLocation);
         decoderScript = readScript(decoderScriptLocation);
-        LOG.debug("processor: "+processorScript);
-        LOG.debug("decoder: "+decoderScript);
-        engine=new ScriptEngineManager().getEngineByName("nashorn");
-        LOG.debug("engine: "+engine);
+        LOG.debug("processor: " + processorScript);
+        LOG.debug("decoder: " + decoderScript);
+        engine = new ScriptEngineManager().getEngineByName("nashorn");
+        LOG.debug("engine: " + engine);
     }
 
     @Override
-    public ProcessorResult processData1(ArrayList<ChannelData> values,
+    public ProcessorResult processData1(
+            ArrayList<ChannelData> values,
             Device device,
             long dataTimestamp,
             Double latitude, Double longitude, Double altitude,
@@ -78,16 +79,16 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         Double devLongitude = device.getLongitude();
         Double devAltitude = device.getAltitude();
 
-        String deviceConfig=device.getConfiguration();
-        HashMap<String,Object> applicationConfig=device.getApplicationConfig();
+        String deviceConfig = device.getConfiguration();
+        HashMap<String, Object> applicationConfig = device.getApplicationConfig();
 
         Invocable invocable;
         ProcessorResult result = new ProcessorResult();
         if (values == null) {
             return result;
         }
-        LOG.debug("values.size=="+values.size());
-        for(int i=0; i<values.size(); i++){
+        LOG.debug("values.size==" + values.size());
+        for (int i = 0; i < values.size(); i++) {
             LOG.debug(values.get(i).toString());
         }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
@@ -96,9 +97,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             invocable = (Invocable) engine;
             result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
-                    devLatitude, devLongitude, devAltitude, command, requestData,deviceConfig,applicationConfig);
-                    LOG.debug("result.output.size=="+result.getOutput().size());
-                    LOG.debug("result.measures.size=="+result.getMeasures().size());
+                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig);
+            LOG.debug("result.output.size==" + result.getOutput().size());
+            LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {
             LOG.warn(e.getMessage());
             fireEvent(2, device, e.getMessage());
@@ -119,7 +120,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         Invocable invocable;
         ArrayList<ChannelData> list = new ArrayList<>();
         try {
-            engine.eval(device.getEncoderUnescaped() != null ? merge(decoderScript, device.getEncoderUnescaped()) : decoderScript);
+            LOG.debug("DECODING PAYLOAD");
+            String deviceDecoderScript = device.getEncoderUnescaped();
+            LOG.debug(deviceDecoderScript);
+            LOG.debug(decoderScript);
+            engine.eval(deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript) : decoderScript);
             invocable = (Invocable) engine;
             list = (ArrayList) invocable.invokeFunction("decodeData", device.getDeviceID(), data, timestamp);
         } catch (NoSuchMethodException e) {
@@ -130,7 +135,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             LOG.warn(e.getMessage());
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
-        }catch(Exception e){
+        } catch (Exception e) {
             LOG.warn(e.getMessage());
             fireEvent(1, device, e.getMessage());
             throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
@@ -138,30 +143,38 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         return list;
     }
 
-    @Override
     /**
      * not used
      */
-    public ArrayList<ChannelData> decodeHexData(String hexadecimalPayload, Device device,
-            long timestamp) throws ScriptAdapterException {
-        Invocable invocable;
-        ArrayList<ChannelData> list = new ArrayList<>();
-        try {
-            engine.eval(device.getEncoderUnescaped() != null ? merge(decoderScript, device.getEncoderUnescaped()) : decoderScript);
-            invocable = (Invocable) engine;
-            list = (ArrayList) invocable.invokeFunction("decodeHexData", device.getDeviceID(), hexadecimalPayload, timestamp);
-        } catch (NoSuchMethodException e) {
-            fireEvent(1, device, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD, e.getMessage());
-        } catch (ScriptException e) {
-            fireEvent(1, device, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
-        }catch(Exception e){
-            fireEvent(1, device, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
-        }
-        return list;
-    }
+    /*
+     * @Override
+     * public ArrayList<ChannelData> decodeHexData(String hexadecimalPayload, Device
+     * device,
+     * long timestamp) throws ScriptAdapterException {
+     * Invocable invocable;
+     * ArrayList<ChannelData> list = new ArrayList<>();
+     * try {
+     * engine.eval(device.getEncoderUnescaped() != null ? merge(decoderScript,
+     * device.getEncoderUnescaped()) : decoderScript);
+     * invocable = (Invocable) engine;
+     * list = (ArrayList) invocable.invokeFunction("decodeHexData",
+     * device.getDeviceID(), hexadecimalPayload, timestamp);
+     * } catch (NoSuchMethodException e) {
+     * fireEvent(1, device, e.getMessage());
+     * throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD,
+     * e.getMessage());
+     * } catch (ScriptException e) {
+     * fireEvent(1, device, e.getMessage());
+     * throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION,
+     * e.getMessage());
+     * }catch(Exception e){
+     * fireEvent(1, device, e.getMessage());
+     * throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION,
+     * e.getMessage());
+     * }
+     * return list;
+     * }
+     */
 
     String merge(String template, String deviceScript) {
         String res = template.replaceAll("//injectedCode", deviceScript);
@@ -195,25 +208,27 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
      * @param message
      */
     private void fireEvent(int source, Device device, String message) {
-        /*IotEvent ev = new IotEvent();
-        ev.setOrigin(device.getUserID() + "\t" + device.getDeviceID());
-        if (source == 1) {
-            ev.setPayload("Decoder script (1): " + message);
-        } else {
-            ev.setPayload("Data processor script (1): " + message);
-        }
-        ev.setType(IotEvent.GENERAL);
-        messageService.sendErrorInfo(ev);*/
+        /*
+         * IotEvent ev = new IotEvent();
+         * ev.setOrigin(device.getUserID() + "\t" + device.getDeviceID());
+         * if (source == 1) {
+         * ev.setPayload("Decoder script (1): " + message);
+         * } else {
+         * ev.setPayload("Data processor script (1): " + message);
+         * }
+         * ev.setType(IotEvent.GENERAL);
+         * messageService.sendErrorInfo(ev);
+         */
         String payload;
         if (source == 1) {
-            payload="Decoder script (1): " + message;
-        }else{
-            payload="Data processor script (1): " + message;
+            payload = "Decoder script (1): " + message;
+        } else {
+            payload = "Data processor script (1): " + message;
         }
-        EventEnvelope wrapper=new EventEnvelope();
-        wrapper.type=EventEnvelope.ERROR;
-        wrapper.eui=device.getEUI();
-        wrapper.payload=payload;
+        EventEnvelope wrapper = new EventEnvelope();
+        wrapper.type = EventEnvelope.ERROR;
+        wrapper.eui = device.getEUI();
+        wrapper.payload = payload;
         messageService.sendEvent(wrapper);
     }
 
