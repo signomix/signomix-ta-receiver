@@ -3,6 +3,7 @@ package com.signomix.receiver;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.HashMap;
@@ -408,15 +409,16 @@ public class ReceiverService {
                 }
                 byteArray = base64Decoder.decode(data.getPayload().getBytes());
             } else if (null != data.getHexPayload()) {
-                LOG.debug("hexPayload: " + data.getHexPayload());
+                LOG.debug(device.getEUI()+" hexPayload: " + data.getHexPayload());
                 byteArray = getByteArray(data.getHexPayload());
             } else {
-                LOG.debug("payload is null");
+                LOG.debug(device.getEUI()+" payload is null");
                 byteArray = emptyBytes;
             }
             if (null == byteArray) {
                 byteArray = emptyBytes;
             }
+            LOG.debug(device.getEUI()+" byteArray: " + Arrays.toString(byteArray));
             try {
                 values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
             } catch (ScriptAdapterException ex) {
