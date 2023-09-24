@@ -22,7 +22,6 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import com.signomix.common.HexTool;
-import com.signomix.common.db.IotDatabaseDao;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
@@ -37,6 +36,7 @@ import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.agroal.DataSource;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
@@ -48,7 +48,12 @@ public class ReceiverService {
     // TODO: test /q/health/ready
 
     @Inject
+    @DataSource("old")
     AgroalDataSource ds;
+
+    @Inject
+    @DataSource("oltp")
+    AgroalDataSource tsDs;
 
     @Inject
     MessageServiceIface messageService;
@@ -63,7 +68,8 @@ public class ReceiverService {
     @Inject
     BulkDataLoader bulkDataLoader;
 
-    IotDatabaseIface dao;
+    IotDatabaseIface dao = null;
+    IotDatabaseIface tsDao = null;
 
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
     String appKey;
@@ -71,10 +77,28 @@ public class ReceiverService {
     String coreHost;
     @ConfigProperty(name = "device.status.update.integrated")
     Boolean deviceStatusUpdateIntegrated;
+    @ConfigProperty(name = "signomix.database.type")
+    String databaseType;
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        dao = new IotDatabaseDao();
-        dao.setDatasource(ds);
+        if ("postgresql".equalsIgnoreCase(databaseType)) {
+            LOG.info("using postgresql database");
+            tsDao = new com.signomix.common.tsdb.IotDatabaseDao();
+            tsDao.setDatasource(tsDs);
+            return;
+        } else if ("h2".equalsIgnoreCase(databaseType)) {
+            LOG.info("using h2 database");
+            dao = new com.signomix.common.db.IotDatabaseDao();
+            dao.setDatasource(ds);
+            return;
+        } else if ("both".equalsIgnoreCase(databaseType)) {
+            LOG.info("using both databases");
+            dao = new com.signomix.common.db.IotDatabaseDao();
+            dao.setDatasource(ds);
+            tsDao = new com.signomix.common.tsdb.IotDatabaseDao();
+            tsDao.setDatasource(tsDs);
+            return;
+        }
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -82,7 +106,13 @@ public class ReceiverService {
     }
 
     public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input) {
-        return bulkDataLoader.loadBulkData(device, dao, input);
+        if (null != dao) {
+            return bulkDataLoader.loadBulkData(device, dao, input);
+        }
+        if (null != tsDao) {
+            return bulkDataLoader.loadBulkData(device, tsDao, input);
+        }
+        return null;
     }
 
     @ConsumeEvent(value = "iotdata-no-response")
@@ -176,7 +206,7 @@ public class ReceiverService {
         } catch (Exception e) {
             e.printStackTrace();
             LOG.error(e.getMessage());
-            //addNotifications(device, null, e.getMessage(), false);
+            // addNotifications(device, null, e.getMessage(), false);
         }
         if (!statusUpdated) {
             updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(), device.ALERT_OK);
@@ -308,7 +338,12 @@ public class ReceiverService {
     private void saveData(Device device, ArrayList<ChannelData> list) {
         try {
             LOG.info("saveData list.size():" + list.size());
-            dao.putData(device, fixValues(device, list));
+            if (null != dao) {
+                dao.putData(device, fixValues(device, list));
+            }
+            if (null != tsDao) {
+                tsDao.putData(device, fixValues(device, list));
+            }
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -344,7 +379,12 @@ public class ReceiverService {
                     vd.payload_fields.put(name, value);
                 }
             }
-            dao.putVirtualData(device, vd);
+            if (null != dao) {
+                dao.putVirtualData(device, vd);
+            }
+            if (null != tsDao) {
+                tsDao.putVirtualData(device, vd);
+            }
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -358,7 +398,12 @@ public class ReceiverService {
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            if (null != dao) {
+                dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            }
+            if (null != tsDao) {
+                tsDao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            }
             LOG.info("Device status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -374,7 +419,12 @@ public class ReceiverService {
             return;
         }
         try {
-            dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            if (null != dao) {
+                dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            }
+            if (null != tsDao) {
+                tsDao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
+            }
             LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -409,16 +459,16 @@ public class ReceiverService {
                 }
                 byteArray = base64Decoder.decode(data.getPayload().getBytes());
             } else if (null != data.getHexPayload()) {
-                LOG.debug(device.getEUI()+" hexPayload: " + data.getHexPayload());
+                LOG.debug(device.getEUI() + " hexPayload: " + data.getHexPayload());
                 byteArray = getByteArray(data.getHexPayload());
             } else {
-                LOG.debug(device.getEUI()+" payload is null");
+                LOG.debug(device.getEUI() + " payload is null");
                 byteArray = emptyBytes;
             }
             if (null == byteArray) {
                 byteArray = emptyBytes;
             }
-            LOG.debug(device.getEUI()+" byteArray: " + Arrays.toString(byteArray));
+            LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
             try {
                 values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
             } catch (ScriptAdapterException ex) {
