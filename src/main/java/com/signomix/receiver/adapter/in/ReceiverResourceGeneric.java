@@ -65,14 +65,14 @@ public class ReceiverResourceGeneric {
 
     @Path("/receiver/in")
     @OPTIONS
-    public String sendOKString() {
-        return "OK";
+    public Response sendOKString() {
+        return Response.ok().build();
     }
 
     @Path("/receiver/io")
     @OPTIONS
-    public String sendOKString2() {
-        return "OK";
+    public Response sendOKString2() {
+        return Response.ok().build();
     }
 
     @Path("/receiver/in")
@@ -81,14 +81,14 @@ public class ReceiverResourceGeneric {
     @Produces(MediaType.TEXT_PLAIN)
     public Response getAsForm(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
-        LOG.info("form received");
+        //LOG.info("form received from eui "+inHeaderEui);
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
         // When eui in request header
         // Then device can be checked
         if (euiHeaderFirst) {
-            Device device = service.getDevice(inHeaderEui);
+            Device device = service.getDevice(inHeaderEui==null?"":inHeaderEui);
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
                 return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
