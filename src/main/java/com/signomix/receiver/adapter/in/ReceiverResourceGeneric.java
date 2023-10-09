@@ -63,7 +63,7 @@ public class ReceiverResourceGeneric {
         }
     }
 
-    @Path("/receiver/in")
+/*     @Path("/receiver/in")
     @OPTIONS
     public Response sendOKString() {
         return Response.ok().build();
@@ -73,7 +73,7 @@ public class ReceiverResourceGeneric {
     @OPTIONS
     public Response sendOKString2() {
         return Response.ok().build();
-    }
+    } */
 
     @Path("/receiver/in")
     @POST
