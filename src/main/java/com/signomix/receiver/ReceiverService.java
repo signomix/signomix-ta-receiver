@@ -83,8 +83,8 @@ public class ReceiverService {
     public void onApplicationStart(@Observes StartupEvent event) {
         if ("postgresql".equalsIgnoreCase(databaseType)) {
             LOG.info("using postgresql database");
-            tsDao = new com.signomix.common.tsdb.IotDatabaseDao();
-            tsDao.setDatasource(tsDs);
+            dao = new com.signomix.common.tsdb.IotDatabaseDao();
+            dao.setDatasource(tsDs);
             return;
         } else if ("h2".equalsIgnoreCase(databaseType)) {
             LOG.info("using h2 database");
