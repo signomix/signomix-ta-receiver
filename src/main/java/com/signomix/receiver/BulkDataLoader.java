@@ -32,6 +32,7 @@ public class BulkDataLoader {
     ArrayList<ChannelData> data = new ArrayList<>();
     Device device;
     IotDatabaseIface dao;
+    IotDatabaseIface olapDao;
     boolean withEui = false; // first column in CSV line is device EUI
     BulkLoaderResult result = new BulkLoaderResult();
     int errors = 0;
@@ -39,7 +40,7 @@ public class BulkDataLoader {
     public BulkDataLoader() {
     }
 
-    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface dao, MultipartFormDataInput input) {
+    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface dao, IotDatabaseIface olapDao, MultipartFormDataInput input) {
         this.dao = dao;
         device = loadedDevice;
         int lineNumber = 0;
@@ -130,6 +131,12 @@ public class BulkDataLoader {
             // line parsed - save data
             try {
                 dao.putData(device, data);
+            } catch (IotDatabaseException e) {
+                logger.error(e.getMessage(), e);
+                return false;
+            }
+            try {
+                olapDao.putData(device, data);
             } catch (IotDatabaseException e) {
                 logger.error(e.getMessage(), e);
                 return false;

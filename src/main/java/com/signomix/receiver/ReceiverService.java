@@ -17,6 +17,8 @@ import javax.ws.rs.ProcessingException;
 import javax.ws.rs.WebApplicationException;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
@@ -56,6 +58,10 @@ public class ReceiverService {
     AgroalDataSource tsDs;
 
     @Inject
+    @DataSource("olap")
+    AgroalDataSource olapDs;
+
+    @Inject
     MessageServiceIface messageService;
 
     @Inject
@@ -68,8 +74,12 @@ public class ReceiverService {
     @Inject
     BulkDataLoader bulkDataLoader;
 
+    //MqttSender mqttSender;
+    @Inject @Channel("data-received") Emitter<String> emitter;
+
     IotDatabaseIface dao = null;
     IotDatabaseIface tsDao = null;
+    IotDatabaseIface olapDao = null;
 
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
     String appKey;
@@ -84,7 +94,10 @@ public class ReceiverService {
         if ("postgresql".equalsIgnoreCase(databaseType)) {
             LOG.info("using postgresql database");
             dao = new com.signomix.common.tsdb.IotDatabaseDao();
+            olapDao = new com.signomix.common.tsdb.IotDatabaseDao();
             dao.setDatasource(tsDs);
+            olapDao.setDatasource(tsDs);
+            olapDao.setAnalyticDatasource(olapDs);
             return;
         } else if ("h2".equalsIgnoreCase(databaseType)) {
             LOG.info("using h2 database");
@@ -107,10 +120,10 @@ public class ReceiverService {
 
     public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input) {
         if (null != dao) {
-            return bulkDataLoader.loadBulkData(device, dao, input);
+            return bulkDataLoader.loadBulkData(device, dao, olapDao, input);
         }
         if (null != tsDao) {
-            return bulkDataLoader.loadBulkData(device, tsDao, input);
+            return bulkDataLoader.loadBulkData(device, tsDao, olapDao, input);
         }
         return null;
     }
@@ -344,8 +357,18 @@ public class ReceiverService {
             if (null != tsDao) {
                 tsDao.putData(device, fixValues(device, list));
             }
+            if(null!=olapDao){
+                LOG.info("saveData to olap DB");
+                olapDao.saveAnalyticData(device, fixValues(device, list));
+            }else{
+                LOG.warn("olapDao is null");
+            }
+
+            emitter.send(device.getEUI());
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
