@@ -7,9 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.enterprise.context.RequestScoped;
-import javax.inject.Inject;
-
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
@@ -20,7 +17,8 @@ import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 
-import io.netty.channel.unix.Errors;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.inject.Inject;
 
 @RequestScoped
 public class BulkDataLoader {
