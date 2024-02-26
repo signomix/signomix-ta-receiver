@@ -60,19 +60,24 @@ public class ReceiverResourceTtn {
     @POST
     @Produces(MediaType.TEXT_PLAIN)
     public Response getAsJson(@HeaderParam("Authorization") String authKey, String jsonString) {
-        // LOG.debug("input: " + dataObject.toString());
-        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        try {
+            if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+                return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            }
+            Decoder decoder = new Decoder();
+            TtnData3 dataObject = decoder.decode(jsonString);
+            IotData2 iotData = transform(dataObject, authKey, authorizationRequired);
+            if (null == iotData) {
+                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            } else {
+                send(iotData);
+            }
+            return Response.ok("OK").build();
+        } catch (Exception e) {
+            LOG.warn(e.getMessage());
+            e.printStackTrace();
+            return Response.status(Status.INTERNAL_SERVER_ERROR).entity("error while processing the data").build();
         }
-        Decoder decoder = new Decoder();
-        TtnData3 dataObject = decoder.decode(jsonString);
-        IotData2 iotData = transform(dataObject, authKey, authorizationRequired);
-        if (null == iotData) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
-        } else {
-            send(iotData);
-        }
-        return Response.ok("OK").build();
     }
 
     private void send(IotData2 iotData) {
@@ -83,7 +88,7 @@ public class ReceiverResourceTtn {
     }
 
     private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) {
-        LOG.info("transform "+authKey+" "+authRequired);
+        LOG.info("transform " + authKey + " " + authRequired);
         IotData2 data = new IotData2();
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;
@@ -108,7 +113,20 @@ public class ReceiverResourceTtn {
                 try {
                     tempMap.put("value", (Long) pfMap.get(key));
                 } catch (ClassCastException ex2) {
-                    tempMap.put("value", (String) pfMap.get(key));
+                    try{
+                        Boolean b = (Boolean) pfMap.get(key);
+                        if(b){
+                            tempMap.put("value", 1.0);
+                        }else{
+                            tempMap.put("value", 0.0);
+                        }
+                    }catch (ClassCastException ex3) {
+                        try{
+                            tempMap.put("value", (String) pfMap.get(key));
+                        }catch (ClassCastException ex4) {
+                            tempMap.put("value", pfMap.get(key).toString());
+                        }
+                    }
                 }
             }
             data.payload_fields.add(tempMap);
