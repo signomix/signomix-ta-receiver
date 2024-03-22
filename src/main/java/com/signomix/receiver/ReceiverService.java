@@ -9,6 +9,7 @@ import java.util.Base64.Decoder;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
@@ -80,6 +81,10 @@ public class ReceiverService {
     IotDatabaseIface tsDao = null;
     IotDatabaseIface olapDao = null;
 
+    private static AtomicLong commandIdSeed = null;
+    private static AtomicLong eventSeed = new AtomicLong(System.currentTimeMillis());
+
+
     @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
     String appKey;
     @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
@@ -88,6 +93,8 @@ public class ReceiverService {
     Boolean deviceStatusUpdateIntegrated;
     @ConfigProperty(name = "signomix.database.type")
     String databaseType;
+    @ConfigProperty(name = "signomix.command_id.bytes", defaultValue = "0")
+    Short commandIdBytes;
 
     public void onApplicationStart(@Observes StartupEvent event) {
         if ("postgresql".equalsIgnoreCase(databaseType)) {
@@ -580,41 +587,73 @@ public class ReceiverService {
         return device;
     }
 
-    long getNewCommandId(String deviceEUI) throws Exception {
-        try {
-            try {
-                CoreSystemService client = RestClientBuilder.newBuilder()
-                        .baseUri(new URI(coreHost + "/api/system/commandid"))
-                        .followRedirects(true)
-                        .build(CoreSystemService.class);
-                long result;
-                try {
-                    result = (Long) client.getNewCommandId(appKey, deviceEUI).get("value");
-                } catch (Exception e) {
-                    result = (Integer) client.getNewCommandId(appKey, deviceEUI).get("value");
-                }
-                return result;
-            } catch (URISyntaxException ex) {
-                LOG.error(ex.getMessage());
-                // TODO: notyfikacja użytkownika o błędzie
-                throw new Exception();
-            } catch (ProcessingException ex) {
-                LOG.error(ex.getMessage());
-                throw new Exception();
-            } catch (WebApplicationException ex) {
-                ex.printStackTrace();
-                LOG.error(ex.getMessage());
-                System.out.println("WEB APP EXCEPTION");
-                throw new Exception();
-            } catch (Exception ex) {
-                LOG.error(ex.getMessage());
-                // TODO: notyfikacja użytkownika o błędzie
-                throw new Exception();
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new Exception();
+    /**
+     * Returns next unique identifier for command (IotEvent).
+     *
+     * @return next unique identifier
+     */
+    public synchronized long getNewCommandId(String deviceEui) {
+        // TODO: max value policy: 2,4,8 bytes (unsigned)
+        // default is long type (8 bytes)
+        if(commandIdBytes==0){
+            return eventSeed.getAndIncrement();
         }
+        if (null == commandIdSeed) {
+            long seed = 0;
+            try {
+                if (null == deviceEui) {
+                    seed = dao.getMaxCommandId();
+                } else {
+                    seed = dao.getMaxCommandId(deviceEui);
+                }
+            } catch (IotDatabaseException e) {
+                LOG.warn(e.getMessage());
+                e.printStackTrace();
+            }
+            switch (commandIdBytes) {
+                case 2:
+                    if (seed >= 65535L) {
+                        seed = 0;
+                    }
+                    break;
+                case 4:
+                    if (seed >= 4294967295L) {
+                        seed = 0;
+                    }
+                    break;
+                default: //default per device ID is 8 bytes
+                    if (seed == Long.MAX_VALUE) {
+                        seed = 0;
+                    }
+            }
+            commandIdSeed = new AtomicLong(seed);
+        }
+        long value = commandIdSeed.get();
+        long newValue;
+        switch (commandIdBytes) {
+            case 2:
+                if (value >= 65535L) {
+                    newValue = 1;
+                } else {
+                    newValue = value + 1;
+                }
+                break;
+            case 4:
+                if (value >= 4294967295L) {
+                    newValue = 1;
+                } else {
+                    newValue = value + 1;
+                }
+                break;
+            default:
+                if (value == Long.MAX_VALUE) {
+                    newValue = 1;
+                } else {
+                    newValue = value + 1;
+                }
+        }
+        commandIdSeed.set(newValue);
+        return newValue;
     }
 
     public Device getDeviceChecked(String eui, String authKey, boolean authRequired, DeviceType[] expectedTypes) {
