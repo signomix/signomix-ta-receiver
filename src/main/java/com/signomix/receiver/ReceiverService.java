@@ -1,7 +1,5 @@
 package com.signomix.receiver;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -14,7 +12,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
@@ -40,8 +37,6 @@ import io.quarkus.vertx.ConsumeEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.ProcessingException;
-import jakarta.ws.rs.WebApplicationException;
 
 @ApplicationScoped
 public class ReceiverService {
@@ -74,7 +69,6 @@ public class ReceiverService {
     @Inject
     BulkDataLoader bulkDataLoader;
 
-    //MqttSender mqttSender;
     @Inject @Channel("data-received") Emitter<String> emitter;
 
     IotDatabaseIface dao = null;
@@ -85,10 +79,10 @@ public class ReceiverService {
     private static AtomicLong eventSeed = new AtomicLong(System.currentTimeMillis());
 
 
-    @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
-    String appKey;
-    @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
-    String coreHost;
+    /* @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
+    String appKey; */
+/*     @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
+    String coreHost; */
     @ConfigProperty(name = "device.status.update.integrated")
     Boolean deviceStatusUpdateIntegrated;
     @ConfigProperty(name = "signomix.database.type")
