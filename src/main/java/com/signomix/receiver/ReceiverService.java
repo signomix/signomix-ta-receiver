@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -34,6 +35,8 @@ import io.quarkus.agroal.DataSource;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -69,7 +72,12 @@ public class ReceiverService {
     @Inject
     BulkDataLoader bulkDataLoader;
 
-    @Inject @Channel("data-received") Emitter<String> emitter;
+    @Inject
+    @Channel("data-received")
+    Emitter<String> emitter;
+    @Inject
+    @Channel("data-created")
+    Emitter<String> dataCreatedEmitter;
 
     IotDatabaseIface dao = null;
     IotDatabaseIface tsDao = null;
@@ -78,11 +86,17 @@ public class ReceiverService {
     private static AtomicLong commandIdSeed = null;
     private static AtomicLong eventSeed = new AtomicLong(System.currentTimeMillis());
 
+    @Inject
+    EventBus bus;
 
-    /* @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
-    String appKey; */
-/*     @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
-    String coreHost; */
+    /*
+     * @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
+     * String appKey;
+     */
+    /*
+     * @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
+     * String coreHost;
+     */
     @ConfigProperty(name = "device.status.update.integrated")
     Boolean deviceStatusUpdateIntegrated;
     @ConfigProperty(name = "signomix.database.type")
@@ -143,6 +157,12 @@ public class ReceiverService {
         processData(data);
     }
 
+    @ConsumeEvent(value = "virtualdata-no-response")
+    void processVirtualData(String payload) {
+        LOG.info("virtualdata-no-response: " + payload);
+        parseBusMessage(payload);
+    }
+
     public MessageServiceIface getMessageService() {
         return messageService;
     }
@@ -160,6 +180,56 @@ public class ReceiverService {
             String dataString) {
         // TODO
         return null;
+    }
+
+    private void parseBusMessage(String payload) {
+        LOG.info("parseBusMessage: " + payload);
+        String[] parts = payload.split(";");
+        //sort parts array basing on the first field (deviceId) - fields are separated by ":"
+        Arrays.sort(parts, new Comparator<String>() {
+            public int compare(String s1, String s2) {
+                String eui1 = s1.split(":")[0];
+                String eui2 = s2.split(":")[0];
+                return eui1.compareTo(eui2);
+            }
+        });
+        String tmpEui="";
+        String[] dataObj;
+        HashMap<String, String> map;
+        IotData2 iotData = new IotData2();
+        iotData.payload_fields = new ArrayList<>();
+        for (String part : parts) {
+            LOG.info("part: " + part);
+            dataObj = part.split(":");
+            if(!tmpEui.equals(dataObj[0])){
+                // save previous iotData
+                if(iotData!=null && iotData.dev_eui!=null && iotData.dev_eui.length()>0){
+                    LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+                    iotData.normalize();
+                    iotData.setTimestampUTC();
+                    processData(iotData);
+                }
+                tmpEui=dataObj[0];
+                iotData = new IotData2();
+                iotData.dev_eui = dataObj[0];
+                if (dataObj.length > 3) {
+                    iotData.timestamp = dataObj[3];
+                } else {
+                    iotData.timestamp = ""+System.currentTimeMillis();
+                }
+                iotData.payload_fields = new ArrayList<>();
+            }
+            map = new HashMap<>();
+            map.put("name",dataObj[1]);
+            map.put("value", dataObj[2]);
+            iotData.payload_fields.add(map);
+        }
+        if(iotData!=null && iotData.dev_eui!=null && iotData.dev_eui.length()>0){
+            LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+            iotData.normalize();
+            iotData.setTimestampUTC();
+            processData(iotData);
+        }
     }
 
     private String processData(IotData2 data) {
@@ -279,11 +349,18 @@ public class ReceiverService {
                 // newEvent.setOrigin(device.getUserID());
                 String payload = "";
                 for (int i = 0; i < el.size(); i++) {
-                    payload = payload + ";" + el.get(i).getPayload();
+                    if (i > 0) {
+                        payload = payload + ";";
+                    }
+                    payload = payload + el.get(i).getPayload();
                 }
-                payload = payload.substring(1);
                 newEvent.setPayload(payload);
-                messageService.sendData(newEvent);
+                LOG.info("SENDING DATA CREATED EVENT (" + device.getEUI() + "): " + newEvent.getPayload());
+                // send event to mqtt
+                dataCreatedEmitter.send((String) newEvent.getPayload());
+                // send event to event bus
+                sentToEventBus(payload);
+
             }
         }
 
@@ -309,6 +386,14 @@ public class ReceiverService {
             e.printStackTrace();
         }
         return result;
+    }
+
+    private void sentToEventBus(String payload) {
+        // IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
+        // DeliveryOptions options = new
+        // DeliveryOptions().setCodecName(iotDataCodec.name());
+        LOG.info("sending to event bus: " + payload);
+        bus.send("virtualdata-no-response", payload);
     }
 
     private ProcessorResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
@@ -357,10 +442,10 @@ public class ReceiverService {
             if (null != tsDao) {
                 tsDao.putData(device, fixValues(device, list));
             }
-            if(null!=olapDao){
+            if (null != olapDao) {
                 LOG.info("saveData to olap DB");
                 olapDao.saveAnalyticData(device, fixValues(device, list));
-            }else{
+            } else {
                 LOG.warn("olapDao is null");
             }
 
@@ -589,7 +674,7 @@ public class ReceiverService {
     public synchronized long getNewCommandId(String deviceEui) {
         // TODO: max value policy: 2,4,8 bytes (unsigned)
         // default is long type (8 bytes)
-        if(commandIdBytes==0){
+        if (commandIdBytes == 0) {
             return eventSeed.getAndIncrement();
         }
         if (null == commandIdSeed) {
@@ -615,7 +700,7 @@ public class ReceiverService {
                         seed = 0;
                     }
                     break;
-                default: //default per device ID is 8 bytes
+                default: // default per device ID is 8 bytes
                     if (seed == Long.MAX_VALUE) {
                         seed = 0;
                     }
