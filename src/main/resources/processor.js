@@ -42,10 +42,10 @@ sgx0.accept = function (name) {
 }
 sgx0.addCommand = function (targetEUI, payload, overwrite) {
     //JSON payload
-    this.result.addCommand(targetEUI, this.eui, payload, 2, overwrite);
+    this.result.addCommand(targetEUI, this.eui, JSON.stringify(payload), 2, overwrite);
 }
 sgx0.addPlainCommand = function (targetEUI, payload, overwrite) {
-    //JSON payload
+    //TEXT payload
     this.result.addCommand(targetEUI, this.eui, payload, 0, overwrite);
 }
 sgx0.addHexCommand = function (targetEUI, payload, overwrite) {

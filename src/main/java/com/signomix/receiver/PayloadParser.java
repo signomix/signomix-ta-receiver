@@ -12,32 +12,40 @@ import org.jboss.logging.Logger;
 
 public class PayloadParser implements PayloadParserIface {
     private static final Logger LOG = Logger.getLogger(PayloadParser.class);
-    public PayloadParser(){
+
+    public PayloadParser() {
     }
 
     @Override
-    public List<Map> parse(String payload, Map options){
-        ArrayList payload_fields=new ArrayList<>();
+    public List<Map> parse(String payload, Map options) {
+        String separator = (String) options.get("separator");
+        return parseLines(payload, separator);
+    }
+
+    private List<Map> parseLines(String payload, String separator) {
+        ArrayList payload_fields = new ArrayList<>();
+        String dataSeparator = separator!=null?separator:";";  
         Scanner scanner = new Scanner(payload);
         HashMap<String, String> map;
-        int idx;
-        String name;
-        String value;
         String line;
+        String[] data;
+        String[] dataField;
+
         while (scanner.hasNextLine()) {
             line = scanner.nextLine();
-            LOG.debug("line:"+line);
-            idx = line.indexOf("=");
-            if (idx > 0 && idx < line.length()) {
-                name = line.substring(0, idx);
-                value = line.substring(idx + 1);
-                map = new HashMap<>();
-                map.put("name",name.trim());
-                map.put("value", value.trim());
-                payload_fields.add(map);
+            LOG.debug("line:" + line);
+            data = line.split(dataSeparator);
+            for (String field : data) {
+                dataField = field.split("=");
+                if (dataField.length == 2) {
+                    map = new HashMap<>();
+                    map.put("name", dataField[0].trim());
+                    map.put("value", dataField[1].trim());
+                    payload_fields.add(map);
+                }
             }
         }
         return payload_fields;
     }
-    
+
 }

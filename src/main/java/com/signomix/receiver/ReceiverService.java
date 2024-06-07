@@ -237,11 +237,11 @@ public class ReceiverService {
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
-        String deviceId = data.deviceId;
+        //String deviceId = data.deviceId;
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
-            return result;
+            return null;
         }
         String parserError = getFirstParserErrorValue(data);
         if (null != parserError && !parserError.isEmpty()) {
