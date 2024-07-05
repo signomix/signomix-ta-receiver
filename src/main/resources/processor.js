@@ -213,10 +213,13 @@ sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
 sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
 }
+sgx0.getTimeoffsetMinutes = function(timezoneName){
+    return this.timeOffsets[timezoneName];
+}
 
 var processData = function (eui, dataReceived, channelReader, userID, receivedDataTimestamp,
     latitude, longitude, altitude, status, alert,
-    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig) {
+    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, timeOffsets) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
@@ -240,6 +243,7 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     sgx.requestData = requestData
     sgx.deviceConfig = devConfig
     sgx.applicationConfig = appConfig
+    sgx.timeOffsets = timeOffsets
     sgx.verify(dataReceived, status)
     //put original values. (todo: replace with verify)
     //if (dataReceived.length > 0) {

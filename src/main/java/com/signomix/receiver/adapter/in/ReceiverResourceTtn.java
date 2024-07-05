@@ -31,7 +31,9 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceTtn {
-    private static final Logger LOG = Logger.getLogger(ReceiverResourceGeneric.class);
+    
+    @Inject
+    Logger LOG;
 
     @Inject
     EventBus bus;

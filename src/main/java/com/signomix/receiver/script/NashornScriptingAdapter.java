@@ -8,8 +8,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.script.Invocable;
@@ -82,6 +85,12 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         String deviceConfig = device.getConfiguration();
         HashMap<String, Object> applicationConfig = device.getApplicationConfig();
 
+        Set<String> availableZoneIds = ZoneId.getAvailableZoneIds();
+
+        // Convert the set to an array
+        String[] timeZones = availableZoneIds.toArray(new String[0]);
+        HashMap<String, Integer> offsets = getTimeZoneOffsets(timeZones);
+
         Invocable invocable;
         ProcessorResult result = new ProcessorResult();
         if (values == null) {
@@ -97,7 +106,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             invocable = (Invocable) engine;
             result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
-                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig);
+                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig, offsets);
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {
@@ -230,6 +239,20 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         wrapper.eui = device.getEUI();
         wrapper.payload = payload;
         messageService.sendEvent(wrapper);
+    }
+
+    private HashMap<String, Integer> getTimeZoneOffsets(String[] timeZones) {
+        HashMap<String, Integer> timeZoneOffsets = new HashMap<>();
+        
+        for (String timeZone : timeZones) {
+            ZoneId zoneId = ZoneId.of(timeZone);
+            ZonedDateTime zdt = ZonedDateTime.now(zoneId);
+            int offsetInMinutes = zdt.getOffset().getTotalSeconds() / 60;
+            
+            timeZoneOffsets.put(timeZone, offsetInMinutes);
+        }
+        
+        return timeZoneOffsets;
     }
 
 }

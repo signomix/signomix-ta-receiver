@@ -39,7 +39,9 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ChirpstackRestAdapter {
-    private static final Logger LOG = Logger.getLogger(ChirpstackRestAdapter.class);
+    
+    @Inject
+    Logger LOG;
 
     @ConfigProperty(name = "signomix.receiver.exception.api.param.missing")
     String missingParameterException;

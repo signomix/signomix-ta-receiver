@@ -40,7 +40,9 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceGeneric {
-    private static final Logger LOG = Logger.getLogger(ReceiverResourceGeneric.class);
+    
+    @Inject
+    Logger LOG;
 
     @Inject
     EventBus bus;
@@ -83,6 +85,7 @@ public class ReceiverResourceGeneric {
     @Produces(MediaType.TEXT_PLAIN)
     public Response processJson(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
+        LOG.info("processJson");
         LOG.debug("input: " + dataObject.toString());
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
@@ -150,6 +153,7 @@ public class ReceiverResourceGeneric {
             @HeaderParam("X-device-eui") String inHeaderEui,
             @HeaderParam("X-data-separator") String separator,
             String input) {
+        LOG.info("processText");
         LOG.debug("input: " + input);
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
@@ -219,7 +223,7 @@ public class ReceiverResourceGeneric {
         }
         // When eui in request header
         // Then device can be checked
-        Device device=null;
+        Device device = null;
         if (euiHeaderFirst) {
             device = service.getDevice(inHeaderEui);
             if (null == device) {

@@ -43,7 +43,9 @@ import jakarta.inject.Inject;
 
 @ApplicationScoped
 public class ReceiverService {
-    private static final Logger LOG = Logger.getLogger(ReceiverService.class);
+    
+    @Inject
+    Logger LOG;
 
     // TODO: test /q/health/ready
 
