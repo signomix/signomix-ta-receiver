@@ -425,7 +425,7 @@ public class ReceiverService {
             String[] origin = commandEvent.getOrigin().split("@");
             LOG.debug("saving command (" + origin[1] + ")");
             IotEvent ev = commandEvent;
-            ev.setId(getNewCommandId(origin[1]));
+            //ev.setId(getNewCommandId(origin[1]));
             dao.putDeviceCommand(origin[1], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -673,7 +673,7 @@ public class ReceiverService {
      *
      * @return next unique identifier
      */
-    public synchronized long getNewCommandId(String deviceEui) {
+/*     public synchronized long getNewCommandId(String deviceEui) {
         // TODO: max value policy: 2,4,8 bytes (unsigned)
         // default is long type (8 bytes)
         if (commandIdBytes == 0) {
@@ -735,7 +735,7 @@ public class ReceiverService {
         }
         commandIdSeed.set(newValue);
         return newValue;
-    }
+    } */
 
     public Device getDeviceChecked(String eui, String authKey, boolean authRequired, DeviceType[] expectedTypes) {
         Device gateway = null;
