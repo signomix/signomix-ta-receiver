@@ -26,10 +26,26 @@ public class ChannelClient {
         this.deviceID = deviceID;
     }
 
+    public ChannelData getLastData(String channel, boolean skipNull) {
+        try {
+            return thingsAdapter.getLastValue(userID, deviceID, channel, skipNull);
+        } catch (IotDatabaseException ex) {
+            ex.printStackTrace();
+            return null;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return null;
+        }
+    }
+
     public ChannelData getLastData(String channel) {
         try {
-            return thingsAdapter.getLastValue(userID, deviceID, channel);
+            return thingsAdapter.getLastValue(userID, deviceID, channel, false);
         } catch (IotDatabaseException ex) {
+            ex.printStackTrace();
+            return null;
+        } catch (Exception ex) {
+            ex.printStackTrace();
             return null;
         }
     }

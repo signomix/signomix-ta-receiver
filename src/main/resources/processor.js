@@ -125,16 +125,24 @@ sgx0.getSum = function (channelName, scope, newValue) {
         return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
     }
 }
-sgx0.getLastValue = function (channelName) {
-    var tmpLastData = this.channelReader.getLastData(channelName);
+sgx0.getLastValue = function (channelName, skipNull) {
+    var skipNullValues = false;
+    if(skipNull != undefined){
+        skipNullValues = skipNull;
+    }
+    var tmpLastData = this.channelReader.getLastData(channelName, skipNullValues);
     if (tmpLastData != null) {
         return tmpLastData.value
     } else {
         return null
     }
 }
-sgx0.getLastData = function (channelName) {
-    return this.channelReader.getLastData(channelName);
+sgx0.getLastData = function (channelName, skipNull) {
+    var skipNullValues = false;
+    if(skipNull != undefined){
+        skipNullValues = skipNull;
+    }
+    return this.channelReader.getLastData(channelName, skipNullValues);
 }
 sgx0.getModulo = function (value, divider) {
     return this.result.getModulo(value, divider);

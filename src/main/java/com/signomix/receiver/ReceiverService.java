@@ -403,7 +403,7 @@ public class ReceiverService {
             throws Exception {
         ProcessorResult result = processor.getProcessingResult(inputList, device,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
-                iotData.getLongitude(), iotData.getAltitude(), dataString, "", dao);
+                iotData.getLongitude(), iotData.getAltitude(), dataString, "", olapDao);
         result.setApplicationConfig(device.getApplicationConfig());
         return result;
     }
