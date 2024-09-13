@@ -127,7 +127,7 @@ sgx0.getSum = function (channelName, scope, newValue) {
 }
 sgx0.getLastValue = function (channelName, skipNull) {
     var skipNullValues = false;
-    if(skipNull != undefined){
+    if(arguments.length > 1){
         skipNullValues = skipNull;
     }
     var tmpLastData = this.channelReader.getLastData(channelName, skipNullValues);
@@ -139,7 +139,7 @@ sgx0.getLastValue = function (channelName, skipNull) {
 }
 sgx0.getLastData = function (channelName, skipNull) {
     var skipNullValues = false;
-    if(skipNull != undefined){
+    if(arguments.length > 1){
         skipNullValues = skipNull;
     }
     return this.channelReader.getLastData(channelName, skipNullValues);
@@ -180,6 +180,17 @@ sgx0.getStringValue = function (channelName) {
         }
     }
     return null;
+}
+sgx0.getLastValue = function (channelName) {
+    var tmpLastData = this.channelReader.getLastData(channelName);
+    if (tmpLastData != null) {
+        return tmpLastData.value
+    } else {
+        return null
+    }
+}
+sgx0.getLastData = function (channelName) {
+    return this.channelReader.getLastData(channelName);
 }
 sgx0.put = function (name, newValue, timestamp) {
     if (timestamp == undefined) {
@@ -265,7 +276,7 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     try {
         //injectedCode
     } catch (processorError) {
-        sgx.addNotification('error', 'Device '+eui+'processor script error: '+processorError)
+        sgx.addNotification('error', 'Device '+eui+' processor script error: '+processorError)
     }
     return sgx.result;
 }
