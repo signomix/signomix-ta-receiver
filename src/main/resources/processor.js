@@ -200,7 +200,7 @@ sgx0.put = function (name, newValue, timestamp) {
     }
 }
 
-sgx0.clearData() = function () {
+sgx0.clearData = function () {
     this.result.clearData();
 }
 
