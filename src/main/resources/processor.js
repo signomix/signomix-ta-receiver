@@ -200,11 +200,18 @@ sgx0.put = function (name, newValue, timestamp) {
     }
 }
 
+sgx0.clearData() = function () {
+    this.result.clearData();
+}
+
 sgx0.setState = function (newState) {
     this.result.setDeviceStatus(newState);
 }
 sgx0.setStatus = function (newStatus) {
     this.result.setDeviceStatus(newStatus);
+}
+sgx0.getStatus = function () {
+    return this.result.getDeviceStatus();
 }
 
 sgx0.reverseHex = function (hexStr) {

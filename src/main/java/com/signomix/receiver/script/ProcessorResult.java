@@ -4,15 +4,13 @@
  */
 package com.signomix.receiver.script;
 
+import com.signomix.common.event.IotEvent;
+import com.signomix.common.iot.ChannelData;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
-
 import org.jboss.logging.Logger;
-
-import com.signomix.common.event.IotEvent;
-import com.signomix.common.iot.ChannelData;
 
 /**
  *
@@ -179,6 +177,11 @@ public class ProcessorResult {
 
     public void putData(String eui, String name, Double value, long timestamp) {
         output.put(new ChannelData(eui, name, value, timestamp));
+        listsUsed = true;
+    }
+
+    public void clearData() {
+        output = new ListOfMaps();
         listsUsed = true;
     }
 
