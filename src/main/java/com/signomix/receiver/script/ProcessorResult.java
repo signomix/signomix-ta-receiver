@@ -7,7 +7,6 @@ package com.signomix.receiver.script;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 import org.jboss.logging.Logger;
@@ -111,11 +110,12 @@ public class ProcessorResult {
         }else{
             prefix="&";
         }
-        if(ENCODED_VER!=representation){
+        event.setPayload(prefix+payload);
+/*         if(ENCODED_VER!=representation){
             event.setPayload(prefix+payload);
         }else{
             event.setPayload(prefix+Base64.getEncoder().encodeToString(payload.getBytes()));
-        }
+        } */
         events.add(event);
     }
 

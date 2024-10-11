@@ -1,18 +1,10 @@
 package com.signomix.receiver.adapter.in;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
-
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.ttn3.Decoder;
 import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
-
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -27,6 +19,11 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 @Path("/api")
 @ApplicationScoped
@@ -74,6 +71,11 @@ public class ReceiverResourceTtn {
             } else {
                 send(iotData);
             }
+/*             if(iotData.dev_eui.equalsIgnoreCase("A840414B41841C21")
+            || iotData.dev_eui.equalsIgnoreCase("0018B240000068D4")
+            || iotData.dev_eui.equalsIgnoreCase("0004A30B00E98411")){
+                LOG.info(jsonString);
+            } */
             return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
@@ -90,7 +92,7 @@ public class ReceiverResourceTtn {
     }
 
     private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) {
-        LOG.info("transform " + authKey + " " + authRequired);
+        LOG.debug("transform " + authKey + " " + authRequired);
         IotData2 data = new IotData2();
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;

@@ -1,21 +1,5 @@
 package com.signomix.receiver;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Base64.Decoder;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
@@ -25,25 +9,39 @@ import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
+import com.signomix.common.iot.sentinel.Signal;
 import com.signomix.common.iot.virtual.VirtualData;
+import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
-
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.agroal.DataSource;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @ApplicationScoped
 public class ReceiverService {
-    
+
     @Inject
     Logger LOG;
 
@@ -84,6 +82,7 @@ public class ReceiverService {
     IotDatabaseIface dao = null;
     IotDatabaseIface tsDao = null;
     IotDatabaseIface olapDao = null;
+    SignalDao signalDao = new SignalDao();
 
     private static AtomicLong commandIdSeed = null;
     private static AtomicLong eventSeed = new AtomicLong(System.currentTimeMillis());
@@ -105,6 +104,8 @@ public class ReceiverService {
     String databaseType;
     @ConfigProperty(name = "signomix.command_id.bytes", defaultValue = "0")
     Short commandIdBytes;
+    @ConfigProperty(name = "signomix.signals.used", defaultValue = "false")
+    Boolean signalsUsed;
 
     public void onApplicationStart(@Observes StartupEvent event) {
         if ("postgresql".equalsIgnoreCase(databaseType)) {
@@ -128,6 +129,7 @@ public class ReceiverService {
             tsDao.setDatasource(tsDs);
             return;
         }
+        signalDao.setDatasource(tsDs);
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -161,7 +163,7 @@ public class ReceiverService {
 
     @ConsumeEvent(value = "virtualdata-no-response")
     void processVirtualData(String payload) {
-        LOG.info("virtualdata-no-response: " + payload);
+        LOG.debug("virtualdata-no-response: " + payload);
         parseBusMessage(payload);
     }
 
@@ -185,9 +187,10 @@ public class ReceiverService {
     }
 
     private void parseBusMessage(String payload) {
-        LOG.info("parseBusMessage: " + payload);
+        LOG.debug("parseBusMessage: " + payload);
         String[] parts = payload.split(";");
-        //sort parts array basing on the first field (deviceId) - fields are separated by ":"
+        // sort parts array basing on the first field (deviceId) - fields are separated
+        // by ":"
         Arrays.sort(parts, new Comparator<String>() {
             public int compare(String s1, String s2) {
                 String eui1 = s1.split(":")[0];
@@ -195,38 +198,38 @@ public class ReceiverService {
                 return eui1.compareTo(eui2);
             }
         });
-        String tmpEui="";
+        String tmpEui = "";
         String[] dataObj;
         HashMap<String, String> map;
         IotData2 iotData = new IotData2();
         iotData.payload_fields = new ArrayList<>();
         for (String part : parts) {
-            LOG.info("part: " + part);
+            LOG.debug("part: " + part);
             dataObj = part.split(":");
-            if(!tmpEui.equals(dataObj[0])){
+            if (!tmpEui.equals(dataObj[0])) {
                 // save previous iotData
-                if(iotData!=null && iotData.dev_eui!=null && iotData.dev_eui.length()>0){
+                if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
                     LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
                     iotData.normalize();
                     iotData.setTimestampUTC();
                     processData(iotData);
                 }
-                tmpEui=dataObj[0];
+                tmpEui = dataObj[0];
                 iotData = new IotData2();
                 iotData.dev_eui = dataObj[0];
                 if (dataObj.length > 3) {
                     iotData.timestamp = dataObj[3];
                 } else {
-                    iotData.timestamp = ""+System.currentTimeMillis();
+                    iotData.timestamp = "" + System.currentTimeMillis();
                 }
                 iotData.payload_fields = new ArrayList<>();
             }
             map = new HashMap<>();
-            map.put("name",dataObj[1]);
+            map.put("name", dataObj[1]);
             map.put("value", dataObj[2]);
             iotData.payload_fields.add(map);
         }
-        if(iotData!=null && iotData.dev_eui!=null && iotData.dev_eui.length()>0){
+        if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
             LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
             iotData.normalize();
             iotData.setTimestampUTC();
@@ -239,7 +242,7 @@ public class ReceiverService {
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
-        //String deviceId = data.deviceId;
+        // String deviceId = data.deviceId;
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
@@ -314,30 +317,6 @@ public class ReceiverService {
             } else {
                 // TODO: addNotifications
                 addNotifications(device, (IotEvent) events.get(i).clone(), null, true);
-                /*
-                 * recipients = new HashMap<>();
-                 * recipients.put(device.getUserID(), "");
-                 * if (device.getTeam() != null) {
-                 * String[] r = device.getTeam().split(",");
-                 * for (int j = 0; j < r.length; j++) {
-                 * if (!r[j].isEmpty()) {
-                 * recipients.put(r[j], "");
-                 * }
-                 * }
-                 * }
-                 * Iterator itr = recipients.keySet().iterator();
-                 * while (itr.hasNext()) {
-                 * IotEvent newEvent = (IotEvent) events.get(i).clone();
-                 * newEvent.setOrigin(itr.next() + "\t" + device.getEUI());
-                 * try {
-                 * dao.addAlert(newEvent);
-                 * } catch (IotDatabaseException e) {
-                 * // TODO Auto-generated catch block
-                 * e.printStackTrace();
-                 * }
-                 * messageService.sendNotification(newEvent);
-                 * }
-                 */
             }
         }
         // data events
@@ -394,7 +373,7 @@ public class ReceiverService {
         // IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         // DeliveryOptions options = new
         // DeliveryOptions().setCodecName(iotDataCodec.name());
-        LOG.info("sending to event bus: " + payload);
+        LOG.debug("sending to event bus: " + payload);
         bus.send("virtualdata-no-response", payload);
     }
 
@@ -425,7 +404,7 @@ public class ReceiverService {
             String[] origin = commandEvent.getOrigin().split("@");
             LOG.debug("saving command (" + origin[1] + ")");
             IotEvent ev = commandEvent;
-            //ev.setId(getNewCommandId(origin[1]));
+            // ev.setId(getNewCommandId(origin[1]));
             dao.putDeviceCommand(origin[1], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -445,7 +424,7 @@ public class ReceiverService {
                 tsDao.putData(device, fixValues(device, list));
             }
             if (null != olapDao) {
-                LOG.info("saveData to olap DB");
+                LOG.debug("saveData to olap DB");
                 olapDao.saveAnalyticData(device, fixValues(device, list));
             } else {
                 LOG.warn("olapDao is null");
@@ -615,11 +594,39 @@ public class ReceiverService {
             errEvent = new IotEvent("info", errorMessage);
         }
         Iterator itr = recipients.keySet().iterator();
+        String userId;
         while (itr.hasNext()) {
             if (null != event) {
-                event.setOrigin(itr.next() + "\t" + device.getEUI());
                 try {
-                    dao.addAlert(event);
+                    userId = (String) itr.next();
+                    event.setOrigin(userId + "\t" + device.getEUI());
+                    if (!signalsUsed) {
+                        dao.addAlert(event);
+                    } else {
+                        if (event.getType() == IotEvent.GENERAL || event.getType() == IotEvent.INFO) {
+                            // GENERAL and INFO notifications are saved as notifications (messages)
+                            dao.addAlert(event);
+                        } else {
+                            // ALERT and WARNING notifications are saved as signals and sentinel events
+                            int alertLevel = 0;
+                            if (event.getType() == IotEvent.ALERT) {
+                                alertLevel = 3;
+                            } else if (event.getType() == IotEvent.WARNING) {
+                                alertLevel = 2;
+                            }
+                            // Because this kind of notification is not created by sentinel, there is no
+                            // sentinel event
+                            // associated with it and only the signal is saved
+                            Signal signal = new Signal();
+                            signal.deviceEui = device.getEUI();
+                            signal.level = alertLevel;
+                            signal.messageEn = errorMessage;
+                            signal.messagePl = errorMessage;
+                            signal.sentinelConfigId = -1L;
+                            signal.userId = userId;
+                            signalDao.saveSignal(signal);
+                        }
+                    }
                 } catch (IotDatabaseException e) {
                     e.printStackTrace();
                 }
@@ -629,7 +636,9 @@ public class ReceiverService {
             }
             if (null != errEvent) {
                 try {
+                    //
                     errEvent.setOrigin(itr.next() + "\t" + device.getEUI());
+                    // TODO: add alert
                     dao.addAlert(errEvent);
                 } catch (IotDatabaseException e) {
                     e.printStackTrace();
@@ -673,69 +682,71 @@ public class ReceiverService {
      *
      * @return next unique identifier
      */
-/*     public synchronized long getNewCommandId(String deviceEui) {
-        // TODO: max value policy: 2,4,8 bytes (unsigned)
-        // default is long type (8 bytes)
-        if (commandIdBytes == 0) {
-            return eventSeed.getAndIncrement();
-        }
-        if (null == commandIdSeed) {
-            long seed = 0;
-            try {
-                if (null == deviceEui) {
-                    seed = dao.getMaxCommandId();
-                } else {
-                    seed = dao.getMaxCommandId(deviceEui);
-                }
-            } catch (IotDatabaseException e) {
-                LOG.warn(e.getMessage());
-                e.printStackTrace();
-            }
-            switch (commandIdBytes) {
-                case 2:
-                    if (seed >= 65535L) {
-                        seed = 0;
-                    }
-                    break;
-                case 4:
-                    if (seed >= 4294967295L) {
-                        seed = 0;
-                    }
-                    break;
-                default: // default per device ID is 8 bytes
-                    if (seed == Long.MAX_VALUE) {
-                        seed = 0;
-                    }
-            }
-            commandIdSeed = new AtomicLong(seed);
-        }
-        long value = commandIdSeed.get();
-        long newValue;
-        switch (commandIdBytes) {
-            case 2:
-                if (value >= 65535L) {
-                    newValue = 1;
-                } else {
-                    newValue = value + 1;
-                }
-                break;
-            case 4:
-                if (value >= 4294967295L) {
-                    newValue = 1;
-                } else {
-                    newValue = value + 1;
-                }
-                break;
-            default:
-                if (value == Long.MAX_VALUE) {
-                    newValue = 1;
-                } else {
-                    newValue = value + 1;
-                }
-        }
-        commandIdSeed.set(newValue);
-        return newValue;
-    } */
+    /*
+     * public synchronized long getNewCommandId(String deviceEui) {
+     * // TODO: max value policy: 2,4,8 bytes (unsigned)
+     * // default is long type (8 bytes)
+     * if (commandIdBytes == 0) {
+     * return eventSeed.getAndIncrement();
+     * }
+     * if (null == commandIdSeed) {
+     * long seed = 0;
+     * try {
+     * if (null == deviceEui) {
+     * seed = dao.getMaxCommandId();
+     * } else {
+     * seed = dao.getMaxCommandId(deviceEui);
+     * }
+     * } catch (IotDatabaseException e) {
+     * LOG.warn(e.getMessage());
+     * e.printStackTrace();
+     * }
+     * switch (commandIdBytes) {
+     * case 2:
+     * if (seed >= 65535L) {
+     * seed = 0;
+     * }
+     * break;
+     * case 4:
+     * if (seed >= 4294967295L) {
+     * seed = 0;
+     * }
+     * break;
+     * default: // default per device ID is 8 bytes
+     * if (seed == Long.MAX_VALUE) {
+     * seed = 0;
+     * }
+     * }
+     * commandIdSeed = new AtomicLong(seed);
+     * }
+     * long value = commandIdSeed.get();
+     * long newValue;
+     * switch (commandIdBytes) {
+     * case 2:
+     * if (value >= 65535L) {
+     * newValue = 1;
+     * } else {
+     * newValue = value + 1;
+     * }
+     * break;
+     * case 4:
+     * if (value >= 4294967295L) {
+     * newValue = 1;
+     * } else {
+     * newValue = value + 1;
+     * }
+     * break;
+     * default:
+     * if (value == Long.MAX_VALUE) {
+     * newValue = 1;
+     * } else {
+     * newValue = value + 1;
+     * }
+     * }
+     * commandIdSeed.set(newValue);
+     * return newValue;
+     * }
+     */
 
     public Device getDeviceChecked(String eui, String authKey, boolean authRequired, DeviceType[] expectedTypes) {
         Device gateway = null;

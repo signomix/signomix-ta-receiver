@@ -42,15 +42,19 @@ sgx0.accept = function (name) {
 }
 sgx0.addCommand = function (targetEUI, payload, overwrite) {
     //JSON payload
+    //encoded version
+    //ACTUATOR_CMD
     this.result.addCommand(targetEUI, this.eui, JSON.stringify(payload), 2, overwrite);
 }
 sgx0.addPlainCommand = function (targetEUI, payload, overwrite) {
     //TEXT payload
+    //ACTUATOR_PLAIN
     this.result.addCommand(targetEUI, this.eui, payload, 0, overwrite);
 }
 sgx0.addHexCommand = function (targetEUI, payload, overwrite) {
     //for TTN devices payload must be String representing byte array as hex values
     //eg. 00FFAA01
+    //ACTUATOR_HEX
     this.result.addCommand(targetEUI, this.eui, payload, 1, overwrite);
 }
 sgx0.addNotification = function (newType, newMessage) {
@@ -281,7 +285,9 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     //}
     sgx.result.setDeviceStatus(status);
     try {
+
         //injectedCode
+        
     } catch (processorError) {
         sgx.addNotification('error', 'Device '+eui+' processor script error: '+processorError)
     }
@@ -302,7 +308,9 @@ var processRawData = function (eui, requestBody, channelReader, userID, dataTime
     sgx.channelReader = channelReader
     //sgx.verify(dataReceived, state)
     try {
+        
         //injectedCode
+
     } catch (processorError) {
         sgx.addNotification('error', 'Device '+eui+'processor script error: '+processorError)
     }
