@@ -4,23 +4,17 @@
  */
 package com.signomix.receiver;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-
-import org.jboss.logging.Logger;
-
 import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.event.IotEvent;
 import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import org.jboss.logging.Logger;
 
 /**
  *
@@ -37,7 +31,7 @@ public class DataProcessor {
     NashornScriptingAdapter scriptingAdapter;
 
     
-    public Object[] processValues(
+    /* public Object[] processValues(
             ArrayList<ChannelData> listOfValues,
             Device device,
             long dataTimestamp,
@@ -119,7 +113,7 @@ public class DataProcessor {
             scriptResult.getOutput()
         };
         return result;
-    }
+    } */
 
     public ProcessorResult getProcessingResult(
             ArrayList<ChannelData> listOfValues,

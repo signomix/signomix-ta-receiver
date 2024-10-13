@@ -1,5 +1,23 @@
 package com.signomix.receiver;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
@@ -15,6 +33,7 @@ import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
+
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.agroal.DataSource;
 import io.quarkus.logging.Log;
@@ -24,20 +43,6 @@ import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Base64.Decoder;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @ApplicationScoped
 public class ReceiverService {
@@ -78,6 +83,9 @@ public class ReceiverService {
     @Inject
     @Channel("data-created")
     Emitter<String> dataCreatedEmitter;
+    @Inject
+    @Channel("alerts")
+    Emitter<String> alertEmitter;
 
     IotDatabaseIface dao = null;
     IotDatabaseIface tsDao = null;
@@ -115,6 +123,7 @@ public class ReceiverService {
             dao.setDatasource(tsDs);
             olapDao.setDatasource(tsDs);
             olapDao.setAnalyticDatasource(olapDs);
+            signalDao.setDatasource(tsDs);
             return;
         } else if ("h2".equalsIgnoreCase(databaseType)) {
             LOG.info("using h2 database");
@@ -129,7 +138,7 @@ public class ReceiverService {
             tsDao.setDatasource(tsDs);
             return;
         }
-        signalDao.setDatasource(tsDs);
+
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -304,7 +313,7 @@ public class ReceiverService {
         }
 
         ArrayList<IotEvent> events = scriptResult.getEvents();
-        HashMap<String, String> recipients;
+        // HashMap<String, String> recipients;
 
         // commands and notifications
         for (int i = 0; i < events.size(); i++) {
@@ -315,7 +324,7 @@ public class ReceiverService {
                 // commands
                 saveCommand(events.get(i));
             } else {
-                // TODO: addNotifications
+                // notifications
                 addNotifications(device, (IotEvent) events.get(i).clone(), null, true);
             }
         }
@@ -579,13 +588,32 @@ public class ReceiverService {
     }
 
     private void addNotifications(Device device, IotEvent event, String errorMessage, boolean withMessage) {
-        HashMap<String, String> recipients = new HashMap<>();
-        recipients.put(device.getUserID(), "");
+        int alertLevel = 0;
+        // INFO, ALERT and WARNING notifications are saved as signals and sentinel
+        // events
+        if (event.getType() == IotEvent.ALERT) {
+            alertLevel = 3;
+        } else if (event.getType() == IotEvent.WARNING) {
+            alertLevel = 2;
+        } else { // INFO
+            alertLevel = 1;
+        }
+
+        HashSet<String> recipients = new HashSet<>();
+        recipients.add(device.getUserID());
         if (device.getTeam() != null) {
             String[] r = device.getTeam().split(",");
             for (int j = 0; j < r.length; j++) {
                 if (!r[j].isEmpty()) {
-                    recipients.put(r[j], "");
+                    recipients.add(r[j]);
+                }
+            }
+        }
+        if (device.getAdministrators() != null) {
+            String[] r = device.getAdministrators().split(",");
+            for (int j = 0; j < r.length; j++) {
+                if (!r[j].isEmpty()) {
+                    recipients.add(r[j]);
                 }
             }
         }
@@ -593,57 +621,94 @@ public class ReceiverService {
         if (null != errorMessage) {
             errEvent = new IotEvent("info", errorMessage);
         }
-        Iterator itr = recipients.keySet().iterator();
+
+        Iterator itr = recipients.iterator();
         String userId;
         while (itr.hasNext()) {
+            userId = (String) itr.next();
             if (null != event) {
-                try {
-                    userId = (String) itr.next();
-                    event.setOrigin(userId + "\t" + device.getEUI());
-                    if (!signalsUsed) {
+                event.setOrigin(userId + "\t" + device.getEUI());
+                if (!signalsUsed) {
+                    try {
                         dao.addAlert(event);
-                    } else {
-                        if (event.getType() == IotEvent.GENERAL || event.getType() == IotEvent.INFO) {
-                            // GENERAL and INFO notifications are saved as notifications (messages)
-                            dao.addAlert(event);
-                        } else {
-                            // ALERT and WARNING notifications are saved as signals and sentinel events
-                            int alertLevel = 0;
-                            if (event.getType() == IotEvent.ALERT) {
-                                alertLevel = 3;
-                            } else if (event.getType() == IotEvent.WARNING) {
-                                alertLevel = 2;
-                            }
-                            // Because this kind of notification is not created by sentinel, there is no
-                            // sentinel event
-                            // associated with it and only the signal is saved
-                            Signal signal = new Signal();
-                            signal.deviceEui = device.getEUI();
-                            signal.level = alertLevel;
-                            signal.messageEn = errorMessage;
-                            signal.messagePl = errorMessage;
-                            signal.sentinelConfigId = -1L;
-                            signal.userId = userId;
-                            signalDao.saveSignal(signal);
-                        }
+                    } catch (IotDatabaseException e) {
+                        e.printStackTrace();
                     }
-                } catch (IotDatabaseException e) {
-                    e.printStackTrace();
+                } else {
+                    // Because this kind of notification is not created by sentinel, there is no
+                    // sentinel event
+                    // associated with it and only the signal is saved
+                    Signal signal = new Signal();
+                    signal.deviceEui = device.getEUI();
+                    signal.level = alertLevel;
+                    signal.messageEn = (String) event.getPayload();
+                    signal.messagePl = (String) event.getPayload();
+                    signal.sentinelConfigId = -1L;
+                    signal.userId = userId;
+                    signal.createdAt = new Timestamp(event.getCreatedAt());
+                    signal.organizationId = device.getOrganizationId();
+                    try {
+                        signalDao.saveSignal(signal);
+                    } catch (IotDatabaseException e) {
+                        e.printStackTrace();
+                    }
                 }
-                if (withMessage) {
-                    messageService.sendNotification(event);
+                sendAlert(event.getType(), userId, device.getEUI(), (String) event.getPayload(),
+                        (String) event.getPayload(), event.getCreatedAt(), withMessage);
+            }
+        }
+        if (null != errEvent) {
+            // error message is sent to device owner and administrators
+            recipients.clear();
+            recipients.add(device.getUserID());
+            if (device.getAdministrators() != null) {
+                String[] r = device.getAdministrators().split(",");
+                for (int j = 0; j < r.length; j++) {
+                    if (!r[j].isEmpty()) {
+                        recipients.add(r[j]);
+                    }
                 }
             }
-            if (null != errEvent) {
-                try {
-                    //
-                    errEvent.setOrigin(itr.next() + "\t" + device.getEUI());
-                    // TODO: add alert
-                    dao.addAlert(errEvent);
-                } catch (IotDatabaseException e) {
-                    e.printStackTrace();
+            itr = recipients.iterator();
+            while (itr.hasNext()) {
+                userId = (String) itr.next();
+                if (!signalsUsed) {
+                    try {
+                        //
+                        errEvent.setOrigin(userId + "\t" + device.getEUI());
+                        dao.addAlert(errEvent);
+                    } catch (IotDatabaseException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    sendAlert(errEvent.getType(), userId, device.getEUI(), "info", errorMessage,
+                            System.currentTimeMillis(),
+                            withMessage);
                 }
             }
+        }
+    }
+
+    private void sendAlert(String alertType, String userId, String deviceEui, String alertSubject, String alertMessage,
+            long createdAt, boolean withMessage) {
+        if (!signalsUsed) {
+            try {
+                dao.addAlert(alertType, deviceEui, userId, alertMessage, createdAt);
+            } catch (IotDatabaseException e) {
+                e.printStackTrace();
+            }
+        }
+        if (!withMessage) {
+            return;
+        }
+        if (!signalsUsed) {
+            IotEvent event = new IotEvent(alertType, alertMessage);
+            event.setOrigin(userId + "\t" + deviceEui);
+            event.setCreatedAt(createdAt);
+            messageService.sendNotification(event);
+        } else {
+            LOG.info("Emitting and alert to userId: " + userId);
+            alertEmitter.send(userId + "\t" + deviceEui + "\t" + alertType + "\t" + alertMessage + "\t" + alertSubject);
         }
     }
 
