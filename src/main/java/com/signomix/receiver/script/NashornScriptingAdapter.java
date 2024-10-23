@@ -4,6 +4,15 @@
  */
 package com.signomix.receiver.script;
 
+import com.signomix.common.EventEnvelope;
+import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.event.MessageServiceIface;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,25 +23,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-
-import com.signomix.common.EventEnvelope;
-import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.event.MessageServiceIface;
-import com.signomix.common.iot.ChannelData;
-import com.signomix.common.iot.Device;
-
-import io.quarkus.runtime.StartupEvent;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
 
 /**
  *
@@ -82,7 +78,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         Double devLongitude = device.getLongitude();
         Double devAltitude = device.getAltitude();
 
-        String deviceConfig = device.getConfiguration();
+        //String deviceConfig = device.getConfiguration();
+        HashMap<String, Object> deviceConfig = device.getConfigurationMap();
         HashMap<String, Object> applicationConfig = device.getApplicationConfig();
 
         Set<String> availableZoneIds = ZoneId.getAvailableZoneIds();
