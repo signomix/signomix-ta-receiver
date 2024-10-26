@@ -23,12 +23,14 @@ import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.event.MessageServiceIface;
+import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.sentinel.Signal;
 import com.signomix.common.iot.virtual.VirtualData;
+import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
@@ -91,6 +93,7 @@ public class ReceiverService {
     IotDatabaseIface tsDao = null;
     IotDatabaseIface olapDao = null;
     SignalDao signalDao = new SignalDao();
+    ApplicationDao appDao = new ApplicationDao();
 
     private static AtomicLong commandIdSeed = null;
     private static AtomicLong eventSeed = new AtomicLong(System.currentTimeMillis());
@@ -124,6 +127,7 @@ public class ReceiverService {
             olapDao.setDatasource(tsDs);
             olapDao.setAnalyticDatasource(olapDs);
             signalDao.setDatasource(tsDs);
+            appDao.setDatasource(tsDs);
             return;
         } else if ("h2".equalsIgnoreCase(databaseType)) {
             LOG.info("using h2 database");
@@ -189,8 +193,8 @@ public class ReceiverService {
      * @param dataString
      * @return data processing result
      */
-    private ProcessorResult callProcessorService(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
-            String dataString) {
+    private ProcessorResult callProcessorService(ArrayList<ChannelData> inputList, Device device,
+            Application application, IotData2 iotData, String dataString) {
         // TODO
         return null;
     }
@@ -263,7 +267,13 @@ public class ReceiverService {
         }
         data.setTimestampUTC();
         data.prepareIotValues();
-        ArrayList<ChannelData> inputList = decodePayload(data, device);
+        Application app = getApplication(device.getOrgApplicationId());
+        if(null == app) {
+            LOG.info("app is null");
+        }else{
+            LOG.info("app code: " + app.code);
+        }
+        ArrayList<ChannelData> inputList = decodePayload(data, device, app);
         for (int i = 0; i < inputList.size(); i++) {
             LOG.debug(inputList.get(i).toString());
         }
@@ -273,9 +283,9 @@ public class ReceiverService {
         String dataString = null;
         boolean statusUpdated = false;
         try {
-            scriptResult = callProcessorService(inputList, device, data, dataString);
+            scriptResult = callProcessorService(inputList, device, app, data, dataString);
             if (null == scriptResult) {
-                scriptResult = getProcessingResult(inputList, device, data, dataString);
+                scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
             // data to save
             LOG.info("outputList.size()==" + scriptResult.getOutput().size());
@@ -378,6 +388,16 @@ public class ReceiverService {
         return result;
     }
 
+    private Application getApplication(Long appId) {
+        Application app = null;
+        try {
+            app = appDao.getApplication(appId);
+        } catch (IotDatabaseException e) {
+            LOG.warn(e.getMessage());
+        }
+        return app;
+    }
+
     private void sentToEventBus(String payload) {
         // IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         // DeliveryOptions options = new
@@ -386,10 +406,11 @@ public class ReceiverService {
         bus.send("virtualdata-no-response", payload);
     }
 
-    private ProcessorResult getProcessingResult(ArrayList<ChannelData> inputList, Device device, IotData2 iotData,
+    private ProcessorResult getProcessingResult(ArrayList<ChannelData> inputList, Device device,
+            Application application, IotData2 iotData,
             String dataString)
             throws Exception {
-        ProcessorResult result = processor.getProcessingResult(inputList, device,
+        ProcessorResult result = processor.getProcessingResult(inputList, device, application,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
                 iotData.getLongitude(), iotData.getAltitude(), dataString, "", olapDao);
         result.setApplicationConfig(device.getApplicationConfig());
@@ -531,7 +552,7 @@ public class ReceiverService {
         }
     }
 
-    private ArrayList<ChannelData> decodePayload(IotData2 data, Device device) {
+    private ArrayList<ChannelData> decodePayload(IotData2 data, Device device, Application application) {
         if (null == device) {
             LOG.warn("device is null");
             return new ArrayList<>();
@@ -543,10 +564,12 @@ public class ReceiverService {
          * return data.getDataList();
          * }
          */
-
         byte[] emptyBytes = {};
         byte[] byteArray = null;
         String decoderScript = device.getEncoderUnescaped();
+        if (null == decoderScript || decoderScript.trim().isEmpty()) {
+            decoderScript = application.decoder;
+        }
         if (null != decoderScript && decoderScript.length() > 0) {
             if (null != data.getPayload()) {
                 LOG.debug("base64Payload: " + data.getPayload());
@@ -568,7 +591,7 @@ public class ReceiverService {
             }
             LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
             try {
-                values = scriptingAdapter.decodeData(byteArray, device, data.getTimestamp());
+                values = scriptingAdapter.decodeData(byteArray, device, application, data.getTimestamp());
             } catch (ScriptAdapterException ex) {
                 ex.printStackTrace();
                 addNotifications(device, null, ex.getMessage(), false);

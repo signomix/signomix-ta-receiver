@@ -7,6 +7,7 @@ package com.signomix.receiver.script;
 import com.signomix.common.EventEnvelope;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.MessageServiceIface;
+import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import io.quarkus.runtime.StartupEvent;
@@ -64,6 +65,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     public ProcessorResult processData1(
             ArrayList<ChannelData> values,
             Device device,
+            Application application,
             long dataTimestamp,
             Double latitude, Double longitude, Double altitude,
             String command, String requestData, IotDatabaseIface dao) throws ScriptAdapterException {
@@ -98,6 +100,14 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             LOG.debug(values.get(i).toString());
         }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
+
+        if((deviceScript==null || deviceScript.trim().isEmpty()) && application!=null){
+            deviceScript = application.code;
+        }
+        if(deviceScript==null){
+            deviceScript="";
+        }
+
         try {
             engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
             invocable = (Invocable) engine;
@@ -121,13 +131,19 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     }
 
     @Override
-    public ArrayList<ChannelData> decodeData(byte[] data, Device device, long timestamp)
+    public ArrayList<ChannelData> decodeData(byte[] data, Device device, Application application, long timestamp)
             throws ScriptAdapterException {
         Invocable invocable;
         ArrayList<ChannelData> list = new ArrayList<>();
         try {
             LOG.debug("DECODING PAYLOAD");
             String deviceDecoderScript = device.getEncoderUnescaped();
+            if((deviceDecoderScript==null || deviceDecoderScript.trim().isEmpty()) && application!=null){
+                deviceDecoderScript = application.decoder;
+            }
+            if(deviceDecoderScript==null){
+                deviceDecoderScript="";
+            }
             LOG.debug(deviceDecoderScript);
             LOG.debug(decoderScript);
             engine.eval(deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript) : decoderScript);

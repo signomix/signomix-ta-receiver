@@ -6,6 +6,7 @@ package com.signomix.receiver;
 
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.MessageServiceIface;
+import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 import com.signomix.receiver.script.NashornScriptingAdapter;
@@ -118,6 +119,7 @@ public class DataProcessor {
     public ProcessorResult getProcessingResult(
             ArrayList<ChannelData> listOfValues,
             Device device,
+            Application application,
             long dataTimestamp,
             Double latitude,
             Double longitude,
@@ -131,6 +133,7 @@ public class DataProcessor {
             scriptResult = scriptingAdapter.processData1(
                     listOfValues,
                     device,
+                    application,
                     dataTimestamp,
                     latitude,
                     longitude,
