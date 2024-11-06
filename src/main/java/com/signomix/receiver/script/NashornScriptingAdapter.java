@@ -4,16 +4,6 @@
  */
 package com.signomix.receiver.script;
 
-import com.signomix.common.EventEnvelope;
-import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.event.MessageServiceIface;
-import com.signomix.common.iot.Application;
-import com.signomix.common.iot.ChannelData;
-import com.signomix.common.iot.Device;
-import io.quarkus.runtime.StartupEvent;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,12 +14,29 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.signomix.common.EventEnvelope;
+import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.iot.Application;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
+
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 
 /**
  *
@@ -46,7 +53,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     String processorScriptLocation;
 
     @Inject
-    MessageServiceIface messageService;
+    @Channel("error-event")
+    Emitter<String> errorEventEmitter;
+
+    // @Inject
+    // MessageServiceIface messageService;
 
     private ScriptEngine engine;
     private String processorScript;
@@ -80,7 +91,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         Double devLongitude = device.getLongitude();
         Double devAltitude = device.getAltitude();
 
-        //String deviceConfig = device.getConfiguration();
+        // String deviceConfig = device.getConfiguration();
         HashMap<String, Object> deviceConfig = device.getConfigurationMap();
         HashMap<String, Object> applicationConfig = device.getApplicationConfig();
 
@@ -101,11 +112,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
 
-        if((deviceScript==null || deviceScript.trim().isEmpty()) && application!=null){
+        if ((deviceScript == null || deviceScript.trim().isEmpty()) && application != null) {
             deviceScript = application.code;
         }
-        if(deviceScript==null){
-            deviceScript="";
+        if (deviceScript == null) {
+            deviceScript = "";
         }
 
         try {
@@ -113,7 +124,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             invocable = (Invocable) engine;
             result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
-                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig, offsets);
+                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig,
+                    offsets);
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {
@@ -138,11 +150,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         try {
             LOG.debug("DECODING PAYLOAD");
             String deviceDecoderScript = device.getEncoderUnescaped();
-            if((deviceDecoderScript==null || deviceDecoderScript.trim().isEmpty()) && application!=null){
+            if ((deviceDecoderScript == null || deviceDecoderScript.trim().isEmpty()) && application != null) {
                 deviceDecoderScript = application.decoder;
             }
-            if(deviceDecoderScript==null){
-                deviceDecoderScript="";
+            if (deviceDecoderScript == null) {
+                deviceDecoderScript = "";
             }
             LOG.debug(deviceDecoderScript);
             LOG.debug(decoderScript);
@@ -223,7 +235,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     }
 
     /**
-     * Sends information about eroros
+     * Sends information about errors
      * 
      * @param source
      * @param origin
@@ -251,20 +263,29 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         wrapper.type = EventEnvelope.ERROR;
         wrapper.eui = device.getEUI();
         wrapper.payload = payload;
-        messageService.sendEvent(wrapper);
+        // messageService.sendEvent(wrapper);
+        String encodedMessage;
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            encodedMessage = objectMapper.writeValueAsString(wrapper);
+            errorEventEmitter.send(encodedMessage);
+        } catch (JsonProcessingException ex) {
+            LOG.error(ex.getMessage());
+        }
+
     }
 
     private HashMap<String, Integer> getTimeZoneOffsets(String[] timeZones) {
         HashMap<String, Integer> timeZoneOffsets = new HashMap<>();
-        
+
         for (String timeZone : timeZones) {
             ZoneId zoneId = ZoneId.of(timeZone);
             ZonedDateTime zdt = ZonedDateTime.now(zoneId);
             int offsetInMinutes = zdt.getOffset().getTotalSeconds() / 60;
-            
+
             timeZoneOffsets.put(timeZone, offsetInMinutes);
         }
-        
+
         return timeZoneOffsets;
     }
 

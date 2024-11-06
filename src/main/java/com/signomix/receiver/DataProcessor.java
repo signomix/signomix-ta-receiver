@@ -25,8 +25,8 @@ import org.jboss.logging.Logger;
 public class DataProcessor {
     private static final Logger LOG = Logger.getLogger(DataProcessor.class);
 
-    @Inject
-    MessageServiceIface messageService;
+    // @Inject
+    // MessageServiceIface messageService;
 
     @Inject
     NashornScriptingAdapter scriptingAdapter;

@@ -454,7 +454,8 @@ public class ReceiverResourceGeneric {
         try {
             Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.transform(originalResponse, devConfig, service.getMessageService());
+            //result = formatter.transform(originalResponse, devConfig, service.getMessageService());
+            result = formatter.transform(originalResponse, devConfig, null);
             LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
             LOG.debug("response transformed:" + result);
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
