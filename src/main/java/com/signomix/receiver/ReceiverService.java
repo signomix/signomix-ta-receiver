@@ -20,9 +20,7 @@ import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
-import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.event.IotEvent;
-import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
@@ -31,6 +29,7 @@ import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.sentinel.Signal;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.common.tsdb.ApplicationDao;
+import com.signomix.common.tsdb.IotDatabaseDao;
 import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ProcessorResult;
@@ -55,10 +54,6 @@ public class ReceiverService {
     // TODO: test /q/health/ready
 
     @Inject
-    @DataSource("old")
-    AgroalDataSource ds;
-
-    @Inject
     @DataSource("oltp")
     AgroalDataSource tsDs;
 
@@ -66,15 +61,11 @@ public class ReceiverService {
     @DataSource("olap")
     AgroalDataSource olapDs;
 
-    // @Inject
-    // MessageServiceIface messageService;
-
     @Inject
     DataProcessor processor;
 
     @Inject
     NashornScriptingAdapter scriptingAdapter;
-    // ScriptingAdapterIface scriptingAdapter;
 
     @Inject
     BulkDataLoader bulkDataLoader;
@@ -88,13 +79,9 @@ public class ReceiverService {
     @Inject
     @Channel("alerts")
     Emitter<String> alertEmitter;
-    @Inject
-    @Channel("notifications")
-    Emitter<String> notificationEmitter;
 
-    IotDatabaseIface dao = null;
-    IotDatabaseIface tsDao = null;
-    IotDatabaseIface olapDao = null;
+    IotDatabaseDao dao = new IotDatabaseDao();
+    IotDatabaseDao olapDao = new IotDatabaseDao();
     SignalDao signalDao = new SignalDao();
     ApplicationDao appDao = new ApplicationDao();
 
@@ -104,50 +91,21 @@ public class ReceiverService {
     @Inject
     EventBus bus;
 
-    /*
-     * @ConfigProperty(name = "signomix.app.key", defaultValue = "not_configured")
-     * String appKey;
-     */
-    /*
-     * @ConfigProperty(name = "signomix.core.host", defaultValue = "not_configured")
-     * String coreHost;
-     */
     @ConfigProperty(name = "device.status.update.integrated")
     Boolean deviceStatusUpdateIntegrated;
     @ConfigProperty(name = "signomix.database.type")
     String databaseType;
     @ConfigProperty(name = "signomix.command_id.bytes", defaultValue = "0")
     Short commandIdBytes;
-    // @ConfigProperty(name = "signomix.signals.used", defaultValue = "false")
-    // Boolean signalsUsed;
     @ConfigProperty(name = "signomix.devicees.protected", defaultValue = "false")
     Boolean useProtectedFeature;
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        if ("postgresql".equalsIgnoreCase(databaseType)) {
-            LOG.info("using postgresql database");
-            dao = new com.signomix.common.tsdb.IotDatabaseDao();
-            olapDao = new com.signomix.common.tsdb.IotDatabaseDao();
-            dao.setDatasource(tsDs);
-            olapDao.setDatasource(tsDs);
-            olapDao.setAnalyticDatasource(olapDs);
-            signalDao.setDatasource(tsDs);
-            appDao.setDatasource(tsDs);
-            return;
-        } else if ("h2".equalsIgnoreCase(databaseType)) {
-            LOG.info("using h2 database");
-            dao = new com.signomix.common.db.IotDatabaseDao();
-            dao.setDatasource(ds);
-            return;
-        } else if ("both".equalsIgnoreCase(databaseType)) {
-            LOG.info("using both databases");
-            dao = new com.signomix.common.db.IotDatabaseDao();
-            dao.setDatasource(ds);
-            tsDao = new com.signomix.common.tsdb.IotDatabaseDao();
-            tsDao.setDatasource(tsDs);
-            return;
-        }
-
+        dao.setDatasource(tsDs);
+        olapDao.setDatasource(tsDs);
+        olapDao.setAnalyticDatasource(olapDs);
+        signalDao.setDatasource(tsDs);
+        appDao.setDatasource(tsDs);
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -157,9 +115,6 @@ public class ReceiverService {
     public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input) {
         if (null != dao) {
             return bulkDataLoader.loadBulkData(device, dao, olapDao, input);
-        }
-        if (null != tsDao) {
-            return bulkDataLoader.loadBulkData(device, tsDao, olapDao, input);
         }
         return null;
     }
@@ -184,10 +139,6 @@ public class ReceiverService {
         LOG.debug("virtualdata-no-response: " + payload);
         parseBusMessage(payload);
     }
-
-/*     public MessageServiceIface getMessageService() {
-        return messageService;
-    } */
 
     /**
      * Sends data to dedicated microservice
@@ -260,7 +211,6 @@ public class ReceiverService {
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
-        // String deviceId = data.deviceId;
         Device device = getDeviceChecked(data, expected);
         if (null == device) {
             // TODO: result.setData(authMessage);
@@ -284,7 +234,6 @@ public class ReceiverService {
         }
         ProcessorResult scriptResult = null;
         ArrayList<ArrayList> outputList;
-        // String dataString = data.getSerializedData();
         String dataString = null;
         boolean statusUpdated = false;
         try {
@@ -328,7 +277,6 @@ public class ReceiverService {
         }
 
         ArrayList<IotEvent> events = scriptResult.getEvents();
-        // HashMap<String, String> recipients;
 
         // commands and notifications
         for (int i = 0; i < events.size(); i++) {
@@ -351,7 +299,6 @@ public class ReceiverService {
             IotEvent newEvent;
             if (el.size() > 0) {
                 newEvent = (IotEvent) el.get(0).clone();
-                // newEvent.setOrigin(device.getUserID());
                 String payload = "";
                 for (int i = 0; i < el.size(); i++) {
                     if (i > 0) {
@@ -439,7 +386,6 @@ public class ReceiverService {
             String[] origin = commandEvent.getOrigin().split("@");
             LOG.debug("saving command (" + origin[1] + ")");
             IotEvent ev = commandEvent;
-            // ev.setId(getNewCommandId(origin[1]));
             dao.putDeviceCommand(origin[1], commandEvent);
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -454,9 +400,6 @@ public class ReceiverService {
             LOG.info("saveData list.size():" + list.size());
             if (null != dao) {
                 dao.putData(device, fixValues(device, list));
-            }
-            if (null != tsDao) {
-                tsDao.putData(device, fixValues(device, list));
             }
             if (null != olapDao) {
                 LOG.debug("saveData to olap DB");
@@ -506,9 +449,6 @@ public class ReceiverService {
             if (null != dao) {
                 dao.putVirtualData(device, vd);
             }
-            if (null != tsDao) {
-                tsDao.putVirtualData(device, vd);
-            }
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -524,9 +464,6 @@ public class ReceiverService {
         try {
             if (null != dao) {
                 dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
-            }
-            if (null != tsDao) {
-                tsDao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             }
             LOG.info("Device status updated.");
         } catch (IotDatabaseException e) {
@@ -546,9 +483,6 @@ public class ReceiverService {
             if (null != dao) {
                 dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             }
-            if (null != tsDao) {
-                tsDao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
-            }
             LOG.info("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -563,12 +497,6 @@ public class ReceiverService {
             return new ArrayList<>();
         }
         ArrayList<ChannelData> values = new ArrayList<>();
-        /*
-         * if (!data.getDataList().isEmpty()) {
-         * LOG.debug("data list not empty");
-         * return data.getDataList();
-         * }
-         */
         byte[] emptyBytes = {};
         byte[] byteArray = null;
         String decoderScript = device.getEncoderUnescaped();
@@ -656,31 +584,24 @@ public class ReceiverService {
             userId = (String) itr.next();
             if (null != event) {
                 event.setOrigin(userId + "\t" + device.getEUI());
-                // if (!signalsUsed) {
-                //     try {
-                //         dao.addAlert(event);
-                //     } catch (IotDatabaseException e) {
-                //         e.printStackTrace();
-                //     }
-                // } else {
-                    // Because this kind of notification is not created by sentinel, there is no
-                    // sentinel event
-                    // associated with it and only the signal is saved
-                    Signal signal = new Signal();
-                    signal.deviceEui = device.getEUI();
-                    signal.level = alertLevel;
-                    signal.messageEn = (String) event.getPayload();
-                    signal.messagePl = (String) event.getPayload();
-                    signal.sentinelConfigId = -1L;
-                    signal.userId = userId;
-                    signal.createdAt = new Timestamp(event.getCreatedAt());
-                    signal.organizationId = device.getOrganizationId();
-                    try {
-                        signalDao.saveSignal(signal);
-                    } catch (IotDatabaseException e) {
-                        e.printStackTrace();
-                    }
-                //}
+                // Because this kind of notification is not created by sentinel, there is no
+                // sentinel event
+                // associated with it and only the signal is saved
+                Signal signal = new Signal();
+                signal.deviceEui = device.getEUI();
+                signal.level = alertLevel;
+                signal.messageEn = (String) event.getPayload();
+                signal.messagePl = (String) event.getPayload();
+                signal.sentinelConfigId = -1L;
+                signal.userId = userId;
+                signal.createdAt = new Timestamp(event.getCreatedAt());
+                signal.organizationId = device.getOrganizationId();
+                try {
+                    signalDao.saveSignal(signal);
+                } catch (IotDatabaseException e) {
+                    e.printStackTrace();
+                }
+                // }
                 sendAlert(event.getType(), userId, device.getEUI(), (String) event.getPayload(),
                         (String) event.getPayload(), event.getCreatedAt(), withMessage);
             }
@@ -700,44 +621,21 @@ public class ReceiverService {
             itr = recipients.iterator();
             while (itr.hasNext()) {
                 userId = (String) itr.next();
-                // if (!signalsUsed) {
-                //     try {
-                //         //
-                //         errEvent.setOrigin(userId + "\t" + device.getEUI());
-                //         dao.addAlert(errEvent);
-                //     } catch (IotDatabaseException e) {
-                //         e.printStackTrace();
-                //     }
-                // } else {
-                    sendAlert(errEvent.getType(), userId, device.getEUI(), "info", errorMessage,
-                            System.currentTimeMillis(),
-                            withMessage);
-                //}
+                sendAlert(errEvent.getType(), userId, device.getEUI(), "info", errorMessage,
+                        System.currentTimeMillis(),
+                        withMessage);
             }
         }
     }
 
     private void sendAlert(String alertType, String userId, String deviceEui, String alertSubject, String alertMessage,
             long createdAt, boolean withMessage) {
-/*         if (!signalsUsed) {
-            try {
-                dao.addAlert(alertType, deviceEui, userId, alertMessage, createdAt);
-            } catch (IotDatabaseException e) {
-                e.printStackTrace();
-            }
-        } */
+        LOG.debug("Sending alert to userId: " + userId);
         if (!withMessage) {
             return;
         }
-        // if (!signalsUsed) {
-        //     IotEvent event = new IotEvent(alertType, alertMessage);
-        //     event.setOrigin(userId + "\t" + deviceEui);
-        //     event.setCreatedAt(createdAt);
-        //     messageService.sendNotification(event);
-        // } else {
-            LOG.info("Emitting and alert to userId: " + userId);
-            alertEmitter.send(userId + "\t" + deviceEui + "\t" + alertType + "\t" + alertMessage + "\t" + alertSubject);
-        //}
+        LOG.debug("Emitting and alert to userId: " + userId);
+        alertEmitter.send(userId + "\t" + deviceEui + "\t" + alertType + "\t" + alertMessage + "\t" + alertSubject);
     }
 
     private byte[] getByteArray(String s) {
@@ -748,13 +646,6 @@ public class ReceiverService {
                     + Character.digit(s.charAt(i + 1), 16));
         }
         return data;
-        /*
-         * // converting string to integer value
-         * int val = Integer.parseInt(input, 16);
-         * // converting integer value to Byte Array
-         * BigInteger big = BigInteger.valueOf(val);
-         * return big.toByteArray();
-         */
     }
 
     public Device getDevice(String eui) {
@@ -770,77 +661,6 @@ public class ReceiverService {
         return device;
     }
 
-    /**
-     * Returns next unique identifier for command (IotEvent).
-     *
-     * @return next unique identifier
-     */
-    /*
-     * public synchronized long getNewCommandId(String deviceEui) {
-     * // TODO: max value policy: 2,4,8 bytes (unsigned)
-     * // default is long type (8 bytes)
-     * if (commandIdBytes == 0) {
-     * return eventSeed.getAndIncrement();
-     * }
-     * if (null == commandIdSeed) {
-     * long seed = 0;
-     * try {
-     * if (null == deviceEui) {
-     * seed = dao.getMaxCommandId();
-     * } else {
-     * seed = dao.getMaxCommandId(deviceEui);
-     * }
-     * } catch (IotDatabaseException e) {
-     * LOG.warn(e.getMessage());
-     * e.printStackTrace();
-     * }
-     * switch (commandIdBytes) {
-     * case 2:
-     * if (seed >= 65535L) {
-     * seed = 0;
-     * }
-     * break;
-     * case 4:
-     * if (seed >= 4294967295L) {
-     * seed = 0;
-     * }
-     * break;
-     * default: // default per device ID is 8 bytes
-     * if (seed == Long.MAX_VALUE) {
-     * seed = 0;
-     * }
-     * }
-     * commandIdSeed = new AtomicLong(seed);
-     * }
-     * long value = commandIdSeed.get();
-     * long newValue;
-     * switch (commandIdBytes) {
-     * case 2:
-     * if (value >= 65535L) {
-     * newValue = 1;
-     * } else {
-     * newValue = value + 1;
-     * }
-     * break;
-     * case 4:
-     * if (value >= 4294967295L) {
-     * newValue = 1;
-     * } else {
-     * newValue = value + 1;
-     * }
-     * break;
-     * default:
-     * if (value == Long.MAX_VALUE) {
-     * newValue = 1;
-     * } else {
-     * newValue = value + 1;
-     * }
-     * }
-     * commandIdSeed.set(newValue);
-     * return newValue;
-     * }
-     */
-
     public Device getDeviceChecked(String eui, String authKey, boolean authRequired, DeviceType[] expectedTypes) {
         Device gateway = null;
         Device device = getDevice(eui);
@@ -850,11 +670,11 @@ public class ReceiverService {
         }
         if (authRequired) {
             String secret;
-            if (gateway == null) {
+            //if (gateway == null) {
                 secret = device.getKey();
-            } else {
-                secret = gateway.getKey();
-            }
+            //} else {
+            //    secret = gateway.getKey();
+            //}
             try {
                 if (null == authKey || !authKey.equals(secret)) {
                     LOG.warn("Authorization key don't match for " + device.getEUI() + " :" + authKey + ":" + secret);
@@ -891,7 +711,7 @@ public class ReceiverService {
                 e.printStackTrace();
                 LOG.error(e.getMessage());
             }
-            
+
         }
         return device;
     }
