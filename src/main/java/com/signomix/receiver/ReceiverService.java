@@ -97,7 +97,7 @@ public class ReceiverService {
     String databaseType;
     @ConfigProperty(name = "signomix.command_id.bytes", defaultValue = "0")
     Short commandIdBytes;
-    @ConfigProperty(name = "signomix.devicees.protected", defaultValue = "false")
+    @ConfigProperty(name = "signomix.devices.protected", defaultValue = "false")
     Boolean useProtectedFeature;
 
     public void onApplicationStart(@Observes StartupEvent event) {
@@ -703,15 +703,19 @@ public class ReceiverService {
             return null;
         }
         if (useProtectedFeature) {
+            // check if device is protected
+            LOG.info("Checking if device is protected");
             String tagValue;
             try {
                 tagValue = dao.getDeviceTagValue(device.getEUI(), "protected");
+                LOG.info("Protected tag value: " + tagValue);
                 device.setDataProtected(Boolean.parseBoolean(tagValue));
             } catch (IotDatabaseException e) {
                 e.printStackTrace();
                 LOG.error(e.getMessage());
             }
-
+        }else{
+            LOG.info("Protected feature is disabled");
         }
         return device;
     }
