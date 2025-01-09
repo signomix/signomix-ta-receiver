@@ -240,6 +240,9 @@ sgx0.swap32 = function (val) {
 sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
     return this.result.getDistance(latitude1, longitude1, latitude2, longitude2);
 }
+sgx0.distance = function(latitude1, longitude1){
+    return this.result.getDistance(this.devLatitude, this.devLongitude);
+}
 sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
 }
@@ -257,10 +260,13 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
 
     var sgx = Object.create(sgx0)
     sgx.eui = eui
+    sgx.devLatitude
     sgx.latitude = latitude
     if (sgx.latitude == null) { sgx.latitude = devLatitude }
+    sgx.devLongitude=devLongitude
     sgx.longitude = longitude
     if (sgx.longitude == null) { sgx.longitude = devLongitude }
+    sgx.devAltitude = devAltitude
     sgx.altitude = altitude
     if (sgx.altitude == null) { sgx.altitude = devAltitude }
     sgx.result = new ProcessorResult()
