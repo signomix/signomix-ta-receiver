@@ -241,6 +241,15 @@ sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
     return this.result.getDistance(latitude1, longitude1, latitude2, longitude2);
 }
 sgx0.distance = function(latitude1, longitude1){
+    // if device location is not set, return 0
+    if(this.devLatitude == null || this.devLongitude == null){
+        return 0;
+    }
+    if(this.devLatitude == 0 && this.devLongitude == 0){
+        return 0;
+    }
+    // Warning: this function is not accurate for devices used
+    // to display location on plan or schema. It is accurate geographic distance.
     return this.result.getDistance(this.devLatitude, this.devLongitude);
 }
 sgx0.xaddList = function (timestamp) {
