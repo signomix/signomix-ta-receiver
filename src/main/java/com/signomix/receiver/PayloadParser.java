@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+import com.signomix.common.api.MeasureDto;
 import com.signomix.common.api.PayloadParserIface;
 
 import org.jboss.logging.Logger;
@@ -46,6 +47,12 @@ public class PayloadParser implements PayloadParserIface {
             }
         }
         return payload_fields;
+    }
+
+    @Override
+    public List<MeasureDto> parseBatch(String payload, Map options) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'parseBatch'");
     }
 
 }

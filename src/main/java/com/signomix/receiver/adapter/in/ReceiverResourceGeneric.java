@@ -40,7 +40,7 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceGeneric {
-    
+
     @Inject
     Logger LOG;
 
@@ -392,7 +392,61 @@ public class ReceiverResourceGeneric {
         if (!device.isActive()) {
             return Response.status(Status.NOT_FOUND).entity("device is not active").build();
         }
-        BulkLoaderResult result = service.processCsv(device, input);
+        BulkLoaderResult result = service.processCsv(device, input, true);
+        return Response.ok().entity(result).build();
+    }
+
+    /**
+     * Process a batch of data from an edge device. The edge device is identified by the EUI in the header.
+     * The data is in CSV format.
+     * @param authKey
+     * @param inHeaderEui
+     * @param input
+     * @return
+     */
+    @POST
+    @Path("/receiver/edge")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response processBatch(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, String input) {
+
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        // The device is an Signomix Edge service.
+        Device device = service.getDevice(inHeaderEui);
+        if (null == device) {
+            LOG.warn("unknown device " + inHeaderEui);
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
+        if (!device.isActive()) {
+            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+        }
+        BulkLoaderResult result = service.processCsvString(device, input);
+        return Response.ok().entity(result).build();
+    }
+
+    @POST
+    @Path("/receiver/edge")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response processBatchFile(@HeaderParam("Authorization") String authKey,
+            @HeaderParam("X-device-eui") String inHeaderEui, @MultipartForm MultipartFormDataInput input) {
+
+        if (authorizationRequired && (null == authKey || authKey.isBlank())) {
+            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+        }
+        // The device is an Signomix Edge service.
+        Device device = service.getDevice(inHeaderEui);
+        if (null == device) {
+            LOG.warn("unknown device " + inHeaderEui);
+            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+        }
+        if (!device.isActive()) {
+            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+        }
+        BulkLoaderResult result = service.processCsv(device, input, false);
         return Response.ok().entity(result).build();
     }
 
@@ -454,7 +508,8 @@ public class ReceiverResourceGeneric {
         try {
             Class clazz = Class.forName(className);
             formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            //result = formatter.transform(originalResponse, devConfig, service.getMessageService());
+            // result = formatter.transform(originalResponse, devConfig,
+            // service.getMessageService());
             result = formatter.transform(originalResponse, devConfig, null);
             LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
             LOG.debug("response transformed:" + result);

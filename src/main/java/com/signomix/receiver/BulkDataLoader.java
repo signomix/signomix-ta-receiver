@@ -1,8 +1,10 @@
 package com.signomix.receiver;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +31,7 @@ public class BulkDataLoader {
     ArrayList<String> channels = new ArrayList<>();
     ArrayList<ChannelData> data = new ArrayList<>();
     Device device;
-    IotDatabaseIface dao;
+    //IotDatabaseIface dao;
     IotDatabaseIface olapDao;
     boolean withEui = false; // first column in CSV line is device EUI
     BulkLoaderResult result = new BulkLoaderResult();
@@ -38,8 +40,9 @@ public class BulkDataLoader {
     public BulkDataLoader() {
     }
 
-    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface dao, IotDatabaseIface olapDao, MultipartFormDataInput input) {
-        this.dao = dao;
+    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface olapDao, MultipartFormDataInput input, 
+    boolean singleDevice) {
+        //this.dao = dao;
         device = loadedDevice;
         int lineNumber = 0;
 
@@ -59,7 +62,7 @@ public class BulkDataLoader {
                         continue;
                     }
                     // process line
-                    if (processLine(str, lineNumber)) {
+                    if (processBatchLine(str, lineNumber, singleDevice)) {
                         lineNumber++;
                     }
                 }
@@ -68,6 +71,35 @@ public class BulkDataLoader {
                 errors++;
             }
         }
+        result.errors = errors;
+        result.loadedRecords = lineNumber-1;
+        result.deviceEui = device.getEUI();
+        return result;
+    }
+
+    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface olapDao, String input) {
+        device = loadedDevice;
+        int lineNumber = 0;
+
+        String str = null;
+            try {
+                InputStream inputStream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                while ((str = reader.readLine()) != null) {
+                    str=str.trim();
+                    // skip empty lines and comments
+                    if (str.isEmpty() || str.startsWith("#")) {
+                        continue;
+                    }
+                    // process line
+                    if (processBatchLine(str, lineNumber, false)) {
+                        lineNumber++;
+                    }
+                }
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+                errors++;
+            }
         result.errors = errors;
         result.loadedRecords = lineNumber-1;
         result.deviceEui = device.getEUI();
@@ -127,12 +159,81 @@ public class BulkDataLoader {
                 data.add(cd);
             }
             // line parsed - save data
-            try {
+/*             try {
                 dao.putData(device, data);
             } catch (IotDatabaseException e) {
                 logger.error(e.getMessage(), e);
                 return false;
+            } */
+            try {
+                olapDao.putData(device, data);
+            } catch (IotDatabaseException e) {
+                logger.error(e.getMessage(), e);
+                return false;
             }
+            data.clear();
+        }
+        return true;
+    }
+
+    private boolean processBatchLine(String line, int lineNumber, boolean singleDevice) {
+        logger.debug(lineNumber + ": " + line);
+        boolean withEui = false;
+        String deviceEUI = null;
+        String[] parts = line.split(";");
+        String channelName;
+        if (lineNumber == 0) {
+            // header line
+            for (int i = 2; i < parts.length; i++) {
+                channels.add(parts[i]);
+            }
+            // if header first column is "eui" then parser will expect device EUI in first column of each line
+            if ("eui".equals(parts[0])) {
+                withEui = true;
+            }
+            logger.debug("header: " + channels.toString());
+            return true;
+        } else {
+            // data line
+            int tstampPos = withEui ? 1 : 0;
+            int firstValuePos = withEui ? 2 : 1;
+
+            if (withEui) {
+                deviceEUI = parts[0];
+                if(singleDevice && !deviceEUI.equalsIgnoreCase(device.getEUI())){
+                    // invalid device EUI - ignore line
+                    errors++;
+                    return false;
+                }
+            }else{
+                deviceEUI = device.getEUI();
+            }
+
+            String timestampString = parts[tstampPos];
+            long timestamp = getTimestamp(timestampString);
+            logger.debug("timestamp: " + timestampString + " - " + timestamp);
+            if (timestamp == 0) {
+                // timestamp cannot be parsed - ignore line
+                errors++;
+                return false;
+            }
+            // parse values
+            for (int i = firstValuePos; i < parts.length; i++) {
+                channelName = channels.get(i - 2);
+                ChannelData cd = new ChannelData();
+                cd.setDeviceEUI(deviceEUI);
+                cd.setName(channelName);
+                cd.setTimestamp(timestamp);
+                try {
+                    cd.setValue(Double.parseDouble(parts[i]));
+                } catch (NumberFormatException e) {
+                    // value cannot be parsed - set null
+                    errors++;
+                    cd.setNullValue();
+                }
+                data.add(cd);
+            }
+            // line parsed - save data
             try {
                 olapDao.putData(device, data);
             } catch (IotDatabaseException e) {

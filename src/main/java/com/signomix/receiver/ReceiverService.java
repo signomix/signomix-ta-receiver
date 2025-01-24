@@ -112,12 +112,20 @@ public class ReceiverService {
         return processData(data);
     }
 
-    public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input) {
-        if (null != dao) {
-            return bulkDataLoader.loadBulkData(device, dao, olapDao, input);
-        }
-        return null;
+    public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input, boolean singleDevice) {
+        //if (null != dao) {
+            return bulkDataLoader.loadBulkData(device, olapDao, input, singleDevice);
+        //}
+        //return null;
+    } 
+    
+    public BulkLoaderResult processCsvString(Device device, String input) {
+        //if (null != dao) {
+            return bulkDataLoader.loadBulkData(device, olapDao, input);
+        //}
+        //return null;
     }
+    
 
     @ConsumeEvent(value = "iotdata-no-response")
     public void processDataNoResponse(IotData2 data) {
