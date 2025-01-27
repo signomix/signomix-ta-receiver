@@ -270,13 +270,15 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     var sgx = Object.create(sgx0)
     sgx.eui = eui
     sgx.devLatitude
-    sgx.latitude = latitude
-    if (sgx.latitude == null) { sgx.latitude = devLatitude }
     sgx.devLongitude=devLongitude
-    sgx.longitude = longitude
-    if (sgx.longitude == null) { sgx.longitude = devLongitude }
     sgx.devAltitude = devAltitude
+    sgx.latitude = latitude
+    sgx.longitude = longitude
     sgx.altitude = altitude
+    // if location from GPS is not set, use device location
+    // TODO: is this correct behavior?
+    if (sgx.latitude == null) { sgx.latitude = devLatitude }
+    if (sgx.longitude == null) { sgx.longitude = devLongitude }
     if (sgx.altitude == null) { sgx.altitude = devAltitude }
     sgx.result = new ProcessorResult()
     sgx.dataReceived = dataReceived
