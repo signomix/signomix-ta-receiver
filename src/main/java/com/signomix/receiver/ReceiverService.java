@@ -508,7 +508,7 @@ public class ReceiverService {
         byte[] emptyBytes = {};
         byte[] byteArray = null;
         String decoderScript = device.getEncoderUnescaped();
-        if (null == decoderScript || decoderScript.trim().isEmpty()) {
+        if ((null == decoderScript || decoderScript.trim().isEmpty()) && null != application) {
             decoderScript = application.decoder;
         }
         if (null != decoderScript && decoderScript.length() > 0) {
