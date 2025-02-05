@@ -108,7 +108,7 @@ public class ChirpstackRestAdapter {
     private IotData2 handleUplink(String event, String authKey) {
         ObjectMapper mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        LOG.info("handle uplink");
+        LOG.info(event);
         ChirpstackUplink uplink;
         IotData2 iotData=null;
         try {

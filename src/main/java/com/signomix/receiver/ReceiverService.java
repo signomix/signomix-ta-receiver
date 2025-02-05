@@ -18,6 +18,7 @@ import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.event.IotEvent;
@@ -250,6 +251,7 @@ public class ReceiverService {
                 scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
             // data to save
+            LOG.info(serializeProcessorResult(scriptResult));
             LOG.info("outputList.size()==" + scriptResult.getOutput().size());
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
@@ -348,10 +350,21 @@ public class ReceiverService {
         return result;
     }
 
+    private String serializeProcessorResult(ProcessorResult scriptResult) {
+        ObjectMapper mapper = new ObjectMapper();
+        String result = "";
+        try {
+            result = mapper.writeValueAsString(scriptResult);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
     private Application getApplication(Long appId) {
         Application app = null;
         try {
-            app = appDao.getApplication(appId);
+            app = appDao.getApplication(appId.intValue());
         } catch (IotDatabaseException e) {
             LOG.warn(e.getMessage());
         }
@@ -552,6 +565,10 @@ public class ReceiverService {
     }
 
     private void addNotifications(Device device, IotEvent event, String errorMessage, boolean withMessage) {
+        if(null ==event){
+            LOG.warn("event is null");
+            return;
+        }
         int alertLevel = 0;
         // INFO, ALERT and WARNING notifications are saved as signals and sentinel
         // events

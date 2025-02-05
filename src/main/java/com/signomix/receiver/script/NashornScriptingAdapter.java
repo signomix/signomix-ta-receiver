@@ -68,8 +68,24 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         decoderScript = readScript(decoderScriptLocation);
         LOG.debug("processor: " + processorScript);
         LOG.debug("decoder: " + decoderScript);
+        try{
+            new ScriptEngineManager().getEngineFactories().forEach(f -> {
+                LOG.info("engine factory: " + f.getEngineName());
+            }); 
         engine = new ScriptEngineManager().getEngineByName("nashorn");
-        LOG.debug("engine: " + engine);
+        }catch(Exception e){
+            LOG.error(e.getMessage());
+        }
+        LOG.info("engine: " + engine);
+    }
+
+    private ScriptEngine getEngine(){
+        if (engine == null) {
+            LOG.info("init engine by mime type");
+            engine = new ScriptEngineManager().getEngineByMimeType("text/javascript");
+            LOG.info("engine: " + engine);
+        }
+        return engine;
     }
 
     @Override
@@ -118,7 +134,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         if (deviceScript == null) {
             deviceScript = "";
         }
-
+        ScriptEngine engine = getEngine();
         try {
             engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
             invocable = (Invocable) engine;
@@ -158,6 +174,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             }
             LOG.debug(deviceDecoderScript);
             LOG.debug(decoderScript);
+            ScriptEngine engine = getEngine();
             engine.eval(deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript) : decoderScript);
             invocable = (Invocable) engine;
             list = (ArrayList) invocable.invokeFunction("decodeData", device.getDeviceID(), data, timestamp);
