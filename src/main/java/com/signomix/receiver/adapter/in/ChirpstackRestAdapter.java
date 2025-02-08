@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -108,12 +109,13 @@ public class ChirpstackRestAdapter {
     private IotData2 handleUplink(String event, String authKey) {
         ObjectMapper mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        LOG.info(event);
+        //LOG.info(event);
         ChirpstackUplink uplink;
         IotData2 iotData=null;
         try {
             uplink = mapper.readValue(event, ChirpstackUplink.class);
             // chirpstackPort.processUplink(uplink);
+            LOG.info(deserialize(uplink));
             iotData = transform(uplink, authKey, authorizationRequired);
             
         } catch (JsonProcessingException e) {
@@ -122,6 +124,17 @@ public class ChirpstackRestAdapter {
             e.printStackTrace();
         }
         return iotData;
+    }
+
+    private String deserialize(ChirpstackUplink uplink) {
+        ObjectMapper mapper = new ObjectMapper();
+        String json = null;
+        try {
+            json = mapper.writeValueAsString(uplink);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return json;
     }
 
     private IotData2 transform(ChirpstackUplink uplink, String authKey, boolean authorizationRequired) {
@@ -143,14 +156,16 @@ public class ChirpstackRestAdapter {
         data.authRequired = authorizationRequired;
         data.payload_fields = new ArrayList<>();
         HashMap pfMap = null;
+        ObjectMapper mapper = new ObjectMapper();
         if (null != uplink.objectJSON && !uplink.objectJSON.isEmpty()) {
-            ObjectMapper mapper = new ObjectMapper();
             try {
                 pfMap = mapper.readValue(uplink.objectJSON, HashMap.class);
             } catch (JsonProcessingException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
+        }else if(null != uplink.object) {
+                pfMap = uplink.object;
         }
         if (null != pfMap) {
             // Data channel names should be lowercase. We can fix user mistakes here.

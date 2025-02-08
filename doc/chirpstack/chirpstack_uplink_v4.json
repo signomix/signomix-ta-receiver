@@ -1,0 +1,49 @@
+{
+    "deduplicationId": "1c9fdf50-fd32-4728-a793-cd4b91377ead",
+    "time": "2025-02-05T20:14:53+00:00",
+    "devAddr": "00000000",
+    "dr": 5,
+    "fPort": 10,
+    "fCnt": 96,
+    "data": "C9wBAAAcAAAHAA==",
+    "rxInfo": [
+        {
+            "gatewayId": "0000000000000",
+            "uplinkId": 974828090,
+            "rssi": -89,
+            "snr": 7.0,
+            "context": "AAAAAAAAAAAA/wAIZLJ68w==",
+            "metadata": null
+        }
+    ],
+    "objectJSON": null,
+    "object": {
+        "ALARM": 0.0,
+        "DOOR_OPEN_STATUS": 0.0,
+        "DOOR_OPEN_TIMES": 28.0,
+        "LAST_DOOR_OPEN_DURATION": 7.0,
+        "MOD": 1.0,
+        "BAT_V": 3.036
+    },
+    "deviceInfo": {
+        "tenantId": "52f14cd4-c6f1-4fbd-8f87-4025e1d49242",
+        "tenantName": "ChirpStack",
+        "applicationId": "a6807187-0c5e-430f-b98d-731f0e1f6939",
+        "applicationName": "test",
+        "deviceProfileId": "9ac75bbe-639f-488c-be49-7b475d156656",
+        "deviceProfileName": "doorSensor1",
+        "deviceName": "Door sensor 1",
+        "devEui": "000000000000",
+        "tags": {}
+    },
+    "txInfo": {
+        "frequency": 867500000,
+        "modulation": {
+            "lora": {
+                "bandwidth": 125000,
+                "spreadingFactor": 7,
+                "codeRate": "CR_4_5"
+            }
+        }
+    }
+}
