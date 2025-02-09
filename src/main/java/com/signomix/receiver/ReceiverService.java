@@ -229,18 +229,21 @@ public class ReceiverService {
             // TODO: result.setData(authMessage);
             return null;
         }
-
-        if(device.isCheckFrames()){
+        //frame counter check
+        if(device.isCheckFrames() 
+        && (device.getType()==DeviceType.TTN.name()
+        ||device.getType()==DeviceType.CHIRPSTACK.name()
+        ||device.getType()==DeviceType.LORA.name())){
             long previousFrame = frameCountersMap.getOrDefault(device, 0L);
             long currentFrame = data.counter;
             long resetLevel = 100L; //TODO: get from device
-            if(currentFrame <= previousFrame){
-                if(currentFrame-previousFrame < resetLevel){
-                    LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
-                    //addNotifications(device, null, "Frame counter error: " + currentFrame + " <= " + previousFrame, false);
-                    //return null;
-                }
+            if(previousFrame-currentFrame >= resetLevel){
+                previousFrame=0L;
             }
+            if(currentFrame <= previousFrame){
+                LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
+            }
+            frameCountersMap.put(device.getEUI(), currentFrame);
         }
 
         String parserError = getFirstParserErrorValue(data);
@@ -538,11 +541,11 @@ public class ReceiverService {
         ArrayList<ChannelData> values = new ArrayList<>();
         byte[] emptyBytes = {};
         byte[] byteArray = null;
-        String decoderScript = device.getEncoderUnescaped();
-        if ((null == decoderScript || decoderScript.trim().isEmpty()) && null != application) {
-            decoderScript = application.decoder;
+        String deviceDecoderScript = device.getEncoderUnescaped();
+        if ((null == deviceDecoderScript || deviceDecoderScript.trim().isEmpty()) && null != application) {
+            deviceDecoderScript = application.decoder;
         }
-        if (null != decoderScript && decoderScript.length() > 0) {
+        if (null != deviceDecoderScript && deviceDecoderScript.length() > 0) {
             if (null != data.getPayload()) {
                 LOG.debug("base64Payload: " + data.getPayload());
                 Decoder base64Decoder = Base64.getDecoder();
@@ -563,7 +566,8 @@ public class ReceiverService {
             }
             LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
             try {
-                values = scriptingAdapter.decodeData(byteArray, device, application, data.getTimestamp());
+                //values = scriptingAdapter.decodeData(byteArray, device, application, data.getTimestamp());
+                values = scriptingAdapter.decodeData(byteArray, device.getEUI(), deviceDecoderScript, data.getTimestamp());
             } catch (ScriptAdapterException ex) {
                 ex.printStackTrace();
                 addNotifications(device, null, ex.getMessage(), false);

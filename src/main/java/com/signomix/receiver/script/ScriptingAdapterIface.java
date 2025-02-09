@@ -22,7 +22,8 @@ public interface ScriptingAdapterIface {
                         String command, String requestData, IotDatabaseIface dao,
                         Long port) throws ScriptAdapterException;
 
-        public ArrayList<ChannelData> decodeData(byte[] data, Device device, Application application, long dataTimestamp)
+        public ArrayList<ChannelData> decodeData(byte[] data, String deviceEui, String decoderScript,
+                        long dataTimestamp)
                         throws ScriptAdapterException;
 
         // public ArrayList<ChannelData> decodeHexData(String hexPayload, Device device,

@@ -240,17 +240,18 @@ sgx0.swap32 = function (val) {
 sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
     return this.result.getDistance(latitude1, longitude1, latitude2, longitude2);
 }
-sgx0.distance = function(latitude1, longitude1){
+sgx0.homeDistance = function(latitude, longitude){
     // if device location is not set, return 0
     if(this.devLatitude == null || this.devLongitude == null){
-        return 0;
+        return -2;
     }
     if(this.devLatitude == 0 && this.devLongitude == 0){
-        return 0;
+        return -1;
     }
     // Warning: this function is not accurate for devices used
     // to display location on plan or schema. It is accurate geographic distance.
-    return this.result.getDistance(this.devLatitude, this.devLongitude);
+    //this.addNotification('warning', 'lat/lon '+this.devLatitude+'/'+this.devLongitude);
+    return this.result.getDistance(this.devLatitude, this.devLongitude, latitude, longitude);
 }
 sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
@@ -260,8 +261,7 @@ sgx0.getTimeoffsetMinutes = function(timezoneName){
 }
 
 var processData = function (eui, dataReceived, channelReader, userID, receivedDataTimestamp,
-    latitude, longitude, altitude, status, alert,
-    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, 
+    status, alert, devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, 
     timeOffsets, port) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
@@ -270,17 +270,10 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
 
     var sgx = Object.create(sgx0)
     sgx.eui = eui
-    sgx.devLatitude
+    sgx.devLatitude=devLatitude
     sgx.devLongitude=devLongitude
     sgx.devAltitude = devAltitude
-    sgx.latitude = latitude
-    sgx.longitude = longitude
-    sgx.altitude = altitude
-    // if location from GPS is not set, use device location
-    // TODO: is this correct behavior?
-    if (sgx.latitude == null) { sgx.latitude = devLatitude }
-    if (sgx.longitude == null) { sgx.longitude = devLongitude }
-    if (sgx.altitude == null) { sgx.altitude = devAltitude }
+
     sgx.result = new ProcessorResult()
     sgx.dataReceived = dataReceived
     sgx.dataTimestamp = Number(receivedDataTimestamp)
