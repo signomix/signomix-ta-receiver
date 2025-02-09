@@ -237,8 +237,8 @@ public class ReceiverService {
             if(currentFrame <= previousFrame){
                 if(currentFrame-previousFrame < resetLevel){
                     LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
-                    addNotifications(device, null, "Frame counter error: " + currentFrame + " <= " + previousFrame, false);
-                    return null;
+                    //addNotifications(device, null, "Frame counter error: " + currentFrame + " <= " + previousFrame, false);
+                    //return null;
                 }
             }
         }
