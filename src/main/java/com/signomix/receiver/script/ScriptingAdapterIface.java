@@ -19,7 +19,8 @@ public interface ScriptingAdapterIface {
         public ProcessorResult processData1(ArrayList<ChannelData> values, Device device,
                         Application application, long dataTimestamp,
                         Double latitude, Double longitude, Double altitude,
-                        String command, String requestData, IotDatabaseIface dao) throws ScriptAdapterException;
+                        String command, String requestData, IotDatabaseIface dao,
+                        Long port) throws ScriptAdapterException;
 
         public ArrayList<ChannelData> decodeData(byte[] data, Device device, Application application, long dataTimestamp)
                         throws ScriptAdapterException;

@@ -261,7 +261,8 @@ sgx0.getTimeoffsetMinutes = function(timezoneName){
 
 var processData = function (eui, dataReceived, channelReader, userID, receivedDataTimestamp,
     latitude, longitude, altitude, status, alert,
-    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, timeOffsets) {
+    devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, 
+    timeOffsets, port) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
@@ -291,6 +292,7 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     sgx.deviceConfig = devConfig
     sgx.applicationConfig = appConfig
     sgx.timeOffsets = timeOffsets
+    sgx.port = port
     sgx.verify(dataReceived, status)
     //put original values. (todo: replace with verify)
     //if (dataReceived.length > 0) {

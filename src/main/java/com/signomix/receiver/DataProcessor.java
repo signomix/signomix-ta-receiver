@@ -126,7 +126,8 @@ public class DataProcessor {
             Double altitude,
             String requestData,
             String command,
-            IotDatabaseIface dao) throws Exception {
+            IotDatabaseIface dao,
+            Long port) throws Exception {
         ProcessorResult scriptResult = null;
         try {
             LOG.debug("listOfValues.size()==" + listOfValues.size());
@@ -140,7 +141,8 @@ public class DataProcessor {
                     altitude,
                     command,
                     requestData,
-                    dao);
+                    dao,
+                    port);
         } catch (ScriptAdapterException e) {
             e.printStackTrace();
             throw new Exception(e.getMessage());

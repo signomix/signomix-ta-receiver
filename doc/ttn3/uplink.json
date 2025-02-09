@@ -18,6 +18,7 @@
     "received_at" : "2020-02-12T15:15:46.014773143Z",
     "uplink_message" : {
       "session_key_id" : "AXA50tHUGUucuzS/bCGMNw==",
+      "f_port" : 1,
       "f_cnt" : 1,
       "frm_payload" : "gkHe",
       "decoded_payload" : {

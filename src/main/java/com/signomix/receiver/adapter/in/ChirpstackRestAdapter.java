@@ -150,6 +150,10 @@ public class ChirpstackRestAdapter {
         } else {
             data.timestamp = uplink.time;
         }
+        // should be added
+        data.counter = uplink.fCnt;
+        data.port = uplink.fPort;
+        // end of should be added
         data.time=data.timestamp;
         data.clientname = "";
         data.authKey = authKey;

@@ -95,7 +95,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             Application application,
             long dataTimestamp,
             Double latitude, Double longitude, Double altitude,
-            String command, String requestData, IotDatabaseIface dao) throws ScriptAdapterException {
+            String command, String requestData, IotDatabaseIface dao,
+            Long port) throws ScriptAdapterException {
 
         String deviceScript = device.getCodeUnescaped();
         String deviceID = device.getEUI();
@@ -141,7 +142,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
                     dataTimestamp, latitude, longitude, altitude, state, alert,
                     devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig,
-                    offsets);
+                    offsets, port);
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {

@@ -100,6 +100,8 @@ public class ReceiverResourceTtn {
         data.clientname = "";
         data.authKey = authKey;
         data.authRequired = authRequired;
+        data.port = dataObject.getPort();
+        data.counter = dataObject.getFrameCounter();
         // TODO:
         data.payload_fields = new ArrayList<>();
         HashMap pfMap = dataObject.getPayloadFields();

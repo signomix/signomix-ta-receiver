@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -101,12 +102,15 @@ public class ReceiverService {
     @ConfigProperty(name = "signomix.devices.protected", defaultValue = "false")
     Boolean useProtectedFeature;
 
+    private ConcurrentHashMap<String, Long> frameCountersMap;
+
     public void onApplicationStart(@Observes StartupEvent event) {
         dao.setDatasource(tsDs);
         olapDao.setDatasource(tsDs);
         olapDao.setAnalyticDatasource(olapDs);
         signalDao.setDatasource(tsDs);
         appDao.setDatasource(tsDs);
+        frameCountersMap = new ConcurrentHashMap<>();
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -225,6 +229,20 @@ public class ReceiverService {
             // TODO: result.setData(authMessage);
             return null;
         }
+
+        if(device.isCheckFrames()){
+            long previousFrame = frameCountersMap.getOrDefault(device, 0L);
+            long currentFrame = data.counter;
+            long resetLevel = 100L; //TODO: get from device
+            if(currentFrame <= previousFrame){
+                if(currentFrame-previousFrame < resetLevel){
+                    LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
+                    addNotifications(device, null, "Frame counter error: " + currentFrame + " <= " + previousFrame, false);
+                    return null;
+                }
+            }
+        }
+
         String parserError = getFirstParserErrorValue(data);
         if (null != parserError && !parserError.isEmpty()) {
             return "ERROR: " + parserError;
@@ -385,7 +403,7 @@ public class ReceiverService {
             throws Exception {
         ProcessorResult result = processor.getProcessingResult(inputList, device, application,
                 iotData.getReceivedPackageTimestamp(), iotData.getLatitude(),
-                iotData.getLongitude(), iotData.getAltitude(), dataString, "", olapDao);
+                iotData.getLongitude(), iotData.getAltitude(), dataString, "", olapDao, iotData.port);
         result.setApplicationConfig(device.getApplicationConfig());
         return result;
     }
