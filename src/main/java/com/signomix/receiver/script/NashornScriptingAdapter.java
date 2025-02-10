@@ -68,18 +68,18 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         decoderScript = readScript(decoderScriptLocation);
         LOG.debug("processor: " + processorScript);
         LOG.debug("decoder: " + decoderScript);
-        try{
+        try {
             new ScriptEngineManager().getEngineFactories().forEach(f -> {
                 LOG.info("engine factory: " + f.getEngineName());
-            }); 
-        engine = new ScriptEngineManager().getEngineByName("nashorn");
-        }catch(Exception e){
+            });
+            engine = new ScriptEngineManager().getEngineByName("nashorn");
+        } catch (Exception e) {
             LOG.error(e.getMessage());
         }
         LOG.info("engine: " + engine);
     }
 
-    private ScriptEngine getEngine(){
+    private ScriptEngine getEngine() {
         if (engine == null) {
             LOG.info("init engine by mime type");
             engine = new ScriptEngineManager().getEngineByMimeType("text/javascript");
@@ -112,6 +112,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         HashMap<String, Object> deviceConfig = device.getConfigurationMap();
         HashMap<String, Object> applicationConfig = device.getApplicationConfig();
 
+        String deviceGroups = device.getGroups();
+
         Set<String> availableZoneIds = ZoneId.getAvailableZoneIds();
 
         // Convert the set to an array
@@ -128,6 +130,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             LOG.debug(values.get(i).toString());
         }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
+        GroupClient groupReader = new GroupClient(userID, deviceGroups, dao);
 
         if ((deviceScript == null || deviceScript.trim().isEmpty()) && application != null) {
             deviceScript = application.code;
@@ -139,9 +142,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         try {
             engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
             invocable = (Invocable) engine;
-            result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values, channelReader, userID,
-                    dataTimestamp, state, alert,
+            result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values,
+                    channelReader, groupReader,
+                    userID, dataTimestamp, state, alert,
                     devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig,
+                    deviceGroups,
                     offsets, port);
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
@@ -169,7 +174,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             if (decoderScript == null || decoderScript.trim().isEmpty()) {
                 return list;
             }
-            String mergedScript = deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript) : decoderScript;
+            String mergedScript = deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript)
+                    : decoderScript;
             LOG.debug(decoderScript);
             ScriptEngine engine = getEngine();
             engine.eval(mergedScript);

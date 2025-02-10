@@ -118,19 +118,18 @@ public class ReceiverService {
     }
 
     public BulkLoaderResult processCsv(Device device, MultipartFormDataInput input, boolean singleDevice) {
-        //if (null != dao) {
-            return bulkDataLoader.loadBulkData(device, olapDao, input, singleDevice);
-        //}
-        //return null;
-    } 
-    
-    public BulkLoaderResult processCsvString(Device device, String input) {
-        //if (null != dao) {
-            return bulkDataLoader.loadBulkData(device, olapDao, input);
-        //}
-        //return null;
+        // if (null != dao) {
+        return bulkDataLoader.loadBulkData(device, olapDao, input, singleDevice);
+        // }
+        // return null;
     }
-    
+
+    public BulkLoaderResult processCsvString(Device device, String input) {
+        // if (null != dao) {
+        return bulkDataLoader.loadBulkData(device, olapDao, input);
+        // }
+        // return null;
+    }
 
     @ConsumeEvent(value = "iotdata-no-response")
     public void processDataNoResponse(IotData2 data) {
@@ -229,18 +228,18 @@ public class ReceiverService {
             // TODO: result.setData(authMessage);
             return null;
         }
-        //frame counter check
-        if(device.isCheckFrames() 
-        && (device.getType()==DeviceType.TTN.name()
-        ||device.getType()==DeviceType.CHIRPSTACK.name()
-        ||device.getType()==DeviceType.LORA.name())){
+        // frame counter check
+        if (device.isCheckFrames()
+                && (device.getType() == DeviceType.TTN.name()
+                        || device.getType() == DeviceType.CHIRPSTACK.name()
+                        || device.getType() == DeviceType.LORA.name())) {
             long previousFrame = frameCountersMap.getOrDefault(device, 0L);
             long currentFrame = data.counter;
-            long resetLevel = 100L; //TODO: get from device
-            if(previousFrame-currentFrame >= resetLevel){
-                previousFrame=0L;
+            long resetLevel = 100L; // TODO: get from device
+            if (previousFrame - currentFrame >= resetLevel) {
+                previousFrame = 0L;
             }
-            if(currentFrame <= previousFrame){
+            if (currentFrame <= previousFrame) {
                 LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
             }
             frameCountersMap.put(device.getEUI(), currentFrame);
@@ -323,27 +322,29 @@ public class ReceiverService {
             }
         }
         // data events
-        HashMap<String, ArrayList> dataEvents = scriptResult.getDataEvents();
-        ArrayList<IotEvent> el;
-        for (String key : dataEvents.keySet()) {
-            el = dataEvents.get(key);
-            IotEvent newEvent;
-            if (el.size() > 0) {
-                newEvent = (IotEvent) el.get(0).clone();
-                String payload = "";
-                for (int i = 0; i < el.size(); i++) {
-                    if (i > 0) {
-                        payload = payload + ";";
+        if (!device.getType().equalsIgnoreCase(DeviceType.VIRTUAL.name())) {
+            HashMap<String, ArrayList> dataEvents = scriptResult.getDataEvents();
+            ArrayList<IotEvent> el;
+            for (String key : dataEvents.keySet()) {
+                el = dataEvents.get(key);
+                IotEvent newEvent;
+                if (el.size() > 0) {
+                    newEvent = (IotEvent) el.get(0).clone();
+                    String payload = "";
+                    for (int i = 0; i < el.size(); i++) {
+                        if (i > 0) {
+                            payload = payload + ";";
+                        }
+                        payload = payload + el.get(i).getPayload();
                     }
-                    payload = payload + el.get(i).getPayload();
-                }
-                newEvent.setPayload(payload);
-                LOG.info("SENDING DATA CREATED EVENT (" + device.getEUI() + "): " + newEvent.getPayload());
-                // send event to mqtt
-                dataCreatedEmitter.send((String) newEvent.getPayload());
-                // send event to event bus
-                sentToEventBus(payload);
+                    newEvent.setPayload(payload);
+                    LOG.info("SENDING DATA CREATED EVENT (" + device.getEUI() + "): " + newEvent.getPayload());
+                    // send event to mqtt
+                    dataCreatedEmitter.send((String) newEvent.getPayload());
+                    // send event to event bus
+                    sentToEventBus(payload);
 
+                }
             }
         }
 
@@ -566,8 +567,10 @@ public class ReceiverService {
             }
             LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
             try {
-                //values = scriptingAdapter.decodeData(byteArray, device, application, data.getTimestamp());
-                values = scriptingAdapter.decodeData(byteArray, device.getEUI(), deviceDecoderScript, data.getTimestamp());
+                // values = scriptingAdapter.decodeData(byteArray, device, application,
+                // data.getTimestamp());
+                values = scriptingAdapter.decodeData(byteArray, device.getEUI(), deviceDecoderScript,
+                        data.getTimestamp());
             } catch (ScriptAdapterException ex) {
                 ex.printStackTrace();
                 addNotifications(device, null, ex.getMessage(), false);
@@ -587,7 +590,7 @@ public class ReceiverService {
     }
 
     private void addNotifications(Device device, IotEvent event, String errorMessage, boolean withMessage) {
-        if(null ==event){
+        if (null == event) {
             LOG.warn("event is null");
             return;
         }
@@ -717,11 +720,11 @@ public class ReceiverService {
         }
         if (authRequired) {
             String secret;
-            //if (gateway == null) {
-                secret = device.getKey();
-            //} else {
-            //    secret = gateway.getKey();
-            //}
+            // if (gateway == null) {
+            secret = device.getKey();
+            // } else {
+            // secret = gateway.getKey();
+            // }
             try {
                 if (null == authKey || !authKey.equals(secret)) {
                     LOG.warn("Authorization key don't match for " + device.getEUI() + " :" + authKey + ":" + secret);
@@ -761,7 +764,7 @@ public class ReceiverService {
                 e.printStackTrace();
                 LOG.error(e.getMessage());
             }
-        }else{
+        } else {
             LOG.info("Protected feature is disabled");
         }
         return device;

@@ -15,6 +15,7 @@ sgx0.result = new ProcessorResult()
 sgx0.helper = new ProcessorResultHelper()
 sgx0.dataTimestamp = 0
 sgx0.channelReader = {}
+sgx0.groupReader = {}
 sgx0.malformed = ''
 
 sgx0.verify = function (received, receivedStatus) {
@@ -63,6 +64,12 @@ sgx0.addNotification = function (newType, newMessage) {
 }
 sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
+}
+sgx0.addGroupData = function (groupEUI, newName, newValue) {
+    var deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI)
+    for (var i = 0; i < deviceEuis.length; i++) {
+        this.result.addDataEvent(deviceEuis[i], this.eui, new ChannelData(deviceEuis[i], newName, newValue, this.dataTimestamp));
+    }
 }
 
 sgx0.getAverage = function (channelName, scope, newValue) {
@@ -131,7 +138,7 @@ sgx0.getSum = function (channelName, scope, newValue) {
 }
 sgx0.getLastValue = function (channelName, skipNull) {
     var skipNullValues = false;
-    if(arguments.length > 1){
+    if (arguments.length > 1) {
         skipNullValues = skipNull;
     }
     var tmpLastData = this.channelReader.getLastData(channelName, skipNullValues);
@@ -143,7 +150,7 @@ sgx0.getLastValue = function (channelName, skipNull) {
 }
 sgx0.getLastData = function (channelName, skipNull) {
     var skipNullValues = false;
-    if(arguments.length > 1){
+    if (arguments.length > 1) {
         skipNullValues = skipNull;
     }
     return this.channelReader.getLastData(channelName, skipNullValues);
@@ -240,12 +247,12 @@ sgx0.swap32 = function (val) {
 sgx0.distance = function (latitude1, longitude1, latitude2, longitude2) {
     return this.result.getDistance(latitude1, longitude1, latitude2, longitude2);
 }
-sgx0.homeDistance = function(latitude, longitude){
+sgx0.homeDistance = function (latitude, longitude) {
     // if device location is not set, return 0
-    if(this.devLatitude == null || this.devLongitude == null){
+    if (this.devLatitude == null || this.devLongitude == null) {
         return -2;
     }
-    if(this.devLatitude == 0 && this.devLongitude == 0){
+    if (this.devLatitude == 0 && this.devLongitude == 0) {
         return -1;
     }
     // Warning: this function is not accurate for devices used
@@ -256,13 +263,23 @@ sgx0.homeDistance = function(latitude, longitude){
 sgx0.xaddList = function (timestamp) {
     this.result.addDataList(timestamp);
 }
-sgx0.getTimeoffsetMinutes = function(timezoneName){
+sgx0.getTimeoffsetMinutes = function (timezoneName) {
     return this.timeOffsets[timezoneName];
 }
 
-var processData = function (eui, dataReceived, channelReader, userID, receivedDataTimestamp,
-    status, alert, devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig, 
-    timeOffsets, port) {
+sgx0.getDeviceGroups = function () {
+    var tmp = this.deviceGroups.split(",");
+    var result = [];
+    for (var i = 0; i < tmp.length; i++) {
+        if (tmp[i].trim().length > 0)
+            result.push(tmp[i].trim());
+    }
+    return result;
+}
+
+var processData = function (eui, dataReceived, channelReader, groupReader, userID, receivedDataTimestamp,
+    status, alert, devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig,
+    devGroups, timeOffsets, port) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
@@ -270,20 +287,22 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
 
     var sgx = Object.create(sgx0)
     sgx.eui = eui
-    sgx.devLatitude=devLatitude
-    sgx.devLongitude=devLongitude
+    sgx.devLatitude = devLatitude
+    sgx.devLongitude = devLongitude
     sgx.devAltitude = devAltitude
 
     sgx.result = new ProcessorResult()
     sgx.dataReceived = dataReceived
     sgx.dataTimestamp = Number(receivedDataTimestamp)
     sgx.channelReader = channelReader
+    sgx.groupReader = groupReader
     sgx.status = status
     sgx.alert = alert
     sgx.virtualCommand = newCommand
     sgx.requestData = requestData
     sgx.deviceConfig = devConfig
     sgx.applicationConfig = appConfig
+    sgx.deviceGroups = devGroups
     sgx.timeOffsets = timeOffsets
     sgx.port = port
     sgx.verify(dataReceived, status)
@@ -299,9 +318,9 @@ var processData = function (eui, dataReceived, channelReader, userID, receivedDa
     try {
 
         //injectedCode
-        
+
     } catch (processorError) {
-        sgx.addNotification('error', 'Device '+eui+' processor script error: '+processorError)
+        sgx.addNotification('error', 'Device ' + eui + ' processor script error: ' + processorError)
     }
     return sgx.result;
 }
@@ -320,11 +339,11 @@ var processRawData = function (eui, requestBody, channelReader, userID, dataTime
     sgx.channelReader = channelReader
     //sgx.verify(dataReceived, state)
     try {
-        
+
         //injectedCode
 
     } catch (processorError) {
-        sgx.addNotification('error', 'Device '+eui+'processor script error: '+processorError)
+        sgx.addNotification('error', 'Device ' + eui + 'processor script error: ' + processorError)
     }
     return sgx.result;
 }
