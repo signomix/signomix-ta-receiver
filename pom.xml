@@ -120,7 +120,7 @@
     <dependency>
       <groupId>com.signomix</groupId>
       <artifactId>signomix-common</artifactId>
-      <version>1.19.19</version>
+      <version>1.19.20</version>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -136,6 +136,10 @@
       <artifactId>nashorn-core</artifactId>
       <version>15.6</version>
     </dependency>
+<!--  <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-messaging-mqtt</artifactId>
+    </dependency> -->
     <!--     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-opentelemetry</artifactId>
