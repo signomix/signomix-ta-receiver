@@ -353,6 +353,11 @@ public class ReceiverService {
             IotEvent command = (IotEvent) dao.getFirstCommand(device.getEUI());
             if (null != command) {
                 String commandPayload = (String) command.getPayload();
+                // remove port number from command payload (if exists) becourse it is not relevant
+                // for the device of type GENERIC (DIRECT)
+                if(commandPayload.indexOf("@@@")>0){
+                    commandPayload = commandPayload.substring(0, commandPayload.indexOf("@@@"));
+                }
                 if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
                     String rawCmd = new String(
                             Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload)));
