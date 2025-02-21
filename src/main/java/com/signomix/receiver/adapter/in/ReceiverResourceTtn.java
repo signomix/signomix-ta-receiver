@@ -93,7 +93,8 @@ public class ReceiverResourceTtn {
 
     private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) {
         LOG.debug("transform " + authKey + " " + authRequired);
-        IotData2 data = new IotData2();
+        long systemTimestamp = System.currentTimeMillis();
+        IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;
         data.timestamp = "" + dataObject.getTimestamp();
@@ -138,7 +139,7 @@ public class ReceiverResourceTtn {
             data.payload_fields.add(tempMap);
         }
         data.normalize();
-        data.setTimestampUTC();
+        data.setTimestampUTC(systemTimestamp);
         return data;
     }
 

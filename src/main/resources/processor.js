@@ -23,10 +23,12 @@ sgx0.verify = function (received, receivedStatus) {
     var tmpChannelData
     for (var i = 0; i < received.length; i++) {
         if (!(received[i] == null)) {
-            tmpChannelData = new ChannelData(this.eui, received[i].name, received[i].value, received[i].timestamp);
+            tmpChannelData = new ChannelData(this.eui, received[i].name, received[i].value, received[i].timestamp, received[i].stringValue);
             this.dataReceived.push(tmpChannelData)
-            this.result.putData(tmpChannelData);
-            this.result.log(tmpChannelData.toString());
+            //this.result.putData(tmpChannelData);
+            //this.result.log(tmpChannelData.toString());
+            this.result.putData(this.eui, received[i].name, received[i].value, received[i].timestamp, received[i].stringValue);
+            
         } else {
             malformed = received
         }
@@ -37,7 +39,7 @@ sgx0.verify = function (received, receivedStatus) {
 sgx0.accept = function (name) {
     for (i = 0; i < this.dataReceived.length; i++) {
         if (this.dataReceived[i].getName() == name) {
-            this.result.putData(this.eui, name, this.dataReceived[i].getValue(), this.dataReceived[i].getTimestamp());
+            this.result.putData(this.eui, name, this.dataReceived[i].getValue(), this.dataReceived[i].getTimestamp(), this.dataReceived[i].getStringValue());
         }
     }
 }
@@ -162,16 +164,18 @@ sgx0.getOutput = function () {
     return this.result.getOutput();
 }
 sgx0.getTimestamp = function (channelName) {
-    /* var ts = 0
+    var ts = 0
     for (i = 0; i < this.dataReceived.length; i++) {
         if (this.dataReceived[i].getName() == channelName) {
             ts = this.dataReceived[i].getTimestamp()
             break
         }
     }
-    if (ts == 0) ts = Date.now()
-    return ts; */
-    return this.dataTimestamp
+    if (ts==undefined || ts == 0){
+        return this.dataTimestamp
+    }else {
+        return ts
+    }
 }
 sgx0.getTimestampUTC = function (y, m, d, h, min, s) {
     return Date.UTC(y, m - 1, d, h, min, s);
@@ -205,9 +209,9 @@ sgx0.getLastData = function (channelName) {
 }
 sgx0.put = function (name, newValue, timestamp) {
     if (timestamp == undefined) {
-        this.result.putData(this.eui, name, newValue, this.dataTimestamp);
+        this.result.putData(this.eui, name, newValue, this.dataTimestamp, null);
     } else {
-        this.result.putData(this.eui, name, newValue, timestamp);
+        this.result.putData(this.eui, name, newValue, timestamp, null);
     }
 }
 

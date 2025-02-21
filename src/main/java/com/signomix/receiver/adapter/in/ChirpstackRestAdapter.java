@@ -138,7 +138,8 @@ public class ChirpstackRestAdapter {
     }
 
     private IotData2 transform(ChirpstackUplink uplink, String authKey, boolean authorizationRequired) {
-        IotData2 data = new IotData2();
+        long systemTimestamp = System.currentTimeMillis();
+        IotData2 data = new IotData2(systemTimestamp);
         LOG.info("transform " + authKey + " " + authorizationRequired);
         data.dev_eui = uplink.deviceinfo.devEui;
         data.gateway_eui = null;
@@ -207,7 +208,7 @@ public class ChirpstackRestAdapter {
          * }
          */
         data.normalize();
-        data.setTimestampUTC();
+        data.setTimestampUTC(systemTimestamp);
         return data;
     }
 

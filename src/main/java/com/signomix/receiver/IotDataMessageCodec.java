@@ -26,6 +26,7 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
             channelField = new JsonObject();
             channelField.put("name", field.get("name"));
             channelField.put("value", "" + field.get("value"));
+            channelField.put("stringValue", "" + field.get("value"));
             fields.add(channelField);
         }
 
@@ -53,7 +54,7 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
     public IotData2 decodeFromWire(int position, Buffer buffer) {
         // My custom message starting from this *position* of buffer
         int _pos = position;
-
+        long systemTimestamp = System.currentTimeMillis();
         // Length of JSON
         int length = buffer.getInt(_pos);
 
@@ -63,7 +64,7 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
         JsonObject contentJson = new JsonObject(jsonStr);
         JsonArray fields;
 
-        IotData2 data = new IotData2();
+        IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = contentJson.getString("eui");
         data.timestamp = contentJson.getString("timestamp");
         data.time = contentJson.getString("time");
@@ -80,11 +81,12 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
             map = new HashMap<>();
             map.put("name", field.getString("name"));
             map.put("value", field.getString("value"));
+            map.put("stringValue", field.getString("stringValue"));
             data.payload_fields.add(map);
         }
         // We can finally create custom message object
-        data.setTimestampUTC();
-        data.prepareIotValues();
+        data.setTimestampUTC(systemTimestamp);
+        data.prepareIotValues(systemTimestamp);
         return data;
     }
 

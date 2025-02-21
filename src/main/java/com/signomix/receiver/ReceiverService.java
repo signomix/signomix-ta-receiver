@@ -169,6 +169,7 @@ public class ReceiverService {
 
     private void parseBusMessage(String payload) {
         LOG.debug("parseBusMessage: " + payload);
+        long systemTimestamp = System.currentTimeMillis();
         String[] parts = payload.split(";");
         // sort parts array basing on the first field (deviceId) - fields are separated
         // by ":"
@@ -182,7 +183,7 @@ public class ReceiverService {
         String tmpEui = "";
         String[] dataObj;
         HashMap<String, String> map;
-        IotData2 iotData = new IotData2();
+        IotData2 iotData = new IotData2(systemTimestamp);
         iotData.payload_fields = new ArrayList<>();
         for (String part : parts) {
             LOG.debug("part: " + part);
@@ -192,16 +193,16 @@ public class ReceiverService {
                 if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
                     LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
                     iotData.normalize();
-                    iotData.setTimestampUTC();
+                    iotData.setTimestampUTC(systemTimestamp);
                     processData(iotData);
                 }
                 tmpEui = dataObj[0];
-                iotData = new IotData2();
+                iotData = new IotData2(systemTimestamp);
                 iotData.dev_eui = dataObj[0];
                 if (dataObj.length > 3) {
                     iotData.timestamp = dataObj[3];
                 } else {
-                    iotData.timestamp = "" + System.currentTimeMillis();
+                    iotData.timestamp = "" + systemTimestamp;
                 }
                 iotData.payload_fields = new ArrayList<>();
             }
@@ -213,13 +214,16 @@ public class ReceiverService {
         if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
             LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
             iotData.normalize();
-            iotData.setTimestampUTC();
+            iotData.setTimestampUTC(systemTimestamp);
             processData(iotData);
         }
     }
 
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
+        long systemTimestamp = System.currentTimeMillis();
+        ObjectMapper mapper = new ObjectMapper();
+        LOG.info(mapper.valueToTree(data).toString());
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
@@ -249,8 +253,8 @@ public class ReceiverService {
         if (null != parserError && !parserError.isEmpty()) {
             return "ERROR: " + parserError;
         }
-        data.setTimestampUTC();
-        data.prepareIotValues();
+        data.setTimestampUTC(systemTimestamp);
+        data.prepareIotValues(systemTimestamp);
         Application app = getApplication(device.getOrgApplicationId());
         if (null == app) {
             LOG.info("app is null");
@@ -271,7 +275,7 @@ public class ReceiverService {
                 scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
             // data to save
-            LOG.info(serializeProcessorResult(scriptResult));
+            LOG.info("scriptResult: "+serializeProcessorResult(scriptResult));
             LOG.info("outputList.size()==" + scriptResult.getOutput().size());
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
@@ -451,7 +455,7 @@ public class ReceiverService {
             }
             if (null != olapDao) {
                 LOG.debug("saveData to olap DB");
-                olapDao.saveAnalyticData(device, fixValues(device, list));
+                olapDao.saveAnalyticData(device, list);
             } else {
                 LOG.warn("olapDao is null");
             }

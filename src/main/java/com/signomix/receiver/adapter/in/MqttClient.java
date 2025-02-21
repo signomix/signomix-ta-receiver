@@ -44,8 +44,8 @@ public class MqttClient {
     }
 
     private IotData2 parseTextData(String input, String separator) {
-
-        IotData2 data = new IotData2();
+        long systemTimestamp = System.currentTimeMillis();
+        IotData2 data = new IotData2(systemTimestamp);
         HashMap<String, Object> options = new HashMap<>();
         options.put("separator", separator);
         // options.put("eui", eui);
@@ -54,7 +54,7 @@ public class MqttClient {
         data.payload_fields = (ArrayList) parser.parse(input, options);
             data.dev_eui = getEuiParamValue(data.payload_fields);
         data.normalize();
-        data.setTimestampUTC();
+        data.setTimestampUTC(systemTimestamp);
         data.authRequired = false;
         return data;
     }

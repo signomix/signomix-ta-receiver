@@ -1,0 +1,58 @@
+{
+    "applicationID": null,
+    "deviceId": null,
+    "dev_eui": "IOTEMULATOR",
+    "authKey": "6022140857",
+    "authRequired": true,
+    "gateway_eui": null,
+    "time": null,
+    "payload_fields": [
+        {
+            "stringValue": "",
+            "name": "latitude",
+            "value": ""
+        },
+        {
+            "stringValue": "12",
+            "name": "temperature",
+            "value": "12"
+        },
+        {
+            "stringValue": "13",
+            "name": "humidity",
+            "value": "13"
+        },
+        {
+            "stringValue": "simulation",
+            "name": "project",
+            "value": "simulation"
+        },
+        {
+            "stringValue": "",
+            "name": "longitude",
+            "value": ""
+        }
+    ],
+    "timestamp": 1740058491544,
+    "clientname": null,
+    "dataList": [],
+    "payload": null,
+    "hexPayload": null,
+    "timestampUTC": null,
+    "port": null,
+    "counter": null,
+    "deviceID": "",
+    "latitude": null,
+    "longitude": null,
+    "altitude": null,
+    "deviceEUI": "IOTEMULATOR",
+    "receivedPackageTimestamp": 1740058491544,
+    "timeField": null,
+    "payloadFieldNames": [
+        "latitude",
+        "temperature",
+        "humidity",
+        "project",
+        "longitude"
+    ]
+}

@@ -50,9 +50,9 @@ public class ProcessorResult {
         LOG.info(message);
     }
 
-    public void putData(ChannelData v) {
+    /* public void putData(ChannelData v) {
         measures.put(v.getName(), v);
-    }
+    } */
 
     public void removeData(String channelName) {
         measures.remove(channelName);
@@ -198,8 +198,8 @@ public class ProcessorResult {
         return 0;
     }
 
-    public void putData(String eui, String name, Double value, long timestamp) {
-        output.put(new ChannelData(eui, name, value, timestamp));
+    public void putData(String eui, String name, Double value, long timestamp, String stringValue) {
+        output.put(new ChannelData(eui, name, value, timestamp, stringValue));
         listsUsed = true;
     }
 
