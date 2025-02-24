@@ -222,8 +222,8 @@ public class ReceiverService {
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         long systemTimestamp = System.currentTimeMillis();
-        ObjectMapper mapper = new ObjectMapper();
-        LOG.info(mapper.valueToTree(data).toString());
+        //ObjectMapper mapper = new ObjectMapper();
+        //LOG.info(mapper.valueToTree(data).toString());
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
