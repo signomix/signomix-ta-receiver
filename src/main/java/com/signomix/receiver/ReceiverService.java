@@ -81,6 +81,9 @@ public class ReceiverService {
     @Inject
     @Channel("alerts")
     Emitter<String> alertEmitter;
+    @Inject
+    @Channel("command-ready")
+    Emitter<String> commandEmitter;
 
     IotDatabaseDao dao = new IotDatabaseDao();
     IotDatabaseDao olapDao = new IotDatabaseDao();
@@ -222,8 +225,8 @@ public class ReceiverService {
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         long systemTimestamp = System.currentTimeMillis();
-        //ObjectMapper mapper = new ObjectMapper();
-        //LOG.info(mapper.valueToTree(data).toString());
+        // ObjectMapper mapper = new ObjectMapper();
+        // LOG.info(mapper.valueToTree(data).toString());
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
@@ -275,7 +278,7 @@ public class ReceiverService {
                 scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
             // data to save
-            LOG.info("scriptResult: "+serializeProcessorResult(scriptResult));
+            LOG.info("scriptResult: " + serializeProcessorResult(scriptResult));
             LOG.info("outputList.size()==" + scriptResult.getOutput().size());
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
@@ -311,15 +314,20 @@ public class ReceiverService {
         }
 
         ArrayList<IotEvent> events = scriptResult.getEvents();
+        HashSet<String> commandTargets = new HashSet<>(); // list of devices to send commands
 
         // commands and notifications
+        String targetEui;
         for (int i = 0; i < events.size(); i++) {
             LOG.debug("event " + i + " (" + device.getEUI() + ")");
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_PLAINCMD.equals(events.get(i).getType())) {
                 // commands
-                saveCommand(events.get(i));
+                targetEui = saveCommand(events.get(i));
+                if (null != targetEui) {
+                    commandTargets.add(targetEui);
+                }
             } else {
                 // notifications
                 addNotifications(device, (IotEvent) events.get(i).clone(), null, true);
@@ -353,30 +361,40 @@ public class ReceiverService {
         }
 
         // are commands waiting?
-        try {
-            IotEvent command = (IotEvent) dao.getFirstCommand(device.getEUI());
-            if (null != command) {
-                String commandPayload = (String) command.getPayload();
-                // remove port number from command payload (if exists) becourse it is not relevant
-                // for the device of type GENERIC (DIRECT)
-                if(commandPayload.indexOf("@@@")>0){
-                    commandPayload = commandPayload.substring(0, commandPayload.indexOf("@@@"));
-                }
-                if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
-                    String rawCmd = new String(
-                            Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload)));
-                    result = rawCmd;
+        if (device.getType().equals(DeviceType.VIRTUAL.name())
+                || device.getType().equals(DeviceType.GENERIC.name())) {
+            try {
+                IotEvent command = (IotEvent) dao.getFirstCommand(device.getEUI());
+                if (null != command) {
+                    String commandPayload = (String) command.getPayload();
+                    // remove port number from command payload (if exists) becourse it is not
+                    // relevant
+                    // for the device of type GENERIC (DIRECT)
+                    if (commandPayload.indexOf("@@@") > 0) {
+                        commandPayload = commandPayload.substring(0, commandPayload.indexOf("@@@"));
+                    }
+                    if (IotEvent.ACTUATOR_HEXCMD.equals(command.getType())) {
+                        String rawCmd = new String(
+                                Base64.getEncoder().encode(HexTool.hexStringToByteArray(commandPayload)));
+                        result = rawCmd;
+                    } else {
+                        result = commandPayload;
+                    }
+                    LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + "):" + command.getId() + "/" + commandPayload);
+                    dao.removeCommand(command.getId());
+                    dao.putCommandLog(command.getOrigin(), command);
                 } else {
-                    result = commandPayload;
+                    LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + ") IS NULL");
                 }
-                LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + "):" + command.getId() + "/" + commandPayload);
-                dao.removeCommand(command.getId());
-                dao.putCommandLog(command.getOrigin(), command);
-            } else {
-                LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + ") IS NULL");
+            } catch (IotDatabaseException e) {
+                e.printStackTrace();
             }
-        } catch (IotDatabaseException e) {
-            e.printStackTrace();
+        }
+        // when commands has been created for LoRa devices, send info to message broker
+        if(commandTargets.size()>0){
+            for (String target : commandTargets) {
+                commandEmitter.send(target);
+            }
         }
         return result;
     }
@@ -433,18 +451,20 @@ public class ReceiverService {
         return fixedList;
     }
 
-    private void saveCommand(IotEvent commandEvent) {
+    private String saveCommand(IotEvent commandEvent) {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
             LOG.debug("saving command (" + origin[1] + ")");
             IotEvent ev = commandEvent;
             dao.putDeviceCommand(origin[1], commandEvent);
+            return origin[1];
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
