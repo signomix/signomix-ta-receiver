@@ -198,8 +198,27 @@ public class ProcessorResult {
         return 0;
     }
 
-    public void putData(String eui, String name, Double value, long timestamp, String stringValue) {
-        output.put(new ChannelData(eui, name, value, timestamp, stringValue));
+    public void putData(String eui, String name, Object value, long timestamp, String stringValue) {
+        Double v=null;
+        if(value instanceof Double){
+            v=(Double)value;
+        }else if(value instanceof Integer){
+            v=((Integer)value).doubleValue();
+        }else if(value instanceof Long){
+            v=((Long)value).doubleValue();
+        }else if(value instanceof Float){
+            v=((Float)value).doubleValue();
+        }else if(value instanceof String){
+            try{
+                v=Double.parseDouble((String)value);
+            }catch(Exception e){
+                v=null;
+            }
+        }
+        if(v==null){
+            return;
+        }
+        output.put(new ChannelData(eui, name, v, timestamp, stringValue));
         listsUsed = true;
     }
 
