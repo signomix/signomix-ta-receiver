@@ -215,9 +215,9 @@ public class ProcessorResult {
                 v=null;
             }
         }
-        if(v==null){
-            return;
-        }
+        //if(v==null){
+        //    return;
+        //}
         output.put(new ChannelData(eui, name, v, timestamp, stringValue));
         listsUsed = true;
     }
