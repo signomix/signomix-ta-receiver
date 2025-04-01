@@ -67,8 +67,13 @@ sgx0.addNotification = function (newType, newMessage) {
 sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
 }
-sgx0.addGroupData = function (groupEUI, newName, newValue) {
-    var deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI)
+sgx0.addGroupData = function (groupEUI, newName, newValue, skipSelf) {
+    var deviceEuis
+    if(skipSelf == undefined || skipSelf == null || skipSelf != true) {
+     deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI, this.eui)
+    } else {
+     deviceEuis = this.groupReader.getGroupDevices(groupEUI, null)
+    }
     for (var i = 0; i < deviceEuis.length; i++) {
         this.result.addDataEvent(deviceEuis[i], this.eui, new ChannelData(deviceEuis[i], newName, newValue, this.dataTimestamp));
     }

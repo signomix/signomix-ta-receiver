@@ -288,9 +288,10 @@ public class ReceiverService {
                 saveVirtualData(device, data);
             }
             // device status
-            if (device.getState().compareTo(scriptResult.getDeviceState()) != 0) {
+            Double newDeviceStatus = scriptResult.getDeviceState();
+            if (newDeviceStatus!=null && device.getState().compareTo(newDeviceStatus) != 0) {
                 LOG.info("updateDeviceStatus");
-                updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), scriptResult.getDeviceState(),
+                updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), newDeviceStatus,
                         device.ALERT_OK);
             } else if (device.isActive()) {
                 Log.info("updateHealthStatus");
@@ -298,7 +299,7 @@ public class ReceiverService {
                         device.ALERT_OK);
             } else {
                 LOG.debug("device: active " + device.isActive() + " status " + device.getState()
-                        + " script device status " + scriptResult.getDeviceState());
+                        + " script device status " + newDeviceStatus);
             }
             statusUpdated = true;
         } catch (Exception e) {
@@ -412,6 +413,9 @@ public class ReceiverService {
 
     private Application getApplication(Long appId) {
         Application app = null;
+        if (null == appId) {
+            return null;
+        }
         try {
             app = appDao.getApplication(appId.intValue());
         } catch (IotDatabaseException e) {

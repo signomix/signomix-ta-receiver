@@ -132,11 +132,14 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
         GroupClient groupReader = new GroupClient(userID, deviceGroups, dao);
 
-        if ((deviceScript == null || deviceScript.trim().isEmpty()) && application != null) {
+        /* if ((deviceScript == null || deviceScript.trim().isEmpty()) && application != null) {
             deviceScript = application.code;
-        }
+        } */
         if (deviceScript == null) {
             deviceScript = "";
+        }
+        if(application != null && application.code != null){
+            deviceScript += "\n" + application.code;  
         }
         ScriptEngine engine = getEngine();
         try {
