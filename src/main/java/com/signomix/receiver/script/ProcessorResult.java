@@ -227,6 +227,31 @@ public class ProcessorResult {
         listsUsed = true;
     }
 
+    /**
+     * Returns actual hour based on current time zone
+     * @param timezone example: "Europe/Warsaw"
+     * @return hour in 24h format
+     */
+    public int getHour(String timezone) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        java.util.TimeZone tz = java.util.TimeZone.getTimeZone(timezone);
+        cal.setTimeZone(tz);
+        return cal.get(java.util.Calendar.HOUR_OF_DAY);
+    }
+
+    /**
+     * Returns actual minute based on current time zone
+     * @param timezone example: "Europe/Warsaw"
+     * @return minute in 24h format
+     */
+    public int getMinute(String timezone) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        java.util.TimeZone tz = java.util.TimeZone.getTimeZone(timezone);
+        cal.setTimeZone(tz);
+        return cal.get(java.util.Calendar.MINUTE);
+    }
+
+
     public ArrayList<ArrayList> getOutput() {
         if (listsUsed) {
             return output.getMeasures();

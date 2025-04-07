@@ -185,6 +185,12 @@ sgx0.getTimestamp = function (channelName) {
 sgx0.getTimestampUTC = function (y, m, d, h, min, s) {
     return Date.UTC(y, m - 1, d, h, min, s);
 }
+sgx0.getHour = function (timezoneName) {
+    return this.result.getHour(timezoneName);
+}
+sgx0.getMinute = function (timezoneName) {
+    return this.result.getMinute(timezoneName);
+}
 sgx0.getValue = function (channelName) {
     for (i = 0; i < this.dataReceived.length; i++) {
         if (this.dataReceived[i].getName() == channelName) {
