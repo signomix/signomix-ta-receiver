@@ -28,7 +28,7 @@ import org.jboss.logging.Logger;
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceTtn {
-    
+
     @Inject
     Logger LOG;
 
@@ -71,11 +71,13 @@ public class ReceiverResourceTtn {
             } else {
                 send(iotData);
             }
-/*             if(iotData.dev_eui.equalsIgnoreCase("A840414B41841C21")
-            || iotData.dev_eui.equalsIgnoreCase("0018B240000068D4")
-            || iotData.dev_eui.equalsIgnoreCase("0004A30B00E98411")){
-                LOG.info(jsonString);
-            } */
+            /*
+             * if(iotData.dev_eui.equalsIgnoreCase("A840414B41841C21")
+             * || iotData.dev_eui.equalsIgnoreCase("0018B240000068D4")
+             * || iotData.dev_eui.equalsIgnoreCase("0004A30B00E98411")){
+             * LOG.info(jsonString);
+             * }
+             */
             return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
@@ -92,7 +94,9 @@ public class ReceiverResourceTtn {
     }
 
     private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) {
-        LOG.debug("transform " + authKey + " " + authRequired);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("transform " + authKey + " " + authRequired);
+        }
         long systemTimestamp = System.currentTimeMillis();
         IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
@@ -120,17 +124,17 @@ public class ReceiverResourceTtn {
                 try {
                     tempMap.put("value", (Long) pfMap.get(key));
                 } catch (ClassCastException ex2) {
-                    try{
+                    try {
                         Boolean b = (Boolean) pfMap.get(key);
-                        if(b){
+                        if (b) {
                             tempMap.put("value", 1.0);
-                        }else{
+                        } else {
                             tempMap.put("value", 0.0);
                         }
-                    }catch (ClassCastException ex3) {
-                        try{
+                    } catch (ClassCastException ex3) {
+                        try {
                             tempMap.put("value", (String) pfMap.get(key));
-                        }catch (ClassCastException ex4) {
+                        } catch (ClassCastException ex4) {
                             tempMap.put("value", pfMap.get(key).toString());
                         }
                     }

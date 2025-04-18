@@ -151,7 +151,9 @@ public class ReceiverService {
 
     @ConsumeEvent(value = "virtualdata-no-response")
     void processVirtualData(String payload) {
-        LOG.debug("virtualdata-no-response: " + payload);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("virtualdata-no-response: " + payload);
+        }
         parseBusMessage(payload);
     }
 
@@ -171,7 +173,9 @@ public class ReceiverService {
     }
 
     private void parseBusMessage(String payload) {
-        LOG.debug("parseBusMessage: " + payload);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("parseBusMessage: " + payload);
+        }
         long systemTimestamp = System.currentTimeMillis();
         String[] parts = payload.split(";");
         // sort parts array basing on the first field (deviceId) - fields are separated
@@ -189,7 +193,9 @@ public class ReceiverService {
         IotData2 iotData = new IotData2(systemTimestamp);
         iotData.payload_fields = new ArrayList<>();
         for (String part : parts) {
-            LOG.debug("part: " + part);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("part: " + part);
+            }
             dataObj = part.split(":");
             if (!tmpEui.equals(dataObj[0])) {
                 // save previous iotData
@@ -259,14 +265,18 @@ public class ReceiverService {
         data.setTimestampUTC(systemTimestamp);
         data.prepareIotValues(systemTimestamp);
         Application app = getApplication(device.getOrgApplicationId());
-        if (null == app) {
-            LOG.info("app is null");
-        } else {
-            LOG.info("app code: " + app.code);
+        if (LOG.isDebugEnabled()) {
+            if (null == app) {
+                LOG.debug("app is null");
+            } else {
+                LOG.debug("app code: " + app.code);
+            }
         }
         ArrayList<ChannelData> inputList = decodePayload(data, device, app);
-        for (int i = 0; i < inputList.size(); i++) {
-            LOG.debug(inputList.get(i).toString());
+        if (LOG.isDebugEnabled()) {
+            for (int i = 0; i < inputList.size(); i++) {
+                LOG.debug(inputList.get(i).toString());
+            }
         }
         ProcessorResult scriptResult = null;
         ArrayList<ArrayList> outputList;
@@ -278,8 +288,10 @@ public class ReceiverService {
                 scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
             // data to save
-            LOG.info("scriptResult: " + serializeProcessorResult(scriptResult));
-            LOG.info("outputList.size()==" + scriptResult.getOutput().size());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("scriptResult: " + serializeProcessorResult(scriptResult));
+                LOG.debug("outputList.size()==" + scriptResult.getOutput().size());
+            }
             outputList = scriptResult.getOutput();
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
@@ -289,17 +301,19 @@ public class ReceiverService {
             }
             // device status
             Double newDeviceStatus = scriptResult.getDeviceState();
-            if (newDeviceStatus!=null && device.getState().compareTo(newDeviceStatus) != 0) {
-                LOG.info("updateDeviceStatus");
+            if (newDeviceStatus != null && device.getState().compareTo(newDeviceStatus) != 0) {
+                LOG.debug("updateDeviceStatus");
                 updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), newDeviceStatus,
                         device.ALERT_OK);
             } else if (device.isActive()) {
-                Log.info("updateHealthStatus");
+                Log.debug("updateHealthStatus");
                 updateHealthStatus(device.getEUI(), device.getTransmissionInterval(), device.getState(),
                         device.ALERT_OK);
             } else {
-                LOG.debug("device: active " + device.isActive() + " status " + device.getState()
-                        + " script device status " + newDeviceStatus);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("device: active " + device.isActive() + " status " + device.getState()
+                            + " script device status " + newDeviceStatus);
+                }
             }
             statusUpdated = true;
         } catch (Exception e) {
@@ -320,7 +334,9 @@ public class ReceiverService {
         // commands and notifications
         String targetEui;
         for (int i = 0; i < events.size(); i++) {
-            LOG.debug("event " + i + " (" + device.getEUI() + ")");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("event " + i + " (" + device.getEUI() + ")");
+            }
             if (IotEvent.ACTUATOR_CMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_HEXCMD.equals(events.get(i).getType())
                     || IotEvent.ACTUATOR_PLAINCMD.equals(events.get(i).getType())) {
@@ -351,7 +367,9 @@ public class ReceiverService {
                         payload = payload + el.get(i).getPayload();
                     }
                     newEvent.setPayload(payload);
-                    LOG.info("SENDING DATA CREATED EVENT (" + device.getEUI() + "): " + newEvent.getPayload());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("SENDING DATA CREATED EVENT (" + device.getEUI() + "): " + newEvent.getPayload());
+                    }
                     // send event to mqtt
                     dataCreatedEmitter.send((String) newEvent.getPayload());
                     // send event to event bus
@@ -381,18 +399,23 @@ public class ReceiverService {
                     } else {
                         result = commandPayload;
                     }
-                    LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + "):" + command.getId() + "/" + commandPayload);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + "):" + command.getId() + "/"
+                                + commandPayload);
+                    }
                     dao.removeCommand(command.getId());
                     dao.putCommandLog(command.getOrigin(), command);
                 } else {
-                    LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + ") IS NULL");
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("COMMANDID/PAYLOAD (" + device.getEUI() + ") IS NULL");
+                    }
                 }
             } catch (IotDatabaseException e) {
                 e.printStackTrace();
             }
         }
         // when commands has been created for LoRa devices, send info to message broker
-        if(commandTargets.size()>0){
+        if (commandTargets.size() > 0) {
             for (String target : commandTargets) {
                 commandEmitter.send(target);
             }
@@ -428,7 +451,9 @@ public class ReceiverService {
         // IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         // DeliveryOptions options = new
         // DeliveryOptions().setCodecName(iotDataCodec.name());
-        LOG.debug("sending to event bus: " + payload);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("sending to event bus: " + payload);
+        }
         bus.send("virtualdata-no-response", payload);
     }
 
@@ -458,7 +483,9 @@ public class ReceiverService {
     private String saveCommand(IotEvent commandEvent) {
         try {
             String[] origin = commandEvent.getOrigin().split("@");
-            LOG.debug("saving command (" + origin[1] + ")");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("saving command (" + origin[1] + ")");
+            }
             IotEvent ev = commandEvent;
             dao.putDeviceCommand(origin[1], commandEvent);
             return origin[1];
@@ -473,7 +500,9 @@ public class ReceiverService {
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
         try {
-            LOG.info("saveData list.size():" + list.size());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("saveData list.size():" + list.size());
+            }
             if (null != dao) {
                 dao.putData(device, fixValues(device, list));
             }
@@ -514,7 +543,9 @@ public class ReceiverService {
                         try {
                             value = Double.parseDouble((String) tmp.get("value"));
                         } catch (Exception e1) {
-                            LOG.warn("unable to parse " + name + " value: " + tmp.get("value"));
+                            if (LOG.isDebugEnabled()) {
+                                LOG.debug("unable to parse " + name + " value: " + tmp.get("value"));
+                            }
                         }
                     }
                 }
@@ -534,17 +565,17 @@ public class ReceiverService {
     private void updateDeviceStatus(String eui, long transmissionInterval, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
-            LOG.info("Device status update skipped.");
+            LOG.debug("Device status update skipped.");
             return;
         }
         try {
             if (null != dao) {
                 dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             }
-            LOG.info("Device status updated.");
+            LOG.debug("Device status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            // e.printStackTrace();
             LOG.error(e.getMessage());
         }
     }
@@ -552,17 +583,17 @@ public class ReceiverService {
     private void updateHealthStatus(String eui, long transmissionInterval, Double newStatus, int newAlertStatus) {
         if (!deviceStatusUpdateIntegrated) {
             // TEST
-            LOG.info("Device health status update skipped.");
+            LOG.debug("Device health status update skipped.");
             return;
         }
         try {
             if (null != dao) {
                 dao.updateDeviceStatus(eui, transmissionInterval, newStatus, newAlertStatus);
             }
-            LOG.info("Device health status updated.");
+            LOG.debug("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
-            e.printStackTrace();
+            // e.printStackTrace();
             LOG.error(e.getMessage());
         }
     }
@@ -581,7 +612,9 @@ public class ReceiverService {
         }
         if (null != deviceDecoderScript && deviceDecoderScript.length() > 0) {
             if (null != data.getPayload()) {
-                LOG.debug("base64Payload: " + data.getPayload());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("base64Payload: " + data.getPayload());
+                }
                 Decoder base64Decoder = Base64.getDecoder();
                 if (null == base64Decoder) {
                     LOG.warn("decoder is null");
@@ -589,16 +622,22 @@ public class ReceiverService {
                 }
                 byteArray = base64Decoder.decode(data.getPayload().getBytes());
             } else if (null != data.getHexPayload()) {
-                LOG.debug(device.getEUI() + " hexPayload: " + data.getHexPayload());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(device.getEUI() + " hexPayload: " + data.getHexPayload());
+                }
                 byteArray = getByteArray(data.getHexPayload());
             } else {
-                LOG.debug(device.getEUI() + " payload is null");
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(device.getEUI() + " payload is null");
+                }
                 byteArray = emptyBytes;
             }
             if (null == byteArray) {
                 byteArray = emptyBytes;
             }
-            LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(device.getEUI() + " byteArray: " + Arrays.toString(byteArray));
+            }
             try {
                 // values = scriptingAdapter.decodeData(byteArray, device, application,
                 // data.getTimestamp());
@@ -713,11 +752,15 @@ public class ReceiverService {
 
     private void sendAlert(String alertType, String userId, String deviceEui, String alertSubject, String alertMessage,
             long createdAt, boolean withMessage) {
-        LOG.debug("Sending alert to userId: " + userId);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Sending alert to userId: " + userId);
+        }
         if (!withMessage) {
             return;
         }
-        LOG.debug("Emitting and alert to userId: " + userId);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Emitting and alert to userId: " + userId);
+        }
         alertEmitter.send(userId + "\t" + deviceEui + "\t" + alertType + "\t" + alertMessage + "\t" + alertSubject);
     }
 
@@ -764,7 +807,7 @@ public class ReceiverService {
                     return null;
                 }
             } catch (Exception ex) { // catch (UserException ex) {
-                ex.printStackTrace();
+                // ex.printStackTrace();
                 LOG.warn(ex.getMessage());
                 return null;
             }
@@ -787,18 +830,20 @@ public class ReceiverService {
         }
         if (useProtectedFeature) {
             // check if device is protected
-            LOG.info("Checking if device is protected");
+            LOG.debug("Checking if device is protected");
             String tagValue;
             try {
                 tagValue = dao.getDeviceTagValue(device.getEUI(), "protected");
-                LOG.info("Protected tag value: " + tagValue);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Protected tag value: " + tagValue);
+                }
                 device.setDataProtected(Boolean.parseBoolean(tagValue));
             } catch (IotDatabaseException e) {
                 e.printStackTrace();
                 LOG.error(e.getMessage());
             }
         } else {
-            LOG.info("Protected feature is disabled");
+            LOG.debug("Protected feature is disabled");
         }
         return device;
     }

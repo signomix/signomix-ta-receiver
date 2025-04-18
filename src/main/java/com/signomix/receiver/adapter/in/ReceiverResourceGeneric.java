@@ -85,8 +85,10 @@ public class ReceiverResourceGeneric {
     @Produces(MediaType.TEXT_PLAIN)
     public Response processJson(@HeaderParam("Authorization") String authKey,
             @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
-        LOG.info("processJson");
-        LOG.debug("input: " + dataObject.toString());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("processJson");
+            LOG.debug("input: " + dataObject.toString());
+        }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
@@ -131,7 +133,9 @@ public class ReceiverResourceGeneric {
                             .header("Content-type", "text/html").build();
                 }
                 // return Response.ok(result).build();
-                LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                }
                 String transformedResult = runDedicatedResponder(device, result);
                 Map<String, String> headers = getDedicatedResponderHeaders(device, result);
                 ResponseBuilder rb = Response.ok(transformedResult);
@@ -153,8 +157,10 @@ public class ReceiverResourceGeneric {
             @HeaderParam("X-device-eui") String inHeaderEui,
             @HeaderParam("X-data-separator") String separator,
             String input) {
-        LOG.info("processText");
-        LOG.debug("input: " + input);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("processText");
+            LOG.debug("input: " + input);
+        }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
         }
@@ -196,7 +202,9 @@ public class ReceiverResourceGeneric {
                     return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
                             .header("Content-type", "text/html").build();
                 }
-                LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                }
                 String transformedResult = runDedicatedResponder(device, result);
                 Map<String, String> headers = getDedicatedResponderHeaders(device, result);
                 ResponseBuilder rb = Response.ok(transformedResult);
@@ -227,7 +235,9 @@ public class ReceiverResourceGeneric {
         if (euiHeaderFirst) {
             device = service.getDevice(inHeaderEui);
             if (null == device) {
-                LOG.warn("unknown device " + inHeaderEui);
+                if (LOG.isDebugEnabled()) {
+                    LOG.warn("unknown device " + inHeaderEui);
+                }
                 return Response.status(Status.NOT_FOUND).entity("device not found").build();
             }
             if (!device.isActive()) {
@@ -256,7 +266,9 @@ public class ReceiverResourceGeneric {
                     return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
                             .header("Content-type", "text/html").build();
                 }
-                LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
+                }
                 String transformedResult = runDedicatedResponder(device, result);
                 Map<String, String> headers = getDedicatedResponderHeaders(device, result);
                 ResponseBuilder rb = Response.ok(transformedResult);
@@ -316,7 +328,9 @@ public class ReceiverResourceGeneric {
             @HeaderParam("X-device-eui") String inHeaderEui,
             @HeaderParam("X-data-separator") String separator,
             String input) {
-        LOG.debug("input: " + input);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("input: " + input);
+        }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED).entity("no authorization header found").build();
         }
@@ -397,8 +411,10 @@ public class ReceiverResourceGeneric {
     }
 
     /**
-     * Process a batch of data from an edge device. The edge device is identified by the EUI in the header.
+     * Process a batch of data from an edge device. The edge device is identified by
+     * the EUI in the header.
      * The data is in CSV format.
+     * 
      * @param authKey
      * @param inHeaderEui
      * @param input
@@ -477,9 +493,11 @@ public class ReceiverResourceGeneric {
             Class clazz = Class.forName(className);
             parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
             data.payload_fields = (ArrayList) parser.parse(input, devConfig);
-            data.payload_fields.forEach((m) -> {
-                LOG.debug(m);
-            });
+            if (LOG.isDebugEnabled()) {
+                data.payload_fields.forEach((m) -> {
+                    LOG.debug(m);
+                });
+            }
             if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
                 data.dev_eui = getEuiParamValue(data.payload_fields);
             }
@@ -497,7 +515,9 @@ public class ReceiverResourceGeneric {
         if (null == device) {
             return null;
         }
-        LOG.debug("Command to send: " + originalResponse);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Command to send: " + originalResponse);
+        }
         HashMap<String, Object> devConfig = device.getConfigurationMap();
         devConfig.put("dev_eui", device.getEUI());
         ResponseTransformerIface formatter;
@@ -512,8 +532,10 @@ public class ReceiverResourceGeneric {
             // result = formatter.transform(originalResponse, devConfig,
             // service.getMessageService());
             result = formatter.transform(originalResponse, devConfig, null);
-            LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
-            LOG.debug("response transformed:" + result);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
+                LOG.debug("response transformed:" + result);
+            }
         } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
                 | InvocationTargetException | NoSuchMethodException | SecurityException e) {
             LOG.error(e.getMessage());
@@ -593,7 +615,9 @@ public class ReceiverResourceGeneric {
         while (it.hasNext()) {
             key = it.next();
             value = form.getFirst(key);
-            LOG.debug(key + "=" + value);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(key + "=" + value);
+            }
             if ("eui".equalsIgnoreCase(key)) {
                 data.dev_eui = value;
             } else if ("timestamp".equalsIgnoreCase(key)) {

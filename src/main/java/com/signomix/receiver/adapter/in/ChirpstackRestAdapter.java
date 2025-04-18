@@ -40,7 +40,7 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ChirpstackRestAdapter {
-    
+
     @Inject
     Logger LOG;
 
@@ -61,7 +61,7 @@ public class ChirpstackRestAdapter {
 
         }
     }
-    
+
     /*
      * @Inject
      * ChirpstackEventPort chirpstackPort;
@@ -72,9 +72,9 @@ public class ChirpstackRestAdapter {
     @Transactional
     @Produces(MediaType.TEXT_PLAIN)
     public Response handle(@HeaderParam("Authorization") String authKey, String event,
-            @QueryParam("event") String eventType)/*  throws ServiceException */ {
+            @QueryParam("event") String eventType)/* throws ServiceException */ {
         if (null == eventType) {
-            //throw new ServiceException(missingParameterException);
+            // throw new ServiceException(missingParameterException);
             return Response.status(Status.BAD_REQUEST).entity("event parammeter missing").build();
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
@@ -82,7 +82,7 @@ public class ChirpstackRestAdapter {
         }
         switch (eventType) {
             case "up":
-                IotData2 iotData=handleUplink(event, authKey);
+                IotData2 iotData = handleUplink(event, authKey);
                 if (null == iotData) {
                     return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
                 } else {
@@ -93,7 +93,7 @@ public class ChirpstackRestAdapter {
                 // handleJoin(event);
                 break;
             default:
-                System.out.println(eventType);
+                // System.out.println(eventType);
                 break;
         }
         return Response.ok().build();
@@ -109,15 +109,17 @@ public class ChirpstackRestAdapter {
     private IotData2 handleUplink(String event, String authKey) {
         ObjectMapper mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        //LOG.info(event);
+        // LOG.info(event);
         ChirpstackUplink uplink;
-        IotData2 iotData=null;
+        IotData2 iotData = null;
         try {
             uplink = mapper.readValue(event, ChirpstackUplink.class);
             // chirpstackPort.processUplink(uplink);
-            LOG.info(deserialize(uplink));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(deserialize(uplink));
+            }
             iotData = transform(uplink, authKey, authorizationRequired);
-            
+
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         } catch (Exception e) {
@@ -140,14 +142,16 @@ public class ChirpstackRestAdapter {
     private IotData2 transform(ChirpstackUplink uplink, String authKey, boolean authorizationRequired) {
         long systemTimestamp = System.currentTimeMillis();
         IotData2 data = new IotData2(systemTimestamp);
-        LOG.info("transform " + authKey + " " + authorizationRequired);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("transform " + authKey + " " + authorizationRequired);
+        }
         data.dev_eui = uplink.deviceinfo.devEui;
         data.gateway_eui = null;
         if ("dev".equalsIgnoreCase(apiMode) || "test".equalsIgnoreCase(apiMode)) {
             DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
             data.timestamp = df.format(LocalDateTime.now());
-            data.timestamp=data.timestamp+"Z";
-            System.out.println(data.timestamp);
+            data.timestamp = data.timestamp + "Z";
+            // System.out.println(data.timestamp);
         } else {
             data.timestamp = uplink.time;
         }
@@ -155,7 +159,7 @@ public class ChirpstackRestAdapter {
         data.counter = uplink.fCnt;
         data.port = uplink.fPort;
         // end of should be added
-        data.time=data.timestamp;
+        data.time = data.timestamp;
         data.clientname = "";
         data.authKey = authKey;
         data.authRequired = authorizationRequired;
@@ -169,8 +173,8 @@ public class ChirpstackRestAdapter {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-        }else if(null != uplink.object) {
-                pfMap = uplink.object;
+        } else if (null != uplink.object) {
+            pfMap = uplink.object;
         }
         if (null != pfMap) {
             // Data channel names should be lowercase. We can fix user mistakes here.
