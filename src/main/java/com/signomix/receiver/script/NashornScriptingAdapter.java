@@ -12,6 +12,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,12 +29,14 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.EventEnvelope;
+import com.signomix.common.Tag;
 import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
 
 import io.quarkus.runtime.StartupEvent;
+import io.questdb.std.Hash;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -111,6 +114,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         // String deviceConfig = device.getConfiguration();
         HashMap<String, Object> deviceConfig = device.getConfigurationMap();
         HashMap<String, Object> applicationConfig = device.getApplicationConfig();
+        List<Tag> tags = device.getTagsAsList();
+        HashMap<String, Object> deviceTags = new HashMap<>();
+        for (Tag tag : tags) {
+            deviceTags.put(tag.name, tag.value);
+        }
 
         String deviceGroups = device.getGroups();
 
@@ -150,7 +158,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
                     userID, dataTimestamp, state, alert,
                     devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig,
                     deviceGroups,
-                    offsets, port);
+                    offsets, port, deviceTags);
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {

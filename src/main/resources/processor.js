@@ -294,17 +294,23 @@ sgx0.getDeviceGroups = function () {
 
 var processData = function (eui, dataReceived, channelReader, groupReader, userID, receivedDataTimestamp,
     status, alert, devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig,
-    devGroups, timeOffsets, port) {
+    devGroups, timeOffsets, port, devTags) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
     var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
     var channelData = {};
 
     var sgx = Object.create(sgx0)
+    
     sgx.eui = eui
     sgx.devLatitude = devLatitude
     sgx.devLongitude = devLongitude
     sgx.devAltitude = devAltitude
+    sgx.latitude = devLatitude
+    sgx.longitude = devLongitude
+    sgx.altitude = devAltitude
+    sgx.port = port
+    sgx.tags = devTags
 
     sgx.result = new ProcessorResult()
     sgx.dataReceived = dataReceived
@@ -319,7 +325,7 @@ var processData = function (eui, dataReceived, channelReader, groupReader, userI
     sgx.applicationConfig = appConfig
     sgx.deviceGroups = devGroups
     sgx.timeOffsets = timeOffsets
-    sgx.port = port
+
     sgx.verify(dataReceived, status)
     //put original values. (todo: replace with verify)
     //if (dataReceived.length > 0) {
