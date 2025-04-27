@@ -76,6 +76,9 @@ public class ReceiverService {
     @Channel("data-received")
     Emitter<String> emitter;
     @Inject
+    @Channel("command-created")
+    Emitter<String> commandCreatedEmitter;
+    @Inject
     @Channel("data-created")
     Emitter<String> dataCreatedEmitter;
     @Inject
@@ -488,6 +491,7 @@ public class ReceiverService {
             }
             IotEvent ev = commandEvent;
             dao.putDeviceCommand(origin[1], commandEvent);
+            commandCreatedEmitter.send(origin[1]+";"+commandEvent.getPayload().toString());
             return origin[1];
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
