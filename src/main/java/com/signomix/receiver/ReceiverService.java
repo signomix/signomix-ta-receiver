@@ -783,7 +783,7 @@ public class ReceiverService {
         Device device = null;
         // Device gateway = null;
         try {
-            device = dao.getDevice(eui, false, true);
+            device = dao.getDevice(eui, true, true);
             // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
             LOG.error(e.getMessage());
