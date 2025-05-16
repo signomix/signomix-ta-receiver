@@ -203,7 +203,7 @@ public class ReceiverService {
             if (!tmpEui.equals(dataObj[0])) {
                 // save previous iotData
                 if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
-                    LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+                    //LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
                     iotData.normalize();
                     iotData.setTimestampUTC(systemTimestamp);
                     processData(iotData);
@@ -224,7 +224,7 @@ public class ReceiverService {
             iotData.payload_fields.add(map);
         }
         if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
-            LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+            //LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
             iotData.normalize();
             iotData.setTimestampUTC(systemTimestamp);
             processData(iotData);
@@ -233,9 +233,11 @@ public class ReceiverService {
 
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
+/*         if (data.getDeviceEUI().startsWith("DKHSROOM")) {
+            ObjectMapper mapper = new ObjectMapper();
+            LOG.info("DATA: " + mapper.valueToTree(data).toString());
+        } */
         long systemTimestamp = System.currentTimeMillis();
-        // ObjectMapper mapper = new ObjectMapper();
-        // LOG.info(mapper.valueToTree(data).toString());
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
                 DeviceType.LORA };
@@ -491,7 +493,7 @@ public class ReceiverService {
             }
             IotEvent ev = commandEvent;
             dao.putDeviceCommand(origin[1], commandEvent);
-            commandCreatedEmitter.send(origin[1]+";"+commandEvent.getPayload().toString());
+            commandCreatedEmitter.send(origin[1] + ";" + commandEvent.getPayload().toString());
             return origin[1];
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -530,7 +532,11 @@ public class ReceiverService {
         // TODO
         try {
             VirtualData vd = new VirtualData(data.getDeviceEUI());
-            vd.timestamp = data.getTimestampUTC().getTime();
+            try {
+                vd.timestamp = data.getTimestampUTC().getTime();
+            } catch (NullPointerException e) {
+                vd.timestamp = System.currentTimeMillis();
+            }
             Map tmp;
             String name;
             Double value;
@@ -579,7 +585,7 @@ public class ReceiverService {
             LOG.debug("Device status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
-            // e.printStackTrace();
+            e.printStackTrace();
             LOG.error(e.getMessage());
         }
     }
@@ -597,7 +603,7 @@ public class ReceiverService {
             LOG.debug("Device health status updated.");
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
-            // e.printStackTrace();
+            e.printStackTrace();
             LOG.error(e.getMessage());
         }
     }
@@ -786,6 +792,7 @@ public class ReceiverService {
             device = dao.getDevice(eui, true, true);
             // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
+            e.printStackTrace();
             LOG.error(e.getMessage());
         }
         return device;
