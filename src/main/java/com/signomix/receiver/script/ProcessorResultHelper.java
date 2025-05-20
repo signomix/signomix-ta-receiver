@@ -2,9 +2,14 @@ package com.signomix.receiver.script;
 
 import java.util.ArrayList;
 
+import org.jboss.logging.Logger;
+
 import com.signomix.common.iot.ChannelData;
 
 public class ProcessorResultHelper {
+
+    private static Logger logger = Logger.getLogger(ProcessorResultHelper.class);
+
         /**
      * Calculates distance between 2 points on Earth
      * @param lat1 latitude of the first point
@@ -64,6 +69,25 @@ public class ProcessorResultHelper {
             result2.add(result.measures.get(key));
         });
         return result2;
+    }
+
+    public void log(String level, String message) {
+        switch (level) {
+            case "debug":
+                logger.debug(message);
+                break;
+            case "info":
+                logger.info(message);
+                break;
+            case "warn":
+                logger.warn(message);
+                break;
+            case "error":
+                logger.error(message);
+                break;
+            default:
+                logger.info(message);
+        }
     }
 
 

@@ -7,7 +7,6 @@ var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
 var result = new ProcessorResult()
 var dataReceived = []
 var channelReader = {}
-//
 
 var sgx0 = {}
 sgx0.dataReceived = []
@@ -28,7 +27,7 @@ sgx0.verify = function (received, receivedStatus) {
             //this.result.putData(tmpChannelData);
             //this.result.log(tmpChannelData.toString());
             this.result.putData(this.eui, received[i].name, received[i].value, received[i].timestamp, received[i].stringValue);
-            
+
         } else {
             malformed = received
         }
@@ -68,14 +67,37 @@ sgx0.addVirtualData = function (newEUI, newName, newValue) {
     this.result.addDataEvent(newEUI, this.eui, new ChannelData(newEUI, newName, newValue, this.dataTimestamp));
 }
 sgx0.addGroupData = function (groupEUI, newName, newValue, skipSelf) {
+    this.helper.log('info', 'addGroupData: eui,groupEUI,skip: ' + this.eui+','+ groupEUI+','+ skipSelf);
     var deviceEuis
-    if(skipSelf == undefined || skipSelf == null || skipSelf != true) {
+    if(skipSelf == undefined || skipSelf == null) {
      deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI, this.eui)
     } else {
-     deviceEuis = this.groupReader.getGroupDevices(groupEUI, null)
+      if(skipSelf) {
+        deviceEuis = this.groupReader.getGroupDevices(groupEUI, groupEUI)
+      } else {
+        deviceEuis = this.groupReader.getGroupDevices(groupEUI, null)
+      }
     }
     for (var i = 0; i < deviceEuis.length; i++) {
+        this.helper.log('info', 'addGroupData: deviceEui=' + deviceEuis[i]);
         this.result.addDataEvent(deviceEuis[i], this.eui, new ChannelData(deviceEuis[i], newName, newValue, this.dataTimestamp));
+    }
+}
+sgx0.addGroupCommand= function (groupEUI, payload, overwrite, skipSelf) {
+    this.helper.log('info', 'addGroupCommand: eui,groupEUI,skip: ' + this.eui+','+ groupEUI+','+ skipSelf);
+    var deviceEuis
+    if(skipSelf == undefined || skipSelf == null) {
+        deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI, this.eui)
+    } else {
+      if(skipSelf) {
+        deviceEuis = this.groupReader.getGroupDevices(groupEUI, groupEUI)
+      } else {
+        deviceEuis = this.groupReader.getGroupDevices(groupEUI, null)
+      }
+    }
+    for (var i = 0; i < deviceEuis.length; i++) {
+        this.helper.log('info', 'addGroupCommand: deviceEui=' + deviceEuis[i]);
+        this.result.addCommand(deviceEuis[i], this.eui, payload, 2, overwrite);
     }
 }
 
@@ -141,6 +163,14 @@ sgx0.getSum = function (channelName, scope, newValue) {
             throw new Error('newValue is not a number');
         }
         return this.channelReader.getSummaryValue(channelName, scope, newValue).getValue();
+    }
+}
+sgx0.getLastNotNull = function (channelName) {
+    var tmpLastData = this.channelReader.getLastData(channelName, true);
+    if (tmpLastData != null) {
+        return tmpLastData.value
+    } else {
+        return null
     }
 }
 sgx0.getLastValue = function (channelName, skipNull) {
@@ -301,7 +331,7 @@ var processData = function (eui, dataReceived, channelReader, groupReader, userI
     var channelData = {};
 
     var sgx = Object.create(sgx0)
-    
+
     sgx.eui = eui
     sgx.devLatitude = devLatitude
     sgx.devLongitude = devLongitude

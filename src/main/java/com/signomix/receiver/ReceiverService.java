@@ -722,8 +722,12 @@ public class ReceiverService {
                 Signal signal = new Signal();
                 signal.deviceEui = device.getEUI();
                 signal.level = alertLevel;
-                signal.messageEn = (String) event.getPayload();
-                signal.messagePl = (String) event.getPayload();
+                String message = (String) event.getPayload();
+                if(message.length() > 255) {
+                    message = message.substring(0, 250)+" ...";
+                }
+                signal.messageEn = message;
+                signal.messagePl = message;
                 signal.sentinelConfigId = -1L;
                 signal.userId = userId;
                 signal.createdAt = new Timestamp(event.getCreatedAt());
