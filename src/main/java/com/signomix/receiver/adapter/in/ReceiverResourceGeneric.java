@@ -507,7 +507,7 @@ public class ReceiverResourceGeneric {
             LOG.error(e.getMessage());
             return null;
         }
-        data.setTimestampUTC(systemTimestamp);
+        //data.setTimestampUTC(systemTimestamp);
         return data;
     }
 
@@ -585,7 +585,7 @@ public class ReceiverResourceGeneric {
             data.dev_eui = getEuiParamValue(data.payload_fields);
         }
         data.normalize();
-        data.setTimestampUTC(systemTimestamp);
+        //data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
         return data;
@@ -640,7 +640,7 @@ public class ReceiverResourceGeneric {
             return null;
         }
         data.normalize();
-        data.setTimestampUTC(systemTimestamp);
+        //data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
         return data;
@@ -660,7 +660,7 @@ public class ReceiverResourceGeneric {
         data.hexPayload = dataObject.hex_payload;
         data.payload_fields = dataObject.payload_fields;
         data.normalize();
-        data.setTimestampUTC(systemTimestamp);
+        //data.setTimestampUTC(systemTimestamp);
         data.authKey = authKey;
         data.authRequired = authRequired;
         return data;
