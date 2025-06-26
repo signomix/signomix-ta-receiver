@@ -1,10 +1,19 @@
 package com.signomix.receiver.adapter.in;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.ttn3.Decoder;
 import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
+
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -19,11 +28,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
 
 @Path("/api")
 @ApplicationScoped
@@ -102,12 +106,13 @@ public class ReceiverResourceTtn {
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;
         data.timestamp = "" + dataObject.getTimestamp();
+        
         data.clientname = "";
         data.authKey = authKey;
         data.authRequired = authRequired;
         data.port = dataObject.getPort();
         data.counter = dataObject.getFrameCounter();
-        // TODO:
+        data.timestampUTC = new Timestamp(dataObject.timestamp);
         data.payload_fields = new ArrayList<>();
         HashMap pfMap = dataObject.getPayloadFields();
         // Data channel names should be lowercase. We can fix user mistakes here.

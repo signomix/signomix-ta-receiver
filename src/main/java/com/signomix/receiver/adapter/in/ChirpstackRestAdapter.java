@@ -1,11 +1,13 @@
 package com.signomix.receiver.adapter.in;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -151,15 +153,25 @@ public class ChirpstackRestAdapter {
             DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
             data.timestamp = df.format(LocalDateTime.now());
             data.timestamp = data.timestamp + "Z";
-            // System.out.println(data.timestamp);
+            LOG.info("Uplink time: " + data.timestamp + " (using system time)");
         } else {
+            LOG.info("Uplink time: " + uplink.time);
             data.timestamp = uplink.time;
         }
-        // should be added
         data.counter = uplink.fCnt;
         data.port = uplink.fPort;
-        // end of should be added
         data.time = data.timestamp;
+
+        try {
+            LOG.info("Parsing timestamp: " + data.timestamp);
+            OffsetDateTime odt = OffsetDateTime.parse(data.timestamp);
+            Instant instant = odt.toInstant();
+            data.timestampUTC = Timestamp.from(instant);
+            LOG.info("Parsed timestamp: " + data.timestampUTC);
+        } catch (Exception e) {
+            LOG.error("Error parsing timestamp: " + data.timestamp, e);
+            data.timestampUTC = new Timestamp(systemTimestamp);
+        }
         data.clientname = "";
         data.authKey = authKey;
         data.authRequired = authorizationRequired;
@@ -201,18 +213,7 @@ public class ChirpstackRestAdapter {
                 data.payload_fields.add(tempMap);
             }
         }
-        /*
-         * if ("dev".equalsIgnoreCase(apiMode) || "test".equalsIgnoreCase(apiMode)) {
-         * data.timestampUTC=new Timestamp(System.currentTimeMillis());
-         * } else {
-         * DateTimeFormatter df =
-         * DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSSXXX");
-         * data.timestampUTC = new Timestamp(1000*OffsetDateTime.parse(uplink.time,
-         * df).toEpochSecond());
-         * }
-         */
         data.normalize();
-        data.setTimestampUTC(systemTimestamp);
         return data;
     }
 
