@@ -2,28 +2,31 @@
  * Copyright (C) Grzegorz Skorupa 2018.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-package com.signomix.receiver;
+package com.signomix.receiver.processor;
+
+import java.util.ArrayList;
+
+import org.jboss.logging.Logger;
 
 import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.event.MessageServiceIface;
 import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
+import com.signomix.common.iot.chirpstack.uplink.ChirpstackUplink;
+import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.receiver.script.NashornScriptingAdapter;
-import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.util.ArrayList;
-import org.jboss.logging.Logger;
 
 /**
  *
  * @author Grzegorz Skorupa <g.skorupa at gmail.com>
  */
 @ApplicationScoped
-public class DataProcessor {
-    private static final Logger LOG = Logger.getLogger(DataProcessor.class);
+public class NashornDataProcessor implements DataProcessorIface {
+    private static final Logger LOG = Logger.getLogger(NashornDataProcessor.class);
 
     // @Inject
     // MessageServiceIface messageService;
@@ -130,7 +133,9 @@ public class DataProcessor {
             Long port) throws Exception {
         ProcessorResult scriptResult = null;
         try {
-            LOG.debug("listOfValues.size()==" + listOfValues.size());
+            if(LOG.isDebugEnabled()) {
+                LOG.debug("listOfValues.size()==" + listOfValues.size());
+            }
             scriptResult = scriptingAdapter.processData1(
                     listOfValues,
                     device,
@@ -151,6 +156,16 @@ public class DataProcessor {
             throw new Exception("preprocessor script returns null result");
         }
         return scriptResult;
+    }
+
+
+    @Override
+    public ProcessorResult getProcessingResult(ArrayList<ChannelData> listOfValues, Device device,
+            Application application, long dataTimestamp, Double latitude, Double longitude, Double altitude,
+            String requestData, String command, IotDatabaseIface dao, Long port, ChirpstackUplink chirpstackUplink,
+            TtnData3 ttnUplink) throws Exception {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getProcessingResult'");
     }
 
 }

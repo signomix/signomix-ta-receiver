@@ -1,4 +1,4 @@
-package com.signomix.receiver.script;
+package com.signomix.receiver.processor;
 
 import java.util.ArrayList;
 

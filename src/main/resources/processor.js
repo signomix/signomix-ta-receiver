@@ -1,6 +1,6 @@
 /// default script
-var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
-var ProcessorResultHelper = Java.type("com.signomix.receiver.script.ProcessorResultHelper");
+var ProcessorResult = Java.type("com.signomix.receiver.processor.ProcessorResult");
+var ProcessorResultHelper = Java.type("com.signomix.receiver.processor.ProcessorResultHelper");
 var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
 
 //deprecated
@@ -327,7 +327,7 @@ var processData = function (eui, dataReceived, channelReader, groupReader, userI
     devGroups, timeOffsets, port, devTags) {
     var ChannelData = Java.type("com.signomix.common.iot.ChannelData");
     var IotEvent = Java.type("com.signomix.common.event.IotEvent");
-    var ProcessorResult = Java.type("com.signomix.receiver.script.ProcessorResult");
+    var ProcessorResult = Java.type("com.signomix.receiver.processor.ProcessorResult");
     var channelData = {};
 
     var sgx = Object.create(sgx0)

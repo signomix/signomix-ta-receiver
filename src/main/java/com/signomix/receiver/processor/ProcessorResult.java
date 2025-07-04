@@ -2,7 +2,7 @@
  * Copyright (C) Grzegorz Skorupa 2018.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-package com.signomix.receiver.script;
+package com.signomix.receiver.processor;
 
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.ChannelData;
@@ -198,7 +198,12 @@ public class ProcessorResult {
         return 0;
     }
 
-    public void putData(String eui, String name, Object value, long timestamp, String stringValue) {
+    public void putData(
+        String eui, 
+        String name, 
+        Object value, 
+        long timestamp, 
+        String stringValue) {
         Double v=null;
         if(value instanceof Double){
             v=(Double)value;

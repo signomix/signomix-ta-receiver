@@ -33,8 +33,11 @@ import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.IotDatabaseDao;
 import com.signomix.common.tsdb.SignalDao;
+import com.signomix.receiver.processor.DataProcessorIface;
+import com.signomix.receiver.processor.DefaultProcessor;
+import com.signomix.receiver.processor.NashornDataProcessor;
+import com.signomix.receiver.processor.ProcessorResult;
 import com.signomix.receiver.script.NashornScriptingAdapter;
-import com.signomix.receiver.script.ProcessorResult;
 import com.signomix.receiver.script.ScriptAdapterException;
 
 import io.agroal.api.AgroalDataSource;
@@ -64,7 +67,7 @@ public class ReceiverService {
     AgroalDataSource olapDs;
 
     @Inject
-    DataProcessor processor;
+    NashornDataProcessor processor;
 
     @Inject
     NashornScriptingAdapter scriptingAdapter;
@@ -170,9 +173,85 @@ public class ReceiverService {
      * @return data processing result
      */
     private ProcessorResult callProcessorService(ArrayList<ChannelData> inputList, Device device,
-            Application application, IotData2 iotData, String dataString) {
+            Application application, IotData2 iotData, String dataString) throws Exception {
         // TODO
-        return null;
+        String processorClassName = null;
+        String script = clear(device.getCodeUnescaped());
+        // class name is in the first not empty line of the script if it's form is like
+        // "//class=package.ClassName;"
+        if (!script.isEmpty()) {
+            processorClassName = getClassName(script);
+        } else if (processorClassName == null && application != null && application.code != null) {
+            script = clear(application.code);
+        }
+
+        DataProcessorIface processor = null;
+        if (script.isEmpty()) {
+            processor = new DefaultProcessor();
+        } else {
+            processorClassName = getClassName(script);
+            if (processorClassName != null && !processorClassName.isEmpty()) {
+                // Instantiate the processor using the processorClassName
+                try {
+                    Class<?> clazz = Class.forName(processorClassName);
+                    processor = (DataProcessorIface) clazz.getDeclaredConstructor().newInstance();
+                } catch (Exception e) {
+                    throw new Exception("Failed to instantiate processor: " + processorClassName, e);
+                }
+            }
+        }
+        if (processor == null) {
+            return null;
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("processorClassName: " + processor.getClass().getName());
+        }
+
+        ProcessorResult result = processor.getProcessingResult(
+                inputList,
+                device,
+                application,
+                iotData.getReceivedPackageTimestamp(),
+                iotData.getLatitude(),
+                iotData.getLongitude(),
+                iotData.getAltitude(),
+                dataString, "",
+                olapDao, iotData.port,
+                iotData.chirpstackUplink,
+                iotData.ttnUplink);
+        if (result != null) {
+            result.setApplicationConfig(device.getApplicationConfig());
+        }
+
+        return result;
+    }
+
+    private String clear(String code) {
+        if (code == null || code.isEmpty()) {
+            return "";
+        }
+        String script = code;
+        // remove all empty lines or lines with only whitespaces
+        script = script.replaceAll("(?m)^[ \t]*\r?\n", "");
+        script = script.replaceAll("(?m)^[ \t]*$", "");
+        // remove all leading and trailing whitespaces
+        return script.trim();
+    }
+
+    private String getClassName(String deviceScript) {
+        String processorClassName = null;
+        String[] lines = deviceScript.split("\n");
+        for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            if (line.startsWith("//class=")) {
+                processorClassName = line.substring(8).trim();
+                break;
+            }
+        }
+        return processorClassName;
     }
 
     private void parseBusMessage(String payload) {
@@ -203,7 +282,7 @@ public class ReceiverService {
             if (!tmpEui.equals(dataObj[0])) {
                 // save previous iotData
                 if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
-                    //LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+                    // LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
                     iotData.normalize();
                     iotData.setTimestampUTC(systemTimestamp);
                     processData(iotData);
@@ -224,7 +303,7 @@ public class ReceiverService {
             iotData.payload_fields.add(map);
         }
         if (iotData != null && iotData.dev_eui != null && iotData.dev_eui.length() > 0) {
-            //LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
+            // LOG.info("PROCESSING DATA FROM EUI: " + iotData.dev_eui);
             iotData.normalize();
             iotData.setTimestampUTC(systemTimestamp);
             processData(iotData);
@@ -233,10 +312,12 @@ public class ReceiverService {
 
     private String processData(IotData2 data) {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
-/*         if (data.getDeviceEUI().startsWith("DKHSROOM")) {
-            ObjectMapper mapper = new ObjectMapper();
-            LOG.info("DATA: " + mapper.valueToTree(data).toString());
-        } */
+        /*
+         * if (data.getDeviceEUI().startsWith("DKHSROOM")) {
+         * ObjectMapper mapper = new ObjectMapper();
+         * LOG.info("DATA: " + mapper.valueToTree(data).toString());
+         * }
+         */
         long systemTimestamp = System.currentTimeMillis();
         String result = "";
         DeviceType[] expected = { DeviceType.GENERIC, DeviceType.VIRTUAL, DeviceType.TTN, DeviceType.CHIRPSTACK,
@@ -257,10 +338,13 @@ public class ReceiverService {
             if (previousFrame - currentFrame >= resetLevel) {
                 previousFrame = 0L;
             }
+            frameCountersMap.put(device.getEUI(), currentFrame);
             if (currentFrame <= previousFrame) {
                 LOG.warn("Frame counter error: " + currentFrame + " <= " + previousFrame);
+                // return "ERROR: Frame counter error: "
+                // + currentFrame + " <= " + previousFrame;
             }
-            frameCountersMap.put(device.getEUI(), currentFrame);
+
         }
 
         String parserError = getFirstParserErrorValue(data);
@@ -289,6 +373,7 @@ public class ReceiverService {
         boolean statusUpdated = false;
         try {
             scriptResult = callProcessorService(inputList, device, app, data, dataString);
+            // possible exception in callProcessorService is handled in the catch block
             if (null == scriptResult) {
                 scriptResult = getProcessingResult(inputList, device, app, data, dataString);
             }
@@ -723,8 +808,8 @@ public class ReceiverService {
                 signal.deviceEui = device.getEUI();
                 signal.level = alertLevel;
                 String message = (String) event.getPayload();
-                if(message.length() > 255) {
-                    message = message.substring(0, 250)+" ...";
+                if (message.length() > 255) {
+                    message = message.substring(0, 250) + " ...";
                 }
                 signal.messageEn = message;
                 signal.messagePl = message;

@@ -34,6 +34,7 @@ import com.signomix.common.db.IotDatabaseIface;
 import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
 import com.signomix.common.iot.Device;
+import com.signomix.receiver.processor.ProcessorResult;
 
 import io.quarkus.runtime.StartupEvent;
 import io.questdb.std.Hash;

@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.IotDataMessageCodec;
-import com.signomix.receiver.domain.uplink.ChirpstackUplink;
+import com.signomix.common.iot.chirpstack.uplink.ChirpstackUplink;
 
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -116,7 +116,6 @@ public class ChirpstackRestAdapter {
         IotData2 iotData = null;
         try {
             uplink = mapper.readValue(event, ChirpstackUplink.class);
-            // chirpstackPort.processUplink(uplink);
             if (LOG.isDebugEnabled()) {
                 LOG.debug(deserialize(uplink));
             }
@@ -214,6 +213,7 @@ public class ChirpstackRestAdapter {
             }
         }
         data.normalize();
+        data.chirpstackUplink = uplink;
         return data;
     }
 
