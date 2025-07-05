@@ -9,7 +9,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import com.signomix.common.iot.generic.IotData2;
-import com.signomix.common.iot.ttn3.Decoder;
 import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
@@ -67,8 +66,9 @@ public class ReceiverResourceTtn {
             if (authorizationRequired && (null == authKey || authKey.isBlank())) {
                 return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
             }
-            Decoder decoder = new Decoder();
-            TtnData3 dataObject = decoder.decode(jsonString);
+            //Decoder decoder = new Decoder();
+            TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(jsonString);
+            //TtnData3 dataObject = com.signomix.common.iot.ttn3.Decoder.decode(jsonString);
             IotData2 iotData = transform(dataObject, authKey, authorizationRequired);
             if (null == iotData) {
                 return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
