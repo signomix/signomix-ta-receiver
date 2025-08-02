@@ -15,9 +15,9 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.signomix.common.iot.chirpstack.uplink.ChirpstackUplink;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.IotDataMessageCodec;
-import com.signomix.common.iot.chirpstack.uplink.ChirpstackUplink;
 
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -196,18 +196,19 @@ public class ChirpstackRestAdapter {
                 tempMap = new HashMap<>();
                 key = it.next();
                 tempMap.put("name", key.toLowerCase());
-                try {
-                    tempMap.put("value", (Double) pfMap.get(key));
-                } catch (ClassCastException ex) {
-                    try {
-                        tempMap.put("value", (Long) pfMap.get(key));
-                    } catch (ClassCastException ex2) {
-                        try {
-                            tempMap.put("value", (Integer) pfMap.get(key));
-                        } catch (ClassCastException ex3) {
-                            tempMap.put("value", (String) pfMap.get(key));
-                        }
-                    }
+                Object value = pfMap.get(key);
+                if(value == null) {
+                    LOG.warn("Null value for key: " + key);
+                    continue; // Skip null values
+                }
+                if (value instanceof Number) {
+                    tempMap.put("value", ((Number) value).doubleValue());
+                } else if (value instanceof Boolean) {
+                    tempMap.put("value", ((Boolean) value) ? 1.0 : 0.0);
+                } else if (value instanceof String) {
+                    tempMap.put("value", value);
+                } else {
+                    LOG.warn("Unsupported value type for key: " + key + ", value: " + value);
                 }
                 data.payload_fields.add(tempMap);
             }

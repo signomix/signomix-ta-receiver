@@ -14,8 +14,6 @@ import com.signomix.receiver.ReceiverService;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
 
 @ApplicationScoped
 public class MqttClient {
