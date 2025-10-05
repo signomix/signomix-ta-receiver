@@ -604,13 +604,27 @@ public class ReceiverService {
                 LOG.warn("olapDao is null");
             }
 
-            emitter.send(device.getEUI());
+            //emitter.send(device.getEUI());
+            emitter.send(buildDataReceivedMessage(device, list));
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private String buildDataReceivedMessage(Device device, ArrayList<ChannelData> list) {
+        String message = device.getEUI();
+        ChannelData cd = list.get(0);
+        message = message + "," + cd.getTimestamp();
+        for (int i = 0; i < list.size(); i++) {
+            cd = list.get(i);
+            if(cd.getValue()!=null){
+                message = message + "," + cd.getName() + "=" + cd.getValue();
+            }
+        }
+        return message;
     }
 
     private void saveVirtualData(Device device, IotData2 data) {
