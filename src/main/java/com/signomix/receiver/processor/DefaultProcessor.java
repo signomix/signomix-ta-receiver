@@ -61,12 +61,12 @@ public class DefaultProcessor implements DataProcessorIface {
             return result;
         }
 
-        ApplicationConfig appConfig = application.config;
+        ApplicationConfig appConfig = application!=null?application.config:null;
         HashMap<String, Object> devConfig = device.getConfigurationMap();
         boolean getTransmissionData = false;
         if (devConfig.containsKey("processor.getTransmissionData")) {
             getTransmissionData = (Boolean) devConfig.get("processor.getTransmissionData");
-        } else if (appConfig.containsKey("processor.getTransmissionData")) {
+        } else if (appConfig != null && appConfig.containsKey("processor.getTransmissionData")) {
             getTransmissionData = Boolean.parseBoolean(appConfig.get("processor.getTransmissionData"));
         }
         if (!getTransmissionData) {

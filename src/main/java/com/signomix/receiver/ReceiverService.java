@@ -152,7 +152,12 @@ public class ReceiverService {
 
     @ConsumeEvent(value = "chirpstackdata-no-response")
     void processChirpstackData(IotData2 data) {
+        try{
         processData(data);
+        }catch(Exception e){
+            LOG.error("Error processing Chirpstack data: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     @ConsumeEvent(value = "virtualdata-no-response")
@@ -311,6 +316,13 @@ public class ReceiverService {
     }
 
     private String processData(IotData2 data) {
+        if (data == null) {
+            LOG.warn("processData called with null data");
+            return null;
+        }
+        if (data.payload_fields == null) {
+            data.payload_fields = new ArrayList<>();
+        }
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         /*
          * if (data.getDeviceEUI().startsWith("DKHSROOM")) {
@@ -328,12 +340,13 @@ public class ReceiverService {
             return null;
         }
         // frame counter check
-        if (device.isCheckFrames()
-                && (device.getType() == DeviceType.TTN.name()
-                        || device.getType() == DeviceType.CHIRPSTACK.name()
-                        || device.getType() == DeviceType.LORA.name())) {
-            long previousFrame = frameCountersMap.getOrDefault(device, 0L);
-            long currentFrame = data.counter;
+    if (device.isCheckFrames()
+        && (device.getType() == DeviceType.TTN.name()
+            || device.getType() == DeviceType.CHIRPSTACK.name()
+            || device.getType() == DeviceType.LORA.name())) {
+        String deviceKey = device.getEUI();
+        long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
+        long currentFrame = data.counter;
             long resetLevel = 100L; // TODO: get from device
             if (previousFrame - currentFrame >= resetLevel) {
                 previousFrame = 0L;
@@ -375,14 +388,27 @@ public class ReceiverService {
             scriptResult = callProcessorService(inputList, device, app, data, dataString);
             // possible exception in callProcessorService is handled in the catch block
             if (null == scriptResult) {
-                scriptResult = getProcessingResult(inputList, device, app, data, dataString);
+                try {
+                    scriptResult = getProcessingResult(inputList, device, app, data, dataString);
+                } catch (Exception ex) {
+                    LOG.warn("getProcessingResult failed: " + ex.getMessage());
+                    scriptResult = null;
+                }
             }
             // data to save
             if (LOG.isDebugEnabled()) {
                 LOG.debug("scriptResult: " + serializeProcessorResult(scriptResult));
-                LOG.debug("outputList.size()==" + scriptResult.getOutput().size());
+                if (scriptResult != null && scriptResult.getOutput() != null) {
+                    LOG.debug("outputList.size==" + scriptResult.getOutput().size());
+                } else {
+                    LOG.debug("outputList is null or scriptResult is null");
+                }
             }
-            outputList = scriptResult.getOutput();
+            if (scriptResult != null && scriptResult.getOutput() != null) {
+                outputList = scriptResult.getOutput();
+            } else {
+                outputList = new ArrayList<>();
+            }
             for (int i = 0; i < outputList.size(); i++) {
                 saveData(device, outputList.get(i));
             }
@@ -390,8 +416,9 @@ public class ReceiverService {
                 saveVirtualData(device, data);
             }
             // device status
-            Double newDeviceStatus = scriptResult.getDeviceState();
-            if (newDeviceStatus != null && device.getState().compareTo(newDeviceStatus) != 0) {
+            Double newDeviceStatus = (scriptResult != null) ? scriptResult.getDeviceState() : null;
+            if (newDeviceStatus != null && device.getState() != null
+                    && device.getState().compareTo(newDeviceStatus) != 0) {
                 LOG.debug("updateDeviceStatus");
                 updateDeviceStatus(device.getEUI(), device.getTransmissionInterval(), newDeviceStatus,
                         device.ALERT_OK);
@@ -418,7 +445,9 @@ public class ReceiverService {
             return "";
         }
 
-        ArrayList<IotEvent> events = scriptResult.getEvents();
+    ArrayList<IotEvent> events = (scriptResult != null && scriptResult.getEvents() != null)
+        ? scriptResult.getEvents()
+        : new ArrayList<>();
         HashSet<String> commandTargets = new HashSet<>(); // list of devices to send commands
 
         // commands and notifications
@@ -442,7 +471,9 @@ public class ReceiverService {
         }
         // data events
         if (!device.getType().equalsIgnoreCase(DeviceType.VIRTUAL.name())) {
-            HashMap<String, ArrayList> dataEvents = scriptResult.getDataEvents();
+        HashMap<String, ArrayList> dataEvents = (scriptResult != null && scriptResult.getDataEvents() != null)
+            ? scriptResult.getDataEvents()
+            : new HashMap<>();
             ArrayList<IotEvent> el;
             for (String key : dataEvents.keySet()) {
                 el = dataEvents.get(key);
