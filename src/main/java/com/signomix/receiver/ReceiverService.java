@@ -152,9 +152,9 @@ public class ReceiverService {
 
     @ConsumeEvent(value = "chirpstackdata-no-response")
     void processChirpstackData(IotData2 data) {
-        try{
-        processData(data);
-        }catch(Exception e){
+        try {
+            processData(data);
+        } catch (Exception e) {
             LOG.error("Error processing Chirpstack data: " + e.getMessage());
             e.printStackTrace();
         }
@@ -340,13 +340,13 @@ public class ReceiverService {
             return null;
         }
         // frame counter check
-    if (device.isCheckFrames()
-        && (device.getType() == DeviceType.TTN.name()
-            || device.getType() == DeviceType.CHIRPSTACK.name()
-            || device.getType() == DeviceType.LORA.name())) {
-        String deviceKey = device.getEUI();
-        long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
-        long currentFrame = data.counter;
+        if (device.isCheckFrames()
+                && (device.getType() == DeviceType.TTN.name()
+                        || device.getType() == DeviceType.CHIRPSTACK.name()
+                        || device.getType() == DeviceType.LORA.name())) {
+            String deviceKey = device.getEUI();
+            long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
+            long currentFrame = data.counter;
             long resetLevel = 100L; // TODO: get from device
             if (previousFrame - currentFrame >= resetLevel) {
                 previousFrame = 0L;
@@ -445,9 +445,9 @@ public class ReceiverService {
             return "";
         }
 
-    ArrayList<IotEvent> events = (scriptResult != null && scriptResult.getEvents() != null)
-        ? scriptResult.getEvents()
-        : new ArrayList<>();
+        ArrayList<IotEvent> events = (scriptResult != null && scriptResult.getEvents() != null)
+                ? scriptResult.getEvents()
+                : new ArrayList<>();
         HashSet<String> commandTargets = new HashSet<>(); // list of devices to send commands
 
         // commands and notifications
@@ -471,9 +471,9 @@ public class ReceiverService {
         }
         // data events
         if (!device.getType().equalsIgnoreCase(DeviceType.VIRTUAL.name())) {
-        HashMap<String, ArrayList> dataEvents = (scriptResult != null && scriptResult.getDataEvents() != null)
-            ? scriptResult.getDataEvents()
-            : new HashMap<>();
+            HashMap<String, ArrayList> dataEvents = (scriptResult != null && scriptResult.getDataEvents() != null)
+                    ? scriptResult.getDataEvents()
+                    : new HashMap<>();
             ArrayList<IotEvent> el;
             for (String key : dataEvents.keySet()) {
                 el = dataEvents.get(key);
@@ -635,7 +635,7 @@ public class ReceiverService {
                 LOG.warn("olapDao is null");
             }
 
-            //emitter.send(device.getEUI());
+            // emitter.send(device.getEUI());
             emitter.send(buildDataReceivedMessage(device, list));
         } catch (IotDatabaseException e) {
             // TODO Auto-generated catch block
@@ -651,7 +651,7 @@ public class ReceiverService {
         message = message + "," + cd.getTimestamp();
         for (int i = 0; i < list.size(); i++) {
             cd = list.get(i);
-            if(cd.getValue()!=null){
+            if (cd.getValue() != null) {
                 message = message + "," + cd.getName() + "=" + cd.getValue();
             }
         }

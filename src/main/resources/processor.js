@@ -322,6 +322,10 @@ sgx0.getDeviceGroups = function () {
     return result;
 }
 
+sgx0.getDateTimeParts = function (timestamp, timezoneName) {
+    return this.helper.getDateTimeParts(timestamp,timezoneName);
+}
+
 var processData = function (eui, dataReceived, channelReader, groupReader, userID, receivedDataTimestamp,
     status, alert, devLatitude, devLongitude, devAltitude, newCommand, requestData, devConfig, appConfig,
     devGroups, timeOffsets, port, devTags) {

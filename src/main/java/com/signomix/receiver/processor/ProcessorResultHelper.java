@@ -90,5 +90,24 @@ public class ProcessorResultHelper {
         }
     }
 
+    /**
+     * Get date and time parts array from timestamp
+     * @param timestamp
+     * @param timeZone
+     * @return
+     */
+    public String[] getDateTimeParts(long timestamp, String timeZone) {
+        String[] parts = new String[6];
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
+        cal.setTimeInMillis(timestamp);
+        parts[0] = "" + cal.get(java.util.Calendar.DAY_OF_MONTH);
+        parts[1] = "" + (cal.get(java.util.Calendar.MONTH) + 1);
+        parts[2] = "" + cal.get(java.util.Calendar.YEAR);
+        parts[3] = "" + cal.get(java.util.Calendar.HOUR_OF_DAY);
+        parts[4] = "" + cal.get(java.util.Calendar.MINUTE);
+        parts[5] = "" + cal.get(java.util.Calendar.SECOND);
+        return parts;
+    }
 
 }

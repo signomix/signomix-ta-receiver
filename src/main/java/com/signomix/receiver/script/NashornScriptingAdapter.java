@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.sql.Date;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -37,7 +38,6 @@ import com.signomix.common.iot.Device;
 import com.signomix.receiver.processor.ProcessorResult;
 
 import io.quarkus.runtime.StartupEvent;
-import io.questdb.std.Hash;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -140,7 +140,6 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         }
         ChannelClient channelReader = new ChannelClient(userID, deviceID, dao);
         GroupClient groupReader = new GroupClient(userID, deviceGroups, dao);
-
         /* if ((deviceScript == null || deviceScript.trim().isEmpty()) && application != null) {
             deviceScript = application.code;
         } */
