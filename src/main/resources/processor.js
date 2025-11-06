@@ -83,17 +83,17 @@ sgx0.addGroupData = function (groupEUI, newName, newValue, skipSelf) {
         this.result.addDataEvent(deviceEuis[i], this.eui, new ChannelData(deviceEuis[i], newName, newValue, this.dataTimestamp));
     }
 }
-sgx0.addGroupCommand= function (groupEUI, payload, overwrite, skipSelf) {
+sgx0.addGroupCommand= function (groupEUI, payload, overwrite, skipSelf, tagName, tagValue) {
     this.helper.log('info', 'addGroupCommand: eui,groupEUI,skip: ' + this.eui+','+ groupEUI+','+ skipSelf);
     var deviceEuis
     if(skipSelf == undefined || skipSelf == null) {
         deviceEuis = this.groupReader.getGroupVirtualDevices(groupEUI, this.eui)
     } else {
-      if(skipSelf) {
-        deviceEuis = this.groupReader.getGroupDevices(groupEUI, groupEUI)
-      } else {
-        deviceEuis = this.groupReader.getGroupDevices(groupEUI, null)
-      }
+        if(tagName!=undefined && tagValue!=undefined){
+            deviceEuis = this.groupReader.getGroupDevicesByTag(groupEUI, skipSelf ? groupEUI : null, tagName, tagValue)
+        } else {
+            deviceEuis = this.groupReader.getGroupDevices(groupEUI, skipSelf ? groupEUI : null)
+        }
     }
     for (var i = 0; i < deviceEuis.length; i++) {
         this.helper.log('info', 'addGroupCommand: deviceEui=' + deviceEuis[i]);

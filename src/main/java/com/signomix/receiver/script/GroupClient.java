@@ -35,17 +35,34 @@ public class GroupClient {
         }
     }
 
-    public String[] getGroupDevices(String groupEui, String euiToSkip) {
-        if(!groups.contains(groupEui)){
+    public String[] getGroupDevices(
+            String groupEui,
+            String euiToSkip) {
+        return getGroupDevices(groupEui, euiToSkip, null, null);
+    }
+
+    public String[] getGroupDevices(
+            String groupEui,
+            String euiToSkip,
+            String tagName,
+            String tagValue) {
+        if (!groups.contains(groupEui)) {
             return new String[0];
         }
         try {
             List<Device> devices = thingsAdapter.getGroupDevices(groupEui);
+            //filtering by tag
+            if (tagName != null && tagValue != null) {
+                devices.removeIf(device -> !tagValue.equals(device.getTag(tagName)));
+            }
+            //filtering out euiToSkip
+            if(euiToSkip!=null) {
+                devices.removeIf(device -> device.getEUI().equals(euiToSkip));
+            }
+
             List<String> resultList = new ArrayList<>();
-            for (int i = 0; i < devices.size(); i++) {
-                if(null == euiToSkip || !devices.get(i).getEUI().equals(euiToSkip)){
-                    resultList.add(devices.get(i).getEUI());
-                }
+            for (Device device : devices) {
+                resultList.add(device.getEUI());
             }
             return resultList.toArray(new String[0]);
         } catch (IotDatabaseException ex) {
@@ -55,17 +72,42 @@ public class GroupClient {
             ex.printStackTrace();
             return new String[0];
         }
+
+
+/*             for (int i = 0; i < devices.size(); i++) {
+                if (null == euiToSkip || !devices.get(i).getEUI().equals(euiToSkip)) {
+                    resultList.add(devices.get(i).getEUI());
+                }
+            }
+            if (tagName != null && tagValue != null) {
+                List<String> filteredList = new ArrayList<>();
+                for (String eui : resultList) {
+                    Device device = thingsAdapter.getDeviceByEUI(eui);
+                    if (device != null && tagValue.equals(device.getTag(tagName))) {
+                        filteredList.add(eui);
+                    }
+                }
+                return filteredList.toArray(new String[0]);
+            }
+            return resultList.toArray(new String[0]);
+        } catch (IotDatabaseException ex) {
+            ex.printStackTrace();
+            return new String[0];
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return new String[0];
+        } */
     }
 
     public String[] getGroupVirtualDevices(String groupEui, String euiToSkip) {
-        if(!groups.contains(groupEui)){
+        if (!groups.contains(groupEui)) {
             return new String[0];
         }
         try {
             List<Device> devices = thingsAdapter.getGroupVirtualDevices(groupEui);
             List<String> resultList = new ArrayList<>();
             for (int i = 0; i < devices.size(); i++) {
-                if(null == euiToSkip || !devices.get(i).getEUI().equals(euiToSkip)){
+                if (null == euiToSkip || !devices.get(i).getEUI().equals(euiToSkip)) {
                     resultList.add(devices.get(i).getEUI());
                 }
             }
