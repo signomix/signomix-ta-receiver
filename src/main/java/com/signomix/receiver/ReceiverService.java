@@ -634,6 +634,11 @@ public class ReceiverService {
             } else {
                 LOG.warn("olapDao is null");
             }
+ 
+            HashMap<String, Double> redisMap=new HashMap<>();
+            list.forEach(cdata ->{
+                redisMap.put(cdata.getName(), cdata.getValue());
+            });
 
             // emitter.send(device.getEUI());
             emitter.send(buildDataReceivedMessage(device, list));
@@ -645,17 +650,38 @@ public class ReceiverService {
         }
     }
 
+    
+
     private String buildDataReceivedMessage(Device device, ArrayList<ChannelData> list) {
-        String message = device.getEUI();
+        StringBuilder sb = new StringBuilder();
+        // message header
+        sb.append(device.getEUI())
+        .append(",")
+        .append(device.getOrganizationId())
+        .append(",")
+        .append(device.getName())
+        .append(",")
+        .append(device.getState())
+        .append(",")
+        .append(device.getAlertStatus())
+        .append(",")
+        .append(device.getLatitude())
+        .append(",")
+        .append(device.getLongitude())
+        .append(",")
+        .append(device.getAltitude())
+        .append(",");
+        // measurements
         ChannelData cd = list.get(0);
-        message = message + "," + cd.getTimestamp();
+        sb.append(cd.getTimestamp());
         for (int i = 0; i < list.size(); i++) {
             cd = list.get(i);
             if (cd.getValue() != null) {
-                message = message + "," + cd.getName() + "=" + cd.getValue();
+                sb.append(",").append(cd.getName()).append("=").append(cd.getValue());
             }
         }
-        return message;
+        LOG.info("data-received message: " + sb.toString());
+        return sb.toString();
     }
 
     private void saveVirtualData(Device device, IotData2 data) {
