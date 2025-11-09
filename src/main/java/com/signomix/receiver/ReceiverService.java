@@ -674,6 +674,7 @@ public class ReceiverService {
         // measurements
         ChannelData cd = list.get(0);
         sb.append(cd.getTimestamp());
+        // HEADER_SIZE = 9
         for (int i = 0; i < list.size(); i++) {
             cd = list.get(i);
             if (cd.getValue() != null) {
