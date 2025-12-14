@@ -486,7 +486,8 @@ public class ReceiverResourceGeneric {
         }
         // to expose the device EUI to a parser
         devConfig.put("dev_eui", device.getEUI());
-        IotData2 data = new IotData2(systemTimestamp);
+        //IotData2 data = new IotData2(systemTimestamp);
+        IotData2 data = new IotData2();
         data.dev_eui = device.getEUI();
         PayloadParserIface parser;
         try {
@@ -507,7 +508,7 @@ public class ReceiverResourceGeneric {
             LOG.error(e.getMessage());
             return null;
         }
-        //data.setTimestampUTC(systemTimestamp);
+        data.setTimestampUTC(systemTimestamp);
         return data;
     }
 
@@ -573,7 +574,8 @@ public class ReceiverResourceGeneric {
             return data;
         }
         long systemTimestamp = System.currentTimeMillis();
-        data = new IotData2(systemTimestamp);
+        //data = new IotData2(systemTimestamp);
+        data = new IotData2();
         data.dev_eui = device.getEUI();
         HashMap<String, Object> options = new HashMap<>();
         options.put("separator", separator);
@@ -585,7 +587,7 @@ public class ReceiverResourceGeneric {
             data.dev_eui = getEuiParamValue(data.payload_fields);
         }
         data.normalize();
-        //data.setTimestampUTC(systemTimestamp);
+        data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
         return data;
@@ -605,7 +607,8 @@ public class ReceiverResourceGeneric {
     private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form,
             String authKey) {
         long systemTimestamp = System.currentTimeMillis();
-        IotData2 data = new IotData2(systemTimestamp);
+        //IotData2 data = new IotData2(systemTimestamp);
+        IotData2 data = new IotData2();
         data.dev_eui = eui;
         data.payload_fields = new ArrayList<>();
         HashMap<String, String> map;
@@ -640,7 +643,7 @@ public class ReceiverResourceGeneric {
             return null;
         }
         data.normalize();
-        //data.setTimestampUTC(systemTimestamp);
+        data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
         return data;
@@ -648,7 +651,8 @@ public class ReceiverResourceGeneric {
 
     private IotData2 parseJson(String eui, boolean authRequired, String authKey, IotDto dataObject) {
         long systemTimestamp = System.currentTimeMillis();
-        IotData2 data = new IotData2(systemTimestamp);
+        //IotData2 data = new IotData2(systemTimestamp);
+        IotData2 data = new IotData2();
         data.dev_eui = eui;
         if (null != dataObject.dev_eui && !dataObject.dev_eui.isEmpty()) {
             data.dev_eui = dataObject.dev_eui;
@@ -660,7 +664,7 @@ public class ReceiverResourceGeneric {
         data.hexPayload = dataObject.hex_payload;
         data.payload_fields = dataObject.payload_fields;
         data.normalize();
-        //data.setTimestampUTC(systemTimestamp);
+        data.setTimestampUTC(systemTimestamp);
         data.authKey = authKey;
         data.authRequired = authRequired;
         return data;

@@ -277,7 +277,8 @@ public class ReceiverService {
         String tmpEui = "";
         String[] dataObj;
         HashMap<String, String> map;
-        IotData2 iotData = new IotData2(systemTimestamp);
+        //IotData2 iotData = new IotData2(systemTimestamp);
+        IotData2 iotData = new IotData2();
         iotData.payload_fields = new ArrayList<>();
         for (String part : parts) {
             if (LOG.isDebugEnabled()) {
@@ -293,7 +294,8 @@ public class ReceiverService {
                     processData(iotData);
                 }
                 tmpEui = dataObj[0];
-                iotData = new IotData2(systemTimestamp);
+                //iotData = new IotData2(systemTimestamp);
+                iotData = new IotData2();
                 iotData.dev_eui = dataObj[0];
                 if (dataObj.length > 3) {
                     iotData.timestamp = dataObj[3];
@@ -608,7 +610,7 @@ public class ReceiverService {
                 LOG.debug("saving command (" + origin[1] + ")");
             }
             IotEvent ev = commandEvent;
-            dao.putDeviceCommand(origin[1], commandEvent);
+            dao.putDeviceCommand(origin[1], commandEvent,false);
             commandCreatedEmitter.send(origin[1] + ";" + commandEvent.getPayload().toString());
             return origin[1];
         } catch (IotDatabaseException e) {
@@ -634,9 +636,9 @@ public class ReceiverService {
             } else {
                 LOG.warn("olapDao is null");
             }
- 
-            HashMap<String, Double> redisMap=new HashMap<>();
-            list.forEach(cdata ->{
+
+            HashMap<String, Double> redisMap = new HashMap<>();
+            list.forEach(cdata -> {
                 redisMap.put(cdata.getName(), cdata.getValue());
             });
 
@@ -650,27 +652,25 @@ public class ReceiverService {
         }
     }
 
-    
-
     private String buildDataReceivedMessage(Device device, ArrayList<ChannelData> list) {
         StringBuilder sb = new StringBuilder();
         // message header
         sb.append(device.getEUI())
-        .append(",")
-        .append(device.getOrganizationId())
-        .append(",")
-        .append(device.getName())
-        .append(",")
-        .append(device.getState())
-        .append(",")
-        .append(device.getAlertStatus())
-        .append(",")
-        .append(device.getLatitude())
-        .append(",")
-        .append(device.getLongitude())
-        .append(",")
-        .append(device.getAltitude())
-        .append(",");
+                .append(",")
+                .append(device.getOrganizationId())
+                .append(",")
+                .append(device.getName())
+                .append(",")
+                .append(device.getState())
+                .append(",")
+                .append(device.getAlertStatus())
+                .append(",")
+                .append(device.getLatitude())
+                .append(",")
+                .append(device.getLongitude())
+                .append(",")
+                .append(device.getAltitude())
+                .append(",");
         // measurements
         ChannelData cd = list.get(0);
         sb.append(cd.getTimestamp());
