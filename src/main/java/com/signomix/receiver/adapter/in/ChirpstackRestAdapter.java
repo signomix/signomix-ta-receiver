@@ -142,7 +142,7 @@ public class ChirpstackRestAdapter {
 
     private IotData2 transform(ChirpstackUplink uplink, String authKey, boolean authorizationRequired) {
         long systemTimestamp = System.currentTimeMillis();
-        IotData2 data = new IotData2(systemTimestamp);
+        IotData2 data = new IotData2();
         if (LOG.isDebugEnabled()) {
             LOG.debug("transform " + authKey + " " + authorizationRequired);
         }
