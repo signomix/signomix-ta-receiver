@@ -1,18 +1,17 @@
 package com.signomix.receiver;
 
-import java.util.Map;
-
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-import org.jboss.resteasy.annotations.jaxrs.QueryParam;
-
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
+import java.util.Map;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 @Path("/")
 @RegisterRestClient
 public interface CoreSystemService {
-
     @GET
-    Map getNewCommandId(@QueryParam String appkey, @QueryParam String eui);
-
+    Map getNewCommandId(
+        @QueryParam("appkey") String appkey,
+        @QueryParam("eui") String eui
+    );
 }

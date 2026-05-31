@@ -1,26 +1,24 @@
 package com.signomix.receiver;
 
+import com.signomix.common.DateTool;
+import com.signomix.common.db.IotDatabaseException;
+import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-
-import com.signomix.common.DateTool;
-import com.signomix.common.db.IotDatabaseException;
-import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.iot.ChannelData;
-import com.signomix.common.iot.Device;
-
-import jakarta.enterprise.context.RequestScoped;
-import jakarta.inject.Inject;
+import org.jboss.resteasy.reactive.server.multipart.FormValue;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
 @RequestScoped
 public class BulkDataLoader {
@@ -37,71 +35,93 @@ public class BulkDataLoader {
     BulkLoaderResult result = new BulkLoaderResult();
     int errors = 0;
 
-    public BulkDataLoader() {
-    }
+    public BulkDataLoader() {}
 
-    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface olapDao, MultipartFormDataInput input, 
-    boolean singleDevice) {
+    public BulkLoaderResult loadBulkData(
+        Device loadedDevice,
+        IotDatabaseIface olapDao,
+        MultipartFormDataInput input,
+        boolean singleDevice
+    ) {
         //this.dao = dao;
         device = loadedDevice;
         int lineNumber = 0;
 
-
-        Map<String, List<InputPart>> uploadForm = input.getFormDataMap();
-        List<InputPart> inputParts = uploadForm.get("file");
+        Map<String, ? extends Collection<FormValue>> uploadForm =
+            input.getValues();
+        Collection<FormValue> fileParts = uploadForm.get("file");
 
         String str = null;
-        for (InputPart inputPart : inputParts) {
-            try {
-                InputStream inputStream = inputPart.getBody(InputStream.class, null);
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                while ((str = reader.readLine()) != null) {
-                    str=str.trim();
-                    // skip empty lines and comments
-                    if (str.isEmpty() || str.startsWith("#")) {
-                        continue;
+        if (fileParts != null) {
+            for (FormValue fv : fileParts) {
+                try {
+                    InputStream inputStream;
+                    if (fv.isFileItem()) {
+                        inputStream = fv.getFileItem().getInputStream();
+                    } else {
+                        inputStream = new ByteArrayInputStream(
+                            fv.getValue().getBytes(StandardCharsets.UTF_8)
+                        );
                     }
-                    // process line
-                    if (processBatchLine(str, lineNumber, singleDevice)) {
-                        lineNumber++;
+                    BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(inputStream)
+                    );
+                    while ((str = reader.readLine()) != null) {
+                        str = str.trim();
+                        // skip empty lines and comments
+                        if (str.isEmpty() || str.startsWith("#")) {
+                            continue;
+                        }
+                        // process line
+                        if (processBatchLine(str, lineNumber, singleDevice)) {
+                            lineNumber++;
+                        }
                     }
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
+                    errors++;
                 }
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-                errors++;
             }
         }
         result.errors = errors;
-        result.loadedRecords = lineNumber-1;
+        result.loadedRecords = lineNumber - 1;
         result.deviceEui = device.getEUI();
         return result;
     }
 
-    public BulkLoaderResult loadBulkData(Device loadedDevice, IotDatabaseIface olapDao, String input) {
+    public BulkLoaderResult loadBulkData(
+        Device loadedDevice,
+        IotDatabaseIface olapDao,
+        String input
+    ) {
         device = loadedDevice;
         int lineNumber = 0;
 
         String str = null;
-            try {
-                InputStream inputStream = new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8));
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                while ((str = reader.readLine()) != null) {
-                    str=str.trim();
-                    // skip empty lines and comments
-                    if (str.isEmpty() || str.startsWith("#")) {
-                        continue;
-                    }
-                    // process line
-                    if (processBatchLine(str, lineNumber, false)) {
-                        lineNumber++;
-                    }
+        try {
+            InputStream inputStream = new ByteArrayInputStream(
+                input.getBytes(StandardCharsets.UTF_8)
+            );
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(inputStream)
+            );
+            while ((str = reader.readLine()) != null) {
+                str = str.trim();
+                // skip empty lines and comments
+                if (str.isEmpty() || str.startsWith("#")) {
+                    continue;
                 }
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
-                errors++;
+                // process line
+                if (processBatchLine(str, lineNumber, false)) {
+                    lineNumber++;
+                }
             }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            errors++;
+        }
         result.errors = errors;
-        result.loadedRecords = lineNumber-1;
+        result.loadedRecords = lineNumber - 1;
         result.deviceEui = device.getEUI();
         return result;
     }
@@ -159,7 +179,7 @@ public class BulkDataLoader {
                 data.add(cd);
             }
             // line parsed - save data
-/*             try {
+            /*             try {
                 dao.putData(device, data);
             } catch (IotDatabaseException e) {
                 logger.error(e.getMessage(), e);
@@ -176,7 +196,11 @@ public class BulkDataLoader {
         return true;
     }
 
-    private boolean processBatchLine(String line, int lineNumber, boolean singleDevice) {
+    private boolean processBatchLine(
+        String line,
+        int lineNumber,
+        boolean singleDevice
+    ) {
         logger.debug(lineNumber + ": " + line);
         boolean withEui = false;
         String deviceEUI = null;
@@ -200,12 +224,14 @@ public class BulkDataLoader {
 
             if (withEui) {
                 deviceEUI = parts[0];
-                if(singleDevice && !deviceEUI.equalsIgnoreCase(device.getEUI())){
+                if (
+                    singleDevice && !deviceEUI.equalsIgnoreCase(device.getEUI())
+                ) {
                     // invalid device EUI - ignore line
                     errors++;
                     return false;
                 }
-            }else{
+            } else {
                 deviceEUI = device.getEUI();
             }
 
@@ -248,7 +274,11 @@ public class BulkDataLoader {
     private long getTimestamp(String timestampString) {
         long timestamp = 0;
         try {
-            timestamp = DateTool.parseTimestamp(timestampString, null, false).getTime();
+            timestamp = DateTool.parseTimestamp(
+                timestampString,
+                null,
+                false
+            ).getTime();
         } catch (Exception e) {
             logger.error("invalid timestamp: " + timestampString);
         }

@@ -1,16 +1,5 @@
 package com.signomix.receiver.adapter.in;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
-import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
-
 import com.signomix.common.api.PayloadParserIface;
 import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
@@ -19,7 +8,6 @@ import com.signomix.common.iot.generic.IotDto;
 import com.signomix.receiver.BulkLoaderResult;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
-
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -36,6 +24,17 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.Response.Status;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+// import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+// import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+import org.jboss.resteasy.reactive.MultipartForm;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
 @Path("/api")
 @ApplicationScoped
@@ -59,20 +58,19 @@ public class ReceiverResourceGeneric {
     public void onApplicationStart(@Observes StartupEvent event) {
         try {
             bus.registerCodec(new IotDataMessageCodec());
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
     }
 
     /*
      * @Path("/receiver/in")
-     * 
+     *
      * @OPTIONS
      * public Response sendOKString() {
      * return Response.ok().build();
      * }
-     * 
+     *
      * @Path("/receiver/io")
-     * 
+     *
      * @OPTIONS
      * public Response sendOKString2() {
      * return Response.ok().build();
@@ -83,14 +81,19 @@ public class ReceiverResourceGeneric {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response processJson(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
+    public Response processJson(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        IotDto dataObject
+    ) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("processJson");
             LOG.debug("input: " + dataObject.toString());
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // When eui in request header
         // Then device can be checked
@@ -99,45 +102,80 @@ public class ReceiverResourceGeneric {
             device = service.getDevice(inHeaderEui);
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
-                return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device not found")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
         try {
-            IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, authKey, dataObject);
+            IotData2 iotData = parseJson(
+                inHeaderEui,
+                authorizationRequired,
+                authKey,
+                dataObject
+            );
             if (null == iotData) {
-                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("error while reading the data")
+                    .build();
             } else {
                 if (!euiHeaderFirst) {
                     device = service.getDevice(iotData.dev_eui);
                     if (null == device) {
                         LOG.warn("unknown device " + iotData.dev_eui);
-                        return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                        return Response.status(Status.NOT_FOUND)
+                            .entity("device not found")
+                            .build();
                     }
                     if (!device.isActive()) {
-                        return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                        return Response.status(Status.NOT_FOUND)
+                            .entity("device is not active")
+                            .build();
                     }
                 }
                 String result = service.processDataAndReturnResponse(iotData);
                 if (null == result) {
-                    return Response.status(Status.NOT_FOUND).entity("device not found or no access rights").build();
+                    return Response.status(Status.NOT_FOUND)
+                        .entity("device not found or no access rights")
+                        .build();
                 } else if (result.startsWith("error")) {
-                    return Response.status(Status.BAD_REQUEST).entity(result).build();
+                    return Response.status(Status.BAD_REQUEST)
+                        .entity(result)
+                        .build();
                 }
                 // request from html app
                 // TODO: describe
-                if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
-                    return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
-                            .header("Content-type", "text/html").build();
+                if (
+                    null != iotData.clientname && !iotData.clientname.isEmpty()
+                ) {
+                    return Response.ok(
+                        buildResultData(
+                            true,
+                            true,
+                            iotData.clientname,
+                            "Data saved."
+                        )
+                    )
+                        .header("Content-type", "text/html")
+                        .build();
                 }
                 // return Response.ok(result).build();
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
                 }
-                String transformedResult = runDedicatedResponder(device, result);
-                Map<String, String> headers = getDedicatedResponderHeaders(device, result);
+                String transformedResult = runDedicatedResponder(
+                    device,
+                    result
+                );
+                Map<String, String> headers = getDedicatedResponderHeaders(
+                    device,
+                    result
+                );
                 ResponseBuilder rb = Response.ok(transformedResult);
                 headers.keySet().forEach(key -> {
                     rb.header(key, headers.get(key));
@@ -145,7 +183,9 @@ public class ReceiverResourceGeneric {
                 return rb.build();
             }
         } catch (Exception e) {
-            return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity(e.getMessage())
+                .build();
         }
     }
 
@@ -153,67 +193,109 @@ public class ReceiverResourceGeneric {
     @POST
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response processText(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui,
-            @HeaderParam("X-data-separator") String separator,
-            String input) {
+    public Response processText(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        @HeaderParam("X-data-separator") String separator,
+        String input
+    ) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("processText");
             LOG.debug("input: " + input);
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         Device device = null;
         if (euiHeaderFirst) {
             device = service.getDevice(inHeaderEui);
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
-                return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device not found")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
-        IotData2 iotData = parseTextData(device, authorizationRequired, input, authKey, separator);
+        IotData2 iotData = parseTextData(
+            device,
+            authorizationRequired,
+            input,
+            authKey,
+            separator
+        );
         if (null == iotData) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         } else {
             try {
                 if (!euiHeaderFirst) {
                     device = service.getDevice(iotData.dev_eui);
                     if (null == device) {
                         LOG.warn("unknown device " + iotData.dev_eui);
-                        return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                        return Response.status(Status.NOT_FOUND)
+                            .entity("device not found")
+                            .build();
                     }
                     if (!device.isActive()) {
-                        return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                        return Response.status(Status.NOT_FOUND)
+                            .entity("device is not active")
+                            .build();
                     }
                 }
                 String result = service.processDataAndReturnResponse(iotData);
                 if (null == result) {
-                    return Response.status(Status.NOT_FOUND).entity("device not found or no access rights").build();
+                    return Response.status(Status.NOT_FOUND)
+                        .entity("device not found or no access rights")
+                        .build();
                 } else if (result.startsWith("error")) {
-                    return Response.status(Status.BAD_REQUEST).entity(result).build();
+                    return Response.status(Status.BAD_REQUEST)
+                        .entity(result)
+                        .build();
                 }
                 // request from html app
                 // TODO: describe
-                if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
-                    return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
-                            .header("Content-type", "text/html").build();
+                if (
+                    null != iotData.clientname && !iotData.clientname.isEmpty()
+                ) {
+                    return Response.ok(
+                        buildResultData(
+                            true,
+                            true,
+                            iotData.clientname,
+                            "Data saved."
+                        )
+                    )
+                        .header("Content-type", "text/html")
+                        .build();
                 }
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
                 }
-                String transformedResult = runDedicatedResponder(device, result);
-                Map<String, String> headers = getDedicatedResponderHeaders(device, result);
+                String transformedResult = runDedicatedResponder(
+                    device,
+                    result
+                );
+                Map<String, String> headers = getDedicatedResponderHeaders(
+                    device,
+                    result
+                );
                 ResponseBuilder rb = Response.ok(transformedResult);
                 headers.keySet().forEach(key -> {
                     rb.header(key, headers.get(key));
                 });
                 return rb.build();
             } catch (Exception e) {
-                return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity(e.getMessage())
+                    .build();
             }
         }
     }
@@ -222,12 +304,17 @@ public class ReceiverResourceGeneric {
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response processForm(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
+    public Response processForm(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        MultivaluedMap<String, String> form
+    ) {
         LOG.debug("form processing");
         String result;
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // When eui in request header
         // Then device can be checked
@@ -238,39 +325,70 @@ public class ReceiverResourceGeneric {
                 if (LOG.isDebugEnabled()) {
                     LOG.warn("unknown device " + inHeaderEui);
                 }
-                return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device not found")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
-        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
+        IotData2 iotData = parseFormData(
+            inHeaderEui,
+            authorizationRequired,
+            form,
+            authKey
+        );
         if (!euiHeaderFirst) {
             device = service.getDevice(iotData.dev_eui);
             if (null == device) {
                 LOG.warn("unknown device " + iotData.dev_eui);
-                return Response.status(Status.NOT_FOUND).entity("device not found").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device not found")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
         if (null == iotData) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         } else {
             try {
                 result = service.processDataAndReturnResponse(iotData);
                 // request from html app
                 // TODO: describe
-                if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
-                    return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
-                            .header("Content-type", "text/html").build();
+                if (
+                    null != iotData.clientname && !iotData.clientname.isEmpty()
+                ) {
+                    return Response.ok(
+                        buildResultData(
+                            true,
+                            true,
+                            iotData.clientname,
+                            "Data saved."
+                        )
+                    )
+                        .header("Content-type", "text/html")
+                        .build();
                 }
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
                 }
-                String transformedResult = runDedicatedResponder(device, result);
-                Map<String, String> headers = getDedicatedResponderHeaders(device, result);
+                String transformedResult = runDedicatedResponder(
+                    device,
+                    result
+                );
+                Map<String, String> headers = getDedicatedResponderHeaders(
+                    device,
+                    result
+                );
                 ResponseBuilder rb = Response.ok(transformedResult);
                 headers.keySet().forEach(key -> {
                     rb.header(key, headers.get(key));
@@ -278,43 +396,65 @@ public class ReceiverResourceGeneric {
                 return rb.build();
                 // return Response.ok(result).build();
             } catch (Exception e) {
-                return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity(e.getMessage())
+                    .build();
             }
         }
-
     }
 
     @Path("/receiver/in")
     @POST
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getAsForm(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, MultivaluedMap<String, String> form) {
+    public Response getAsForm(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        MultivaluedMap<String, String> form
+    ) {
         // LOG.info("form received from eui "+inHeaderEui);
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // When eui in request header
         // Then device can be checked
         if (euiHeaderFirst) {
-            Device device = service.getDevice(inHeaderEui == null ? "" : inHeaderEui);
+            Device device = service.getDevice(
+                inHeaderEui == null ? "" : inHeaderEui
+            );
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
-                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("device not registered")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
-        IotData2 iotData = parseFormData(inHeaderEui, authorizationRequired, form, authKey);
+        IotData2 iotData = parseFormData(
+            inHeaderEui,
+            authorizationRequired,
+            form,
+            authKey
+        );
         if (null == iotData) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         } else {
             send(iotData);
         }
         if (null != iotData.clientname && !iotData.clientname.isEmpty()) {
-            return Response.ok(buildResultData(true, true, iotData.clientname, "Data saved."))
-                    .header("Content-type", "text/html").build();
+            return Response.ok(
+                buildResultData(true, true, iotData.clientname, "Data saved.")
+            )
+                .header("Content-type", "text/html")
+                .build();
         } else {
             return Response.ok("OK").build();
         }
@@ -324,28 +464,44 @@ public class ReceiverResourceGeneric {
     @POST
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getAsText(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui,
-            @HeaderParam("X-data-separator") String separator,
-            String input) {
+    public Response getAsText(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        @HeaderParam("X-data-separator") String separator,
+        String input
+    ) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("input: " + input);
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header found").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header found")
+                .build();
         }
         // In this case device EUI mus be in request header
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
-            return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("device not registered")
+                .build();
         }
         if (!device.isActive()) {
-            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            return Response.status(Status.NOT_FOUND)
+                .entity("device is not active")
+                .build();
         }
-        IotData2 iotData = parseTextData(device, authorizationRequired, input, authKey, separator);
+        IotData2 iotData = parseTextData(
+            device,
+            authorizationRequired,
+            input,
+            authKey,
+            separator
+        );
         if (null == iotData) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         } else {
             send(iotData);
         }
@@ -356,11 +512,16 @@ public class ReceiverResourceGeneric {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getAsJson(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, IotDto dataObject) {
+    public Response getAsJson(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        IotDto dataObject
+    ) {
         LOG.debug("input: " + dataObject.toString());
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // When eui in request header
         // Then device can be checked
@@ -368,21 +529,34 @@ public class ReceiverResourceGeneric {
             Device device = service.getDevice(inHeaderEui);
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
-                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("device not registered")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
         try {
-            IotData2 iotData = parseJson(inHeaderEui, authorizationRequired, authKey, dataObject);
+            IotData2 iotData = parseJson(
+                inHeaderEui,
+                authorizationRequired,
+                authKey,
+                dataObject
+            );
             if (null == iotData) {
-                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("error while reading the data")
+                    .build();
             } else {
                 send(iotData);
             }
         } catch (Exception e) {
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         }
         return Response.ok("OK").build();
     }
@@ -391,20 +565,28 @@ public class ReceiverResourceGeneric {
     @Path("/receiver/bulk")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response fileUpload(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, @MultipartForm MultipartFormDataInput input) {
-
+    public Response fileUpload(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        MultipartFormDataInput input
+    ) {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // In this case device EUI mus be in request header
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         }
         if (!device.isActive()) {
-            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            return Response.status(Status.NOT_FOUND)
+                .entity("device is not active")
+                .build();
         }
         BulkLoaderResult result = service.processCsv(device, input, true);
         return Response.ok().entity(result).build();
@@ -414,7 +596,7 @@ public class ReceiverResourceGeneric {
      * Process a batch of data from an edge device. The edge device is identified by
      * the EUI in the header.
      * The data is in CSV format.
-     * 
+     *
      * @param authKey
      * @param inHeaderEui
      * @param input
@@ -424,20 +606,28 @@ public class ReceiverResourceGeneric {
     @Path("/receiver/edge")
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response processBatch(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, String input) {
-
+    public Response processBatch(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        String input
+    ) {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // The device is an Signomix Edge service.
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         }
         if (!device.isActive()) {
-            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            return Response.status(Status.NOT_FOUND)
+                .entity("device is not active")
+                .build();
         }
         BulkLoaderResult result = service.processCsvString(device, input);
         return Response.ok().entity(result).build();
@@ -447,20 +637,28 @@ public class ReceiverResourceGeneric {
     @Path("/receiver/edge")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response processBatchFile(@HeaderParam("Authorization") String authKey,
-            @HeaderParam("X-device-eui") String inHeaderEui, @MultipartForm MultipartFormDataInput input) {
-
+    public Response processBatchFile(
+        @HeaderParam("Authorization") String authKey,
+        @HeaderParam("X-device-eui") String inHeaderEui,
+        MultipartFormDataInput input
+    ) {
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
         // The device is an Signomix Edge service.
         Device device = service.getDevice(inHeaderEui);
         if (null == device) {
             LOG.warn("unknown device " + inHeaderEui);
-            return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("error while reading the data")
+                .build();
         }
         if (!device.isActive()) {
-            return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+            return Response.status(Status.NOT_FOUND)
+                .entity("device is not active")
+                .build();
         }
         BulkLoaderResult result = service.processCsv(device, input, false);
         return Response.ok().entity(result).build();
@@ -468,7 +666,9 @@ public class ReceiverResourceGeneric {
 
     private void send(IotData2 iotData) {
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
-        DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
+        DeliveryOptions options = new DeliveryOptions().setCodecName(
+            iotDataCodec.name()
+        );
         bus.send("iotdata-no-response", iotData, options);
         LOG.debug("sent");
     }
@@ -492,18 +692,30 @@ public class ReceiverResourceGeneric {
         PayloadParserIface parser;
         try {
             Class clazz = Class.forName(className);
-            parser = (PayloadParserIface) clazz.getDeclaredConstructor().newInstance();
+            parser = (PayloadParserIface) clazz
+                .getDeclaredConstructor()
+                .newInstance();
             data.payload_fields = (ArrayList) parser.parse(input, devConfig);
             if (LOG.isDebugEnabled()) {
-                data.payload_fields.forEach((m) -> {
+                data.payload_fields.forEach(m -> {
                     LOG.debug(m);
                 });
             }
-            if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
+            if (
+                !euiHeaderFirst ||
+                (null == data.dev_eui || data.dev_eui.isEmpty())
+            ) {
                 data.dev_eui = getEuiParamValue(data.payload_fields);
             }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
-                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (
+            ClassNotFoundException
+            | InstantiationException
+            | IllegalAccessException
+            | IllegalArgumentException
+            | InvocationTargetException
+            | NoSuchMethodException
+            | SecurityException e
+        ) {
             e.printStackTrace();
             LOG.error(e.getMessage());
             return null;
@@ -512,7 +724,8 @@ public class ReceiverResourceGeneric {
         return data;
     }
 
-    private String runDedicatedResponder(Device device, String originalResponse) throws Exception {
+    private String runDedicatedResponder(Device device, String originalResponse)
+        throws Exception {
         if (null == device) {
             return null;
         }
@@ -529,23 +742,42 @@ public class ReceiverResourceGeneric {
         }
         try {
             Class clazz = Class.forName(className);
-            formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
+            formatter = (ResponseTransformerIface) clazz
+                .getDeclaredConstructor()
+                .newInstance();
             // result = formatter.transform(originalResponse, devConfig,
             // service.getMessageService());
             result = formatter.transform(originalResponse, devConfig, null);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("response to transform:" + originalResponse + " size:" + originalResponse.length());
+                LOG.debug(
+                    "response to transform:" +
+                        originalResponse +
+                        " size:" +
+                        originalResponse.length()
+                );
                 LOG.debug("response transformed:" + result);
             }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
-                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+        } catch (
+            ClassNotFoundException
+            | InstantiationException
+            | IllegalAccessException
+            | IllegalArgumentException
+            | InvocationTargetException
+            | NoSuchMethodException
+            | SecurityException e
+        ) {
             LOG.error(e.getMessage());
-            throw new Exception("Result transformation error: " + e.getMessage());
+            throw new Exception(
+                "Result transformation error: " + e.getMessage()
+            );
         }
         return result;
     }
 
-    private Map<String, String> getDedicatedResponderHeaders(Device device, String response) {
+    private Map<String, String> getDedicatedResponderHeaders(
+        Device device,
+        String response
+    ) {
         if (null == device) {
             return null;
         }
@@ -558,17 +790,35 @@ public class ReceiverResourceGeneric {
         }
         try {
             Class clazz = Class.forName(className);
-            formatter = (ResponseTransformerIface) clazz.getDeclaredConstructor().newInstance();
-            result = formatter.getHeaders(devConfig, device.getConfiguration(), response);
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException
-                | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+            formatter = (ResponseTransformerIface) clazz
+                .getDeclaredConstructor()
+                .newInstance();
+            result = formatter.getHeaders(
+                devConfig,
+                device.getConfiguration(),
+                response
+            );
+        } catch (
+            ClassNotFoundException
+            | InstantiationException
+            | IllegalAccessException
+            | IllegalArgumentException
+            | InvocationTargetException
+            | NoSuchMethodException
+            | SecurityException e
+        ) {
             LOG.error(e.getMessage());
         }
         return result;
     }
 
-    private IotData2 parseTextData(Device device, boolean authRequired, String input, String authKey,
-            String separator) {
+    private IotData2 parseTextData(
+        Device device,
+        boolean authRequired,
+        String input,
+        String authKey,
+        String separator
+    ) {
         IotData2 data = runDedicatedParser(device, input);
         if (null != data) {
             return data;
@@ -583,7 +833,9 @@ public class ReceiverResourceGeneric {
         // options.put("euiInHeader", ""+euiHeaderFirst);
         PayloadParserIface parser = new com.signomix.receiver.PayloadParser();
         data.payload_fields = (ArrayList) parser.parse(input, options);
-        if (!euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())) {
+        if (
+            !euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())
+        ) {
             data.dev_eui = getEuiParamValue(data.payload_fields);
         }
         data.normalize();
@@ -604,8 +856,12 @@ public class ReceiverResourceGeneric {
         return null;
     }
 
-    private IotData2 parseFormData(String eui, boolean authRequired, MultivaluedMap<String, String> form,
-            String authKey) {
+    private IotData2 parseFormData(
+        String eui,
+        boolean authRequired,
+        MultivaluedMap<String, String> form,
+        String authKey
+    ) {
         long systemTimestamp = System.currentTimeMillis();
         //IotData2 data = new IotData2(systemTimestamp);
         IotData2 data = new IotData2();
@@ -638,7 +894,10 @@ public class ReceiverResourceGeneric {
                 data.payload_fields.add(map);
             }
         }
-        if (null == data.dev_eui || (data.payload_fields.isEmpty() && null == data.payload)) {
+        if (
+            null == data.dev_eui ||
+            (data.payload_fields.isEmpty() && null == data.payload)
+        ) {
             LOG.warn("ERROR: " + data.dev_eui + "," + data.payload_fields);
             return null;
         }
@@ -649,7 +908,12 @@ public class ReceiverResourceGeneric {
         return data;
     }
 
-    private IotData2 parseJson(String eui, boolean authRequired, String authKey, IotDto dataObject) {
+    private IotData2 parseJson(
+        String eui,
+        boolean authRequired,
+        String authKey,
+        IotDto dataObject
+    ) {
         long systemTimestamp = System.currentTimeMillis();
         //IotData2 data = new IotData2(systemTimestamp);
         IotData2 data = new IotData2();
@@ -670,20 +934,27 @@ public class ReceiverResourceGeneric {
         return data;
     }
 
-    String buildResultData(boolean html, boolean isSuccess, String title, String text) {
+    String buildResultData(
+        boolean html,
+        boolean isSuccess,
+        String title,
+        String text
+    ) {
         if (!html) {
             return text;
         }
         String err = isSuccess ? "" : "ERROR<br>";
         StringBuilder sb = new StringBuilder();
         sb.append("<html><body style='text-align: center;'><h1>")
-                .append(title)
-                .append("</h1><p>")
-                .append(err)
-                .append(text)
-                .append("</p><button type='button' onclick='window.history.go(-1); return false;'>")
-                .append("OK")
-                .append("</button></body></html>");
+            .append(title)
+            .append("</h1><p>")
+            .append(err)
+            .append(text)
+            .append(
+                "</p><button type='button' onclick='window.history.go(-1); return false;'>"
+            )
+            .append("OK")
+            .append("</button></body></html>");
         return sb.toString();
     }
 
@@ -694,13 +965,16 @@ public class ReceiverResourceGeneric {
             Device device = service.getDevice(inHeaderEui);
             if (null == device) {
                 LOG.warn("unknown device " + inHeaderEui);
-                return Response.status(Status.BAD_REQUEST).entity("device not registered").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("device not registered")
+                    .build();
             }
             if (!device.isActive()) {
-                return Response.status(Status.NOT_FOUND).entity("device is not active").build();
+                return Response.status(Status.NOT_FOUND)
+                    .entity("device is not active")
+                    .build();
             }
         }
         return Response.ok().build();
     }
-
 }
