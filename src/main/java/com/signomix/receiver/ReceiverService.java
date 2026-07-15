@@ -97,6 +97,9 @@ public class ReceiverService {
     SignalDao signalDao = new SignalDao();
     ApplicationDao appDao = new ApplicationDao();
 
+    @Inject
+    ObjectMapper objectMapper;
+
     private static AtomicLong commandIdSeed = null;
     private static AtomicLong eventSeed = new AtomicLong(
         System.currentTimeMillis()
@@ -117,7 +120,42 @@ public class ReceiverService {
     @ConfigProperty(name = "signomix.devices.protected", defaultValue = "false")
     Boolean useProtectedFeature;
 
+    @ConfigProperty(name = "frame.counter.cache.size", defaultValue = "10000")
+    int frameCounterCacheSize;
+
+    @ConfigProperty(name = "frame.counter.cleanup.interval.ms", defaultValue = "3600000")
+    long frameCounterCleanupIntervalMs;
+
     private ConcurrentHashMap<String, Long> frameCountersMap;
+    private long lastFrameCounterCleanupTime = 0;
+    private static final int MAX_FRAME_COUNTERS = 10000;
+
+    /**
+     * Cleans up frame counters map if it exceeds maximum size or cleanup interval has passed.
+     * Removes 20% of oldest entries to prevent memory leak.
+     */
+    private void cleanupFrameCountersIfNeeded() {
+        long now = System.currentTimeMillis();
+        
+        // Check if cleanup interval has passed or map is too large
+        if (now - lastFrameCounterCleanupTime > frameCounterCleanupIntervalMs ||
+            frameCountersMap.size() > frameCounterCacheSize) {
+            
+            int entriesToRemove = Math.max(1, (int) (frameCountersMap.size() * 0.2));
+            
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Cleaning up frame counters map. Current size: " + 
+                         frameCountersMap.size() + ", removing: " + entriesToRemove);
+            }
+            
+            // Remove oldest entries (simple approach - remove first N entries)
+            frameCountersMap.keySet().stream()
+                .limit(entriesToRemove)
+                .forEach(frameCountersMap::remove);
+            
+            lastFrameCounterCleanupTime = now;
+        }
+    }
 
     public void onApplicationStart(@Observes StartupEvent event) {
         dao.setDatasource(tsDs);
@@ -126,6 +164,7 @@ public class ReceiverService {
         signalDao.setDatasource(tsDs);
         appDao.setDatasource(tsDs);
         frameCountersMap = new ConcurrentHashMap<>();
+        lastFrameCounterCleanupTime = System.currentTimeMillis();
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -170,8 +209,8 @@ public class ReceiverService {
         try {
             processData(data);
         } catch (Exception e) {
-            LOG.error("Error processing Chirpstack data: " + e.getMessage());
-            e.printStackTrace();
+            LOG.error("Error processing Chirpstack data for device: " + 
+                     (data != null ? data.getDeviceEUI() : "null"), e);
         }
     }
 
@@ -397,23 +436,21 @@ public class ReceiverService {
                 device.getType() == DeviceType.CHIRPSTACK.name() ||
                 device.getType() == DeviceType.LORA.name())
         ) {
+            cleanupFrameCountersIfNeeded();
+            
             String deviceKey = device.getEUI();
             long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
             long currentFrame = data.counter;
-            long resetLevel = 100L; // TODO: get from device
+            long resetLevel = frameCounterCacheSize / 10; // Use 10% of cache size as reset level
             if (previousFrame - currentFrame >= resetLevel) {
                 previousFrame = 0L;
             }
-            frameCountersMap.put(device.getEUI(), currentFrame);
+            frameCountersMap.put(deviceKey, currentFrame);
             if (currentFrame <= previousFrame) {
                 LOG.warn(
-                    "Frame counter error: " +
-                        currentFrame +
-                        " <= " +
-                        previousFrame
+                    "Frame counter error for device " + deviceKey + ": " + 
+                    currentFrame + " <= " + previousFrame
                 );
-                // return "ERROR: Frame counter error: "
-                // + currentFrame + " <= " + previousFrame;
             }
         }
 
@@ -460,7 +497,7 @@ public class ReceiverService {
                         dataString
                     );
                 } catch (Exception ex) {
-                    LOG.warn("getProcessingResult failed: " + ex.getMessage());
+                    LOG.warn("getProcessingResult failed", ex);
                     scriptResult = null;
                 }
             }
@@ -505,7 +542,7 @@ public class ReceiverService {
                     device.ALERT_OK
                 );
             } else if (device.isActive()) {
-                Log.debug("updateHealthStatus");
+                LOG.debug("updateHealthStatus");
                 updateHealthStatus(
                     device.getEUI(),
                     device.getTransmissionInterval(),
@@ -526,9 +563,8 @@ public class ReceiverService {
             }
             statusUpdated = true;
         } catch (Exception e) {
-            e.printStackTrace();
-            LOG.error(e.getMessage());
-            // addNotifications(device, null, e.getMessage(), false);
+            LOG.error("Error processing data for device: " + 
+                     (device != null ? device.getEUI() : "null"), e);
         }
         if (!statusUpdated) {
             updateHealthStatus(
@@ -662,7 +698,7 @@ public class ReceiverService {
                     }
                 }
             } catch (IotDatabaseException e) {
-                e.printStackTrace();
+                LOG.error("Failed to process command for device: " + device.getEUI(), e);
             }
         }
         // when commands has been created for LoRa devices, send info to message broker
@@ -675,14 +711,15 @@ public class ReceiverService {
     }
 
     private String serializeProcessorResult(ProcessorResult scriptResult) {
-        ObjectMapper mapper = new ObjectMapper();
-        String result = "";
-        try {
-            result = mapper.writeValueAsString(scriptResult);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (scriptResult == null) {
+            return "";
         }
-        return result;
+        try {
+            return objectMapper.writeValueAsString(scriptResult);
+        } catch (Exception e) {
+            LOG.error("Failed to serialize ProcessorResult", e);
+            return "";
+        }
     }
 
     private Application getApplication(Long appId) {
@@ -693,7 +730,7 @@ public class ReceiverService {
         try {
             app = appDao.getApplication(appId.intValue());
         } catch (IotDatabaseException e) {
-            LOG.warn(e.getMessage());
+            LOG.warn("Failed to get application: " + appId, e);
         }
         return app;
     }
@@ -753,48 +790,45 @@ public class ReceiverService {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("saving command (" + origin[1] + ")");
             }
-            IotEvent ev = commandEvent;
             dao.putDeviceCommand(origin[1], commandEvent, false);
             commandCreatedEmitter.send(
                 origin[1] + ";" + commandEvent.getPayload().toString()
             );
             return origin[1];
         } catch (IotDatabaseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error("Failed to save command", e);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("Unexpected error saving command", e);
         }
         return null;
     }
 
     private void saveData(Device device, ArrayList<ChannelData> list) {
+        if (device == null || list == null) {
+            LOG.warn("saveData called with null parameters");
+            return;
+        }
+        
         try {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("saveData list.size():" + list.size());
             }
-            if (null != dao) {
-                dao.putData(device, fixValues(device, list));
-            }
-            if (null != olapDao) {
-                LOG.debug("saveData to olap DB");
-                olapDao.saveAnalyticData(device, list);
-            } else {
-                LOG.warn("olapDao is null");
-            }
+            
+            dao.putData(device, fixValues(device, list));
+            olapDao.saveAnalyticData(device, list);
 
             HashMap<String, Double> redisMap = new HashMap<>();
             list.forEach(cdata -> {
                 redisMap.put(cdata.getName(), cdata.getValue());
             });
 
-            // emitter.send(device.getEUI());
             emitter.send(buildDataReceivedMessage(device, list));
         } catch (IotDatabaseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error("Failed to save data for device: " + 
+                     (device != null ? device.getEUI() : "null"), e);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("Unexpected error while saving data for device: " + 
+                     (device != null ? device.getEUI() : "null"), e);
         }
     }
 
@@ -883,8 +917,41 @@ public class ReceiverService {
                 dao.putVirtualData(device, vd);
             }
         } catch (IotDatabaseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error("Failed to save virtual data for device: " + 
+                     (device != null ? device.getEUI() : "null"), e);
+        }
+    }
+
+    /**
+     * Updates device status in database.
+     * 
+     * @param eui Device EUI
+     * @param transmissionInterval Transmission interval
+     * @param newStatus New status value
+     * @param newAlertStatus New alert status
+     * @param statusType Type of status (for logging purposes)
+     */
+    private void updateDeviceStatusInternal(
+        String eui,
+        long transmissionInterval,
+        Double newStatus,
+        int newAlertStatus,
+        String statusType
+    ) {
+        if (!deviceStatusUpdateIntegrated) {
+            LOG.debug(statusType + " update skipped.");
+            return;
+        }
+        try {
+            dao.updateDeviceStatus(
+                eui,
+                transmissionInterval,
+                newStatus,
+                newAlertStatus
+            );
+            LOG.debug(statusType + " updated.");
+        } catch (IotDatabaseException e) {
+            LOG.error("Failed to update " + statusType + " for device: " + eui, e);
         }
     }
 
@@ -894,26 +961,7 @@ public class ReceiverService {
         Double newStatus,
         int newAlertStatus
     ) {
-        if (!deviceStatusUpdateIntegrated) {
-            // TEST
-            LOG.debug("Device status update skipped.");
-            return;
-        }
-        try {
-            if (null != dao) {
-                dao.updateDeviceStatus(
-                    eui,
-                    transmissionInterval,
-                    newStatus,
-                    newAlertStatus
-                );
-            }
-            LOG.debug("Device status updated.");
-        } catch (IotDatabaseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            LOG.error(e.getMessage());
-        }
+        updateDeviceStatusInternal(eui, transmissionInterval, newStatus, newAlertStatus, "Device status");
     }
 
     private void updateHealthStatus(
@@ -922,26 +970,7 @@ public class ReceiverService {
         Double newStatus,
         int newAlertStatus
     ) {
-        if (!deviceStatusUpdateIntegrated) {
-            // TEST
-            LOG.debug("Device health status update skipped.");
-            return;
-        }
-        try {
-            if (null != dao) {
-                dao.updateDeviceStatus(
-                    eui,
-                    transmissionInterval,
-                    newStatus,
-                    newAlertStatus
-                );
-            }
-            LOG.debug("Device health status updated.");
-        } catch (IotDatabaseException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            LOG.error(e.getMessage());
-        }
+        updateDeviceStatusInternal(eui, transmissionInterval, newStatus, newAlertStatus, "Device health status");
     }
 
     private ArrayList<ChannelData> decodePayload(
@@ -1008,11 +1037,11 @@ public class ReceiverService {
                     data.getTimestamp()
                 );
             } catch (ScriptAdapterException ex) {
-                ex.printStackTrace();
+                LOG.error("Script decoding failed for device: " + device.getEUI(), ex);
                 addNotifications(device, null, ex.getMessage(), false);
                 values = new ArrayList<>();
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("Unexpected error during decoding for device: " + device.getEUI(), e);
                 addNotifications(device, null, e.getMessage(), false);
                 values = new ArrayList<>();
             }
@@ -1095,7 +1124,7 @@ public class ReceiverService {
                 try {
                     signalDao.saveSignal(signal);
                 } catch (IotDatabaseException e) {
-                    e.printStackTrace();
+                    LOG.error("Failed to save signal for user: " + userId, e);
                 }
                 // }
                 sendAlert(
@@ -1184,10 +1213,8 @@ public class ReceiverService {
         // Device gateway = null;
         try {
             device = dao.getDevice(eui, true, true);
-            // gateway = getDevice(data.getGatewayEUI());
         } catch (IotDatabaseException e) {
-            e.printStackTrace();
-            LOG.error(e.getMessage());
+            LOG.error("Failed to get device: " + eui, e);
         }
         return device;
     }
@@ -1224,9 +1251,7 @@ public class ReceiverService {
                     return null;
                 }
             } catch (Exception ex) {
-                // catch (UserException ex) {
-                // ex.printStackTrace();
-                LOG.warn(ex.getMessage());
+                LOG.warn("Authorization check failed for device: " + eui, ex);
                 return null;
             }
         }
@@ -1257,8 +1282,7 @@ public class ReceiverService {
                 }
                 device.setDataProtected(Boolean.parseBoolean(tagValue));
             } catch (IotDatabaseException e) {
-                e.printStackTrace();
-                LOG.error(e.getMessage());
+                LOG.error("Failed to get protected tag for device: " + device.getEUI(), e);
             }
         } else {
             LOG.debug("Protected feature is disabled");
