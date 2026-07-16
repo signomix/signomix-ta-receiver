@@ -136,23 +136,23 @@ public class ReceiverService {
      */
     private void cleanupFrameCountersIfNeeded() {
         long now = System.currentTimeMillis();
-        
+
         // Check if cleanup interval has passed or map is too large
         if (now - lastFrameCounterCleanupTime > frameCounterCleanupIntervalMs ||
             frameCountersMap.size() > frameCounterCacheSize) {
-            
+
             int entriesToRemove = Math.max(1, (int) (frameCountersMap.size() * 0.2));
-            
+
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Cleaning up frame counters map. Current size: " + 
+                LOG.debug("Cleaning up frame counters map. Current size: " +
                          frameCountersMap.size() + ", removing: " + entriesToRemove);
             }
-            
+
             // Remove oldest entries (simple approach - remove first N entries)
             frameCountersMap.keySet().stream()
                 .limit(entriesToRemove)
                 .forEach(frameCountersMap::remove);
-            
+
             lastFrameCounterCleanupTime = now;
         }
     }
@@ -209,7 +209,7 @@ public class ReceiverService {
         try {
             processData(data);
         } catch (Exception e) {
-            LOG.error("Error processing Chirpstack data for device: " + 
+            LOG.error("Error processing Chirpstack data for device: " +
                      (data != null ? data.getDeviceEUI() : "null"), e);
         }
     }
@@ -437,7 +437,7 @@ public class ReceiverService {
                 device.getType() == DeviceType.LORA.name())
         ) {
             cleanupFrameCountersIfNeeded();
-            
+
             String deviceKey = device.getEUI();
             long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
             long currentFrame = data.counter;
@@ -448,7 +448,7 @@ public class ReceiverService {
             frameCountersMap.put(deviceKey, currentFrame);
             if (currentFrame <= previousFrame) {
                 LOG.warn(
-                    "Frame counter error for device " + deviceKey + ": " + 
+                    "Frame counter error for device " + deviceKey + ": " +
                     currentFrame + " <= " + previousFrame
                 );
             }
@@ -486,7 +486,6 @@ public class ReceiverService {
                 data,
                 dataString
             );
-            // possible exception in callProcessorService is handled in the catch block
             if (null == scriptResult) {
                 try {
                     scriptResult = getProcessingResult(
@@ -563,7 +562,7 @@ public class ReceiverService {
             }
             statusUpdated = true;
         } catch (Exception e) {
-            LOG.error("Error processing data for device: " + 
+            LOG.error("Error processing data for device: " +
                      (device != null ? device.getEUI() : "null"), e);
         }
         if (!statusUpdated) {
@@ -808,12 +807,12 @@ public class ReceiverService {
             LOG.warn("saveData called with null parameters");
             return;
         }
-        
+
         try {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("saveData list.size():" + list.size());
             }
-            
+
             dao.putData(device, fixValues(device, list));
             olapDao.saveAnalyticData(device, list);
 
@@ -824,10 +823,10 @@ public class ReceiverService {
 
             emitter.send(buildDataReceivedMessage(device, list));
         } catch (IotDatabaseException e) {
-            LOG.error("Failed to save data for device: " + 
+            LOG.error("Failed to save data for device: " +
                      (device != null ? device.getEUI() : "null"), e);
         } catch (Exception e) {
-            LOG.error("Unexpected error while saving data for device: " + 
+            LOG.error("Unexpected error while saving data for device: " +
                      (device != null ? device.getEUI() : "null"), e);
         }
     }
@@ -917,14 +916,14 @@ public class ReceiverService {
                 dao.putVirtualData(device, vd);
             }
         } catch (IotDatabaseException e) {
-            LOG.error("Failed to save virtual data for device: " + 
+            LOG.error("Failed to save virtual data for device: " +
                      (device != null ? device.getEUI() : "null"), e);
         }
     }
 
     /**
      * Updates device status in database.
-     * 
+     *
      * @param eui Device EUI
      * @param transmissionInterval Transmission interval
      * @param newStatus New status value
