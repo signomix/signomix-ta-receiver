@@ -517,7 +517,9 @@ public class ReceiverResourceGeneric {
         @HeaderParam("X-device-eui") String inHeaderEui,
         IotDto dataObject
     ) {
+    if (LOG.isDebugEnabled()) {
         LOG.debug("input: " + dataObject.toString());
+    }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED)
                 .entity("no authorization header fond")
