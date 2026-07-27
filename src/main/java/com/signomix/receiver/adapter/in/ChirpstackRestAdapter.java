@@ -152,13 +152,9 @@ public class ChirpstackRestAdapter {
             DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
             data.timestamp = df.format(LocalDateTime.now());
             data.timestamp = data.timestamp + "Z";
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Uplink time: " + data.timestamp + " (using system time)");
-            }
+            LOG.info("Uplink time: " + data.timestamp + " (using system time)");
         } else {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Uplink time: " + uplink.time);
-            }
+            LOG.info("Uplink time: " + uplink.time);
             data.timestamp = uplink.time;
         }
         data.counter = uplink.fCnt;
@@ -166,15 +162,11 @@ public class ChirpstackRestAdapter {
         data.time = data.timestamp;
 
         try {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Parsing timestamp: " + data.timestamp);
-            }
+            LOG.info("Parsing timestamp: " + data.timestamp);
             OffsetDateTime odt = OffsetDateTime.parse(data.timestamp);
             Instant instant = odt.toInstant();
             data.timestampUTC = Timestamp.from(instant);
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Parsed timestamp: " + data.timestampUTC);
-            }
+            LOG.info("Parsed timestamp: " + data.timestampUTC);
         } catch (Exception e) {
             LOG.error("Error parsing timestamp: " + data.timestamp, e);
             data.timestampUTC = new Timestamp(systemTimestamp);
@@ -230,7 +222,7 @@ public class ChirpstackRestAdapter {
      * private void handleJoin(String event) {
      * ObjectMapper mapper = new ObjectMapper()
      * .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-     *
+     * 
      * Join join;
      * try {
      * join = mapper.readValue(event, Join.class);
@@ -244,7 +236,7 @@ public class ChirpstackRestAdapter {
      * } catch (JsonProcessingException e) {
      * e.printStackTrace();
      * }
-     *
+     * 
      * }
      */
 }

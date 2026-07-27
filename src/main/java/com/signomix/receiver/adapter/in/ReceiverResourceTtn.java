@@ -1,6 +1,7 @@
 package com.signomix.receiver.adapter.in;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,6 +11,7 @@ import org.jboss.logging.Logger;
 
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.ttn3.TtnData3;
+import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
 
@@ -31,6 +33,9 @@ import jakarta.ws.rs.core.Response.Status;
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceTtn {
+
+    static final long MAX_DELAY = 30_000L; // 30 seconds
+    static final long DELAY_LIMIT = 5_000L; // 5 seconds
 
     @Inject
     Logger LOG;
@@ -66,9 +71,10 @@ public class ReceiverResourceTtn {
             if (authorizationRequired && (null == authKey || authKey.isBlank())) {
                 return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
             }
-            //Decoder decoder = new Decoder();
+            // Decoder decoder = new Decoder();
             TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(jsonString);
-            //TtnData3 dataObject = com.signomix.common.iot.ttn3.Decoder.decode(jsonString);
+            // TtnData3 dataObject =
+            // com.signomix.common.iot.ttn3.Decoder.decode(jsonString);
             IotData2 iotData = transform(dataObject, authKey, authorizationRequired);
             if (null == iotData) {
                 return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
@@ -82,6 +88,8 @@ public class ReceiverResourceTtn {
              * LOG.info(jsonString);
              * }
              */
+            return Response.ok("OK").build();
+        } catch (ReceiverException e) {
             return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
@@ -97,16 +105,19 @@ public class ReceiverResourceTtn {
         LOG.debug("sent");
     }
 
-    private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) {
+    private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) throws ReceiverException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("transform " + authKey + " " + authRequired);
         }
         long systemTimestamp = System.currentTimeMillis();
+        if (!isDelayAccepted(dataObject)) {
+            throw new ReceiverException(ReceiverException.DELAYED, "the data is too delayed");
+        }
         IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;
         data.timestamp = "" + dataObject.getTimestamp();
-        
+
         data.clientname = "";
         data.authKey = authKey;
         data.authRequired = authRequired;
@@ -124,24 +135,51 @@ public class ReceiverResourceTtn {
             key = it.next();
             tempMap.put("name", key.toLowerCase());
             Object value = pfMap.get(key);
-                if(value == null) {
-                    LOG.warn("Null value for key: " + key);
-                    continue; // Skip null values
-                }
-                if (value instanceof Number) {
-                    tempMap.put("value", ((Number) value).doubleValue());
-                } else if (value instanceof Boolean) {
-                    tempMap.put("value", ((Boolean) value) ? 1.0 : 0.0);
-                } else if (value instanceof String) {
-                    tempMap.put("value", value);
-                } else {
-                    LOG.warn("Unsupported value type for key: " + key + ", value: " + value);
-                }
+            if (value == null) {
+                LOG.warn("Null value for key: " + key);
+                continue; // Skip null values
+            }
+            if (value instanceof Number) {
+                tempMap.put("value", ((Number) value).doubleValue());
+            } else if (value instanceof Boolean) {
+                tempMap.put("value", ((Boolean) value) ? 1.0 : 0.0);
+            } else if (value instanceof String) {
+                tempMap.put("value", value);
+            } else {
+                LOG.warn("Unsupported value type for key: " + key + ", value: " + value);
+            }
             data.payload_fields.add(tempMap);
         }
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
         return data;
+    }
+
+    private boolean isDelayAccepted(TtnData3 dataObject) {
+        if (dataObject == null || dataObject.rxMetadata == null) {
+            return false;
+        }
+
+        long receivedTimestamp = dataObject.receivedAt;
+        long start = Instant.parse("2020-01-01T00:00:00Z").toEpochMilli();
+
+        long upperBound = receivedTimestamp + DELAY_LIMIT;
+        Long maxTimestamp = null;
+
+        for (RxMetadata metadata : dataObject.rxMetadata) {
+            if (metadata == null || metadata.getTime() == null) {
+                continue;
+            }
+            long ta = metadata.getTime().getTime();
+            if (ta > start && ta <= upperBound && (maxTimestamp == null || ta > maxTimestamp)) {
+                maxTimestamp = ta;
+            }
+        }
+        if(maxTimestamp==null){
+            // for simulated uplinks
+            return true;
+        }
+        return receivedTimestamp - maxTimestamp <= MAX_DELAY;
     }
 
 }
