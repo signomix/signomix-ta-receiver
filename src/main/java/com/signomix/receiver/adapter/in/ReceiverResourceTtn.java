@@ -1,20 +1,10 @@
 package com.signomix.receiver.adapter.in;
 
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
-
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
-
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -29,6 +19,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 @Path("/api")
 @ApplicationScoped
@@ -53,7 +50,7 @@ public class ReceiverResourceTtn {
         try {
             bus.registerCodec(new IotDataMessageCodec());
         } catch (Exception e) {
-
+            LOG.error(e.getMessage());
         }
     }
 
@@ -66,18 +63,33 @@ public class ReceiverResourceTtn {
     @Path("/receiver/ttn3/up")
     @POST
     @Produces(MediaType.TEXT_PLAIN)
-    public Response getAsJson(@HeaderParam("Authorization") String authKey, String jsonString) {
+    public Response getAsJson(
+        @HeaderParam("Authorization") String authKey,
+        String jsonString
+    ) {
         try {
-            if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-                return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            if (
+                authorizationRequired && (null == authKey || authKey.isBlank())
+            ) {
+                return Response.status(Status.UNAUTHORIZED)
+                    .entity("no authorization header fond")
+                    .build();
             }
             // Decoder decoder = new Decoder();
-            TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(jsonString);
+            TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(
+                jsonString
+            );
             // TtnData3 dataObject =
             // com.signomix.common.iot.ttn3.Decoder.decode(jsonString);
-            IotData2 iotData = transform(dataObject, authKey, authorizationRequired);
+            IotData2 iotData = transform(
+                dataObject,
+                authKey,
+                authorizationRequired
+            );
             if (null == iotData) {
-                return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+                return Response.status(Status.BAD_REQUEST)
+                    .entity("error while reading the data")
+                    .build();
             } else {
                 send(iotData);
             }
@@ -90,28 +102,45 @@ public class ReceiverResourceTtn {
              */
             return Response.ok("OK").build();
         } catch (ReceiverException e) {
+            LOG.warn(e.getMessage());
             return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
             e.printStackTrace();
-            return Response.status(Status.INTERNAL_SERVER_ERROR).entity("error while processing the data").build();
+            return Response.status(Status.INTERNAL_SERVER_ERROR)
+                .entity("error while processing the data")
+                .build();
         }
     }
 
     private void send(IotData2 iotData) {
         IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
-        DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
+        DeliveryOptions options = new DeliveryOptions().setCodecName(
+            iotDataCodec.name()
+        );
         bus.send("ttndata-no-response", iotData, options);
         LOG.debug("sent");
     }
 
-    private IotData2 transform(TtnData3 dataObject, String authKey, boolean authRequired) throws ReceiverException {
+    private IotData2 transform(
+        TtnData3 dataObject,
+        String authKey,
+        boolean authRequired
+    ) throws ReceiverException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("transform " + authKey + " " + authRequired);
         }
         long systemTimestamp = System.currentTimeMillis();
         if (!isDelayAccepted(dataObject)) {
-            throw new ReceiverException(ReceiverException.DELAYED, "the data is too delayed");
+            LOG.info(
+                dataObject.deviceEui +
+                    " data is too delayed, receivedAt: " +
+                    dataObject.receivedAt
+            );
+            throw new ReceiverException(
+                ReceiverException.DELAYED,
+                "the data is too delayed"
+            );
         }
         IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
@@ -142,11 +171,16 @@ public class ReceiverResourceTtn {
             if (value instanceof Number) {
                 tempMap.put("value", ((Number) value).doubleValue());
             } else if (value instanceof Boolean) {
-                tempMap.put("value", ((Boolean) value) ? 1.0 : 0.0);
+                tempMap.put("value", (Boolean) value ? 1.0 : 0.0);
             } else if (value instanceof String) {
                 tempMap.put("value", value);
             } else {
-                LOG.warn("Unsupported value type for key: " + key + ", value: " + value);
+                LOG.warn(
+                    "Unsupported value type for key: " +
+                        key +
+                        ", value: " +
+                        value
+                );
             }
             data.payload_fields.add(tempMap);
         }
@@ -171,15 +205,18 @@ public class ReceiverResourceTtn {
                 continue;
             }
             long ta = metadata.getTime().getTime();
-            if (ta > start && ta <= upperBound && (maxTimestamp == null || ta > maxTimestamp)) {
+            if (
+                ta > start &&
+                ta <= upperBound &&
+                (maxTimestamp == null || ta > maxTimestamp)
+            ) {
                 maxTimestamp = ta;
             }
         }
-        if(maxTimestamp==null){
+        if (maxTimestamp == null) {
             // for simulated uplinks
             return true;
         }
         return receivedTimestamp - maxTimestamp <= MAX_DELAY;
     }
-
 }
