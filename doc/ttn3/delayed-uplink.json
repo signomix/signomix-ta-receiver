@@ -1,0 +1,83 @@
+{
+  "end_device_ids": {
+    "device_id": "eui-00071d45143a714e",
+    "application_ids": { "application_id": "asmp" },
+    "dev_eui": "00071D45143A714E",
+    "join_eui": "0000000000000000",
+    "dev_addr": "260B9F2A"
+  },
+  "correlation_ids": ["gs:uplink:01KYZPQA6EQ3SDXZPXQHKPG0T1"],
+  "received_at": "2026-08-01T22:22:11.869342542Z",
+  "uplink_message": {
+    "session_key_id": "AZ+22hBr0N0TxnQh4o6gDw==",
+    "f_port": 1,
+    "f_cnt": 480,
+    "frm_payload": "BnMnVAVonwRnAMoIZwEMCWh0AgIBwgMCAnYBAgGd",
+    "decoded_payload": {
+      "analog_in_1": 4.13,
+      "analog_in_2": 4.5,
+      "analog_in_3": 6.3,
+      "barometric_pressure_6": 1006.8,
+      "relative_humidity_5": 79.5,
+      "relative_humidity_9": 58,
+      "temperature_4": 20.2,
+      "temperature_8": 26.8
+    },
+    "rx_metadata": [
+      {
+        "gateway_ids": {
+          "gateway_id": "eui-353036202a000700",
+          "eui": "353036202A000700"
+        },
+        "time": "2026-08-01T22:20:49.526952Z",
+        "timestamp": 1777136012,
+        "rssi": -83,
+        "channel_rssi": -83,
+        "snr": 9.75,
+        "location": {
+          "latitude": 51.039037,
+          "longitude": 16.767854,
+          "altitude": 138,
+          "source": "SOURCE_REGISTRY"
+        },
+        "uplink_token": "CiIKIAoUZXVpLTM1MzAzNjIwMmEwMDA3MDASCDUwNiAqAAcAEIzjs88GGgwIk+O50wYQhrKwuwIg4JW+rNyUNA==",
+        "channel_index": 6,
+        "received_at": "2026-08-01T22:22:11.661395718Z"
+      }
+    ],
+    "settings": {
+      "data_rate": {
+        "lora": {
+          "bandwidth": 125000,
+          "spreading_factor": 7,
+          "coding_rate": "4/5"
+        }
+      },
+      "frequency": "867700000",
+      "timestamp": 1777136012,
+      "time": "2026-08-01T22:20:49.526952Z"
+    },
+    "received_at": "2026-08-01T22:22:11.663002970Z",
+    "consumed_airtime": "0.087296s",
+    "locations": {
+      "user": {
+        "latitude": 51.0390374,
+        "longitude": 16.7678095,
+        "altitude": 138,
+        "source": "SOURCE_REGISTRY"
+      }
+    },
+    "network_ids": {
+      "net_id": "000013",
+      "ns_id": "EC656E0000000181",
+      "tenant_id": "ttn",
+      "cluster_id": "eu1",
+      "cluster_address": "eu1.cloud.thethings.network"
+    },
+    "last_battery_percentage": {
+      "f_cnt": 402,
+      "value": 90.118576,
+      "received_at": "2026-08-01T15:51:31.335622752Z"
+    }
+  }
+}

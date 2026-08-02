@@ -84,7 +84,8 @@ public class ReceiverResourceTtn {
             IotData2 iotData = transform(
                 dataObject,
                 authKey,
-                authorizationRequired
+                authorizationRequired,
+                jsonString
             );
             if (null == iotData) {
                 return Response.status(Status.BAD_REQUEST)
@@ -125,23 +126,24 @@ public class ReceiverResourceTtn {
     private IotData2 transform(
         TtnData3 dataObject,
         String authKey,
-        boolean authRequired
+        boolean authRequired,
+        String jsonString
     ) throws ReceiverException {
         if (LOG.isDebugEnabled()) {
             LOG.debug("transform " + authKey + " " + authRequired);
         }
         long systemTimestamp = System.currentTimeMillis();
+        /*
         if (!isDelayAccepted(dataObject)) {
-            LOG.info(
-                dataObject.deviceEui +
-                    " data is too delayed, receivedAt: " +
-                    dataObject.receivedAt
-            );
+            if (dataObject.deviceEui.equalsIgnoreCase("00071D45143A714E")) {
+                LOG.debug(jsonString);
+            }
             throw new ReceiverException(
                 ReceiverException.DELAYED,
                 "the data is too delayed"
             );
         }
+        */
         IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;
@@ -193,7 +195,7 @@ public class ReceiverResourceTtn {
         if (dataObject == null || dataObject.rxMetadata == null) {
             return false;
         }
-
+        boolean delayed = false;
         long receivedTimestamp = dataObject.receivedAt;
         long start = Instant.parse("2020-01-01T00:00:00Z").toEpochMilli();
 
@@ -217,6 +219,21 @@ public class ReceiverResourceTtn {
             // for simulated uplinks
             return true;
         }
-        return receivedTimestamp - maxTimestamp <= MAX_DELAY;
+        delayed = receivedTimestamp - maxTimestamp > MAX_DELAY;
+        if (delayed) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                    dataObject.deviceEui +
+                        " data is too delayed, receivedAt: " +
+                        dataObject.receivedAt +
+                        ", maxTimestamp: " +
+                        maxTimestamp
+                );
+            }
+            return false;
+        } else {
+            return true;
+        }
+        //return receivedTimestamp - maxTimestamp <= MAX_DELAY;
     }
 }
