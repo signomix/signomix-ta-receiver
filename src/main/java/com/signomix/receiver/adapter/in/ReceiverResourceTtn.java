@@ -5,6 +5,7 @@ import com.signomix.common.iot.ttn3.TtnData3;
 import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
+import com.signomix.receiver.application.exception.ReceiverException;
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -75,12 +76,13 @@ public class ReceiverResourceTtn {
                     .entity("no authorization header fond")
                     .build();
             }
+            sendDataToService(authKey + "@" + jsonString);
+            /*
             // Decoder decoder = new Decoder();
             TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(
                 jsonString
             );
-            // TtnData3 dataObject =
-            // com.signomix.common.iot.ttn3.Decoder.decode(jsonString);
+
             IotData2 iotData = transform(
                 dataObject,
                 authKey,
@@ -94,17 +96,11 @@ public class ReceiverResourceTtn {
             } else {
                 send(iotData);
             }
-            /*
-             * if(iotData.dev_eui.equalsIgnoreCase("A840414B41841C21")
-             * || iotData.dev_eui.equalsIgnoreCase("0018B240000068D4")
-             * || iotData.dev_eui.equalsIgnoreCase("0004A30B00E98411")){
-             * LOG.info(jsonString);
-             * }
-             */
+            */
             return Response.ok("OK").build();
-        } catch (ReceiverException e) {
-            LOG.warn(e.getMessage());
-            return Response.ok("OK").build();
+            //} catch (ReceiverException e) {
+            //LOG.warn(e.getMessage());
+            //return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
             e.printStackTrace();
@@ -112,6 +108,11 @@ public class ReceiverResourceTtn {
                 .entity("error while processing the data")
                 .build();
         }
+    }
+
+    private void sendDataToService(String dataMessage) {
+        bus.<String>requestAndForget("ttndata3-no-response", dataMessage);
+        LOG.debug("sent");
     }
 
     private void send(IotData2 iotData) {
@@ -189,51 +190,5 @@ public class ReceiverResourceTtn {
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
         return data;
-    }
-
-    private boolean isDelayAccepted(TtnData3 dataObject) {
-        if (dataObject == null || dataObject.rxMetadata == null) {
-            return false;
-        }
-        boolean delayed = false;
-        long receivedTimestamp = dataObject.receivedAt;
-        long start = Instant.parse("2020-01-01T00:00:00Z").toEpochMilli();
-
-        long upperBound = receivedTimestamp + DELAY_LIMIT;
-        Long maxTimestamp = null;
-
-        for (RxMetadata metadata : dataObject.rxMetadata) {
-            if (metadata == null || metadata.getTime() == null) {
-                continue;
-            }
-            long ta = metadata.getTime().getTime();
-            if (
-                ta > start &&
-                ta <= upperBound &&
-                (maxTimestamp == null || ta > maxTimestamp)
-            ) {
-                maxTimestamp = ta;
-            }
-        }
-        if (maxTimestamp == null) {
-            // for simulated uplinks
-            return true;
-        }
-        delayed = receivedTimestamp - maxTimestamp > MAX_DELAY;
-        if (delayed) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                    dataObject.deviceEui +
-                        " data is too delayed, receivedAt: " +
-                        dataObject.receivedAt +
-                        ", maxTimestamp: " +
-                        maxTimestamp
-                );
-            }
-            return false;
-        } else {
-            return true;
-        }
-        //return receivedTimestamp - maxTimestamp <= MAX_DELAY;
     }
 }

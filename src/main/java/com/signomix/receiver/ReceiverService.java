@@ -10,10 +10,13 @@ import com.signomix.common.iot.Device;
 import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.sentinel.Signal;
+import com.signomix.common.iot.ttn3.TtnData3;
+import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.IotDatabaseDao;
 import com.signomix.common.tsdb.SignalDao;
+import com.signomix.receiver.application.exception.ReceiverException;
 import com.signomix.receiver.processor.DataProcessorIface;
 import com.signomix.receiver.processor.DefaultProcessor;
 import com.signomix.receiver.processor.NashornDataProcessor;
@@ -30,6 +33,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -49,6 +53,17 @@ import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
 @ApplicationScoped
 public class ReceiverService {
+
+    private static final DeviceType[] DEVICE_TYPES = {
+        DeviceType.GENERIC,
+        DeviceType.VIRTUAL,
+        DeviceType.TTN,
+        DeviceType.CHIRPSTACK,
+        DeviceType.LORA,
+    };
+
+    static final long MAX_DELAY = 30_000L; // 30 seconds
+    static final long DELAY_LIMIT = 5_000L; // 5 seconds
 
     @Inject
     Logger LOG;
@@ -123,7 +138,10 @@ public class ReceiverService {
     @ConfigProperty(name = "frame.counter.cache.size", defaultValue = "10000")
     int frameCounterCacheSize;
 
-    @ConfigProperty(name = "frame.counter.cleanup.interval.ms", defaultValue = "3600000")
+    @ConfigProperty(
+        name = "frame.counter.cleanup.interval.ms",
+        defaultValue = "3600000"
+    )
     long frameCounterCleanupIntervalMs;
 
     private ConcurrentHashMap<String, Long> frameCountersMap;
@@ -138,18 +156,28 @@ public class ReceiverService {
         long now = System.currentTimeMillis();
 
         // Check if cleanup interval has passed or map is too large
-        if (now - lastFrameCounterCleanupTime > frameCounterCleanupIntervalMs ||
-            frameCountersMap.size() > frameCounterCacheSize) {
-
-            int entriesToRemove = Math.max(1, (int) (frameCountersMap.size() * 0.2));
+        if (
+            now - lastFrameCounterCleanupTime > frameCounterCleanupIntervalMs ||
+            frameCountersMap.size() > frameCounterCacheSize
+        ) {
+            int entriesToRemove = Math.max(
+                1,
+                (int) (frameCountersMap.size() * 0.2)
+            );
 
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Cleaning up frame counters map. Current size: " +
-                         frameCountersMap.size() + ", removing: " + entriesToRemove);
+                LOG.debug(
+                    "Cleaning up frame counters map. Current size: " +
+                        frameCountersMap.size() +
+                        ", removing: " +
+                        entriesToRemove
+                );
             }
 
             // Remove oldest entries (simple approach - remove first N entries)
-            frameCountersMap.keySet().stream()
+            frameCountersMap
+                .keySet()
+                .stream()
                 .limit(entriesToRemove)
                 .forEach(frameCountersMap::remove);
 
@@ -204,13 +232,79 @@ public class ReceiverService {
         processData(data);
     }
 
+    @ConsumeEvent(value = "ttndata3-no-response")
+    void processTtnDataString(String dataString) {
+        int atSignIndex = dataString.indexOf("@");
+        String authKey = dataString.substring(0, atSignIndex);
+        String jsonString = dataString.substring(atSignIndex + 1);
+        Device device;
+        try {
+            TtnData3 dataObject = objectMapper.readValue(
+                jsonString,
+                TtnData3.class
+            );
+            device = getDeviceChecked(
+                dataObject.deviceEui,
+                authKey,
+                true,
+                DEVICE_TYPES
+            );
+            if (device == null) {
+                LOG.warn(
+                    "Device not found or unauthorized: " + dataObject.deviceEui
+                );
+                return;
+            }
+            long maxDelay = 0;
+            try {
+                HashMap<String, Object> config = device.getConfigurationMap();
+                if (config.get("maxDelay") != null) {
+                    maxDelay = (long) config.get("maxDelay");
+                }
+            } catch (Exception e) {
+                LOG.debug(
+                    "Error reading maxDelay from device config: " +
+                        e.getMessage()
+                );
+            }
+            if (maxDelay > 0) {
+                boolean delayAccepted = isDelayAccepted(
+                    dataObject,
+                    DELAY_LIMIT,
+                    maxDelay
+                );
+                if (!delayAccepted) {
+                    LOG.warn(
+                        "Data is too delayed for device: " +
+                            dataObject.deviceEui +
+                            ", maxDelay: " +
+                            maxDelay
+                    );
+                    return;
+                }
+            }
+            IotData2 iotData = transform(dataObject, authKey, true, jsonString);
+            if (null == iotData) {
+                LOG.warn("Error while reading the data");
+                return;
+            }
+
+            processData(iotData);
+        } catch (Exception e) {
+            LOG.error("Error processing TTN data: " + e.getMessage(), e);
+        }
+    }
+
     @ConsumeEvent(value = "chirpstackdata-no-response")
     void processChirpstackData(IotData2 data) {
         try {
             processData(data);
         } catch (Exception e) {
-            LOG.error("Error processing Chirpstack data for device: " +
-                     (data != null ? data.getDeviceEUI() : "null"), e);
+            LOG.error(
+                "Error processing Chirpstack data for device: " +
+                    (data != null ? data.getDeviceEUI() : "null"),
+                e
+            );
         }
     }
 
@@ -448,8 +542,12 @@ public class ReceiverService {
             frameCountersMap.put(deviceKey, currentFrame);
             if (currentFrame <= previousFrame) {
                 LOG.warn(
-                    "Frame counter error for device " + deviceKey + ": " +
-                    currentFrame + " <= " + previousFrame
+                    "Frame counter error for device " +
+                        deviceKey +
+                        ": " +
+                        currentFrame +
+                        " <= " +
+                        previousFrame
                 );
             }
         }
@@ -525,9 +623,8 @@ public class ReceiverService {
                 saveVirtualData(device, data);
             }
             // device status
-            Double newDeviceStatus = (scriptResult != null)
-                ? scriptResult.getDeviceState()
-                : null;
+            Double newDeviceStatus =
+                scriptResult != null ? scriptResult.getDeviceState() : null;
             if (
                 newDeviceStatus != null &&
                 device.getState() != null &&
@@ -562,8 +659,11 @@ public class ReceiverService {
             }
             statusUpdated = true;
         } catch (Exception e) {
-            LOG.error("Error processing data for device: " +
-                     (device != null ? device.getEUI() : "null"), e);
+            LOG.error(
+                "Error processing data for device: " +
+                    (device != null ? device.getEUI() : "null"),
+                e
+            );
         }
         if (!statusUpdated) {
             updateHealthStatus(
@@ -577,10 +677,10 @@ public class ReceiverService {
             return "";
         }
 
-        ArrayList<IotEvent> events = (scriptResult != null &&
-            scriptResult.getEvents() != null)
-            ? scriptResult.getEvents()
-            : new ArrayList<>();
+        ArrayList<IotEvent> events =
+            scriptResult != null && scriptResult.getEvents() != null
+                ? scriptResult.getEvents()
+                : new ArrayList<>();
         HashSet<String> commandTargets = new HashSet<>(); // list of devices to send commands
 
         // commands and notifications
@@ -611,10 +711,10 @@ public class ReceiverService {
         }
         // data events
         if (!device.getType().equalsIgnoreCase(DeviceType.VIRTUAL.name())) {
-            HashMap<String, ArrayList> dataEvents = (scriptResult != null &&
-                scriptResult.getDataEvents() != null)
-                ? scriptResult.getDataEvents()
-                : new HashMap<>();
+            HashMap<String, ArrayList> dataEvents =
+                scriptResult != null && scriptResult.getDataEvents() != null
+                    ? scriptResult.getDataEvents()
+                    : new HashMap<>();
             ArrayList<IotEvent> el;
             for (String key : dataEvents.keySet()) {
                 el = dataEvents.get(key);
@@ -697,7 +797,10 @@ public class ReceiverService {
                     }
                 }
             } catch (IotDatabaseException e) {
-                LOG.error("Failed to process command for device: " + device.getEUI(), e);
+                LOG.error(
+                    "Failed to process command for device: " + device.getEUI(),
+                    e
+                );
             }
         }
         // when commands has been created for LoRa devices, send info to message broker
@@ -823,11 +926,17 @@ public class ReceiverService {
 
             emitter.send(buildDataReceivedMessage(device, list));
         } catch (IotDatabaseException e) {
-            LOG.error("Failed to save data for device: " +
-                     (device != null ? device.getEUI() : "null"), e);
+            LOG.error(
+                "Failed to save data for device: " +
+                    (device != null ? device.getEUI() : "null"),
+                e
+            );
         } catch (Exception e) {
-            LOG.error("Unexpected error while saving data for device: " +
-                     (device != null ? device.getEUI() : "null"), e);
+            LOG.error(
+                "Unexpected error while saving data for device: " +
+                    (device != null ? device.getEUI() : "null"),
+                e
+            );
         }
     }
 
@@ -916,8 +1025,11 @@ public class ReceiverService {
                 dao.putVirtualData(device, vd);
             }
         } catch (IotDatabaseException e) {
-            LOG.error("Failed to save virtual data for device: " +
-                     (device != null ? device.getEUI() : "null"), e);
+            LOG.error(
+                "Failed to save virtual data for device: " +
+                    (device != null ? device.getEUI() : "null"),
+                e
+            );
         }
     }
 
@@ -950,7 +1062,10 @@ public class ReceiverService {
             );
             LOG.debug(statusType + " updated.");
         } catch (IotDatabaseException e) {
-            LOG.error("Failed to update " + statusType + " for device: " + eui, e);
+            LOG.error(
+                "Failed to update " + statusType + " for device: " + eui,
+                e
+            );
         }
     }
 
@@ -960,7 +1075,13 @@ public class ReceiverService {
         Double newStatus,
         int newAlertStatus
     ) {
-        updateDeviceStatusInternal(eui, transmissionInterval, newStatus, newAlertStatus, "Device status");
+        updateDeviceStatusInternal(
+            eui,
+            transmissionInterval,
+            newStatus,
+            newAlertStatus,
+            "Device status"
+        );
     }
 
     private void updateHealthStatus(
@@ -969,7 +1090,13 @@ public class ReceiverService {
         Double newStatus,
         int newAlertStatus
     ) {
-        updateDeviceStatusInternal(eui, transmissionInterval, newStatus, newAlertStatus, "Device health status");
+        updateDeviceStatusInternal(
+            eui,
+            transmissionInterval,
+            newStatus,
+            newAlertStatus,
+            "Device health status"
+        );
     }
 
     private ArrayList<ChannelData> decodePayload(
@@ -1036,11 +1163,18 @@ public class ReceiverService {
                     data.getTimestamp()
                 );
             } catch (ScriptAdapterException ex) {
-                LOG.error("Script decoding failed for device: " + device.getEUI(), ex);
+                LOG.error(
+                    "Script decoding failed for device: " + device.getEUI(),
+                    ex
+                );
                 addNotifications(device, null, ex.getMessage(), false);
                 values = new ArrayList<>();
             } catch (Exception e) {
-                LOG.error("Unexpected error during decoding for device: " + device.getEUI(), e);
+                LOG.error(
+                    "Unexpected error during decoding for device: " +
+                        device.getEUI(),
+                    e
+                );
                 addNotifications(device, null, e.getMessage(), false);
                 values = new ArrayList<>();
             }
@@ -1281,7 +1415,11 @@ public class ReceiverService {
                 }
                 device.setDataProtected(Boolean.parseBoolean(tagValue));
             } catch (IotDatabaseException e) {
-                LOG.error("Failed to get protected tag for device: " + device.getEUI(), e);
+                LOG.error(
+                    "Failed to get protected tag for device: " +
+                        device.getEUI(),
+                    e
+                );
             }
         } else {
             LOG.debug("Protected feature is disabled");
@@ -1307,5 +1445,123 @@ public class ReceiverService {
             }
         }
         return "";
+    }
+
+    private boolean isDelayAccepted(
+        TtnData3 dataObject,
+        long maxDelay,
+        long delayLimit
+    ) {
+        if (dataObject == null || dataObject.rxMetadata == null) {
+            return false;
+        }
+        boolean delayed = false;
+        long receivedTimestamp = dataObject.receivedAt;
+        long start = Instant.parse("2020-01-01T00:00:00Z").toEpochMilli();
+
+        long upperBound = receivedTimestamp + delayLimit;
+        Long maxTimestamp = null;
+
+        for (RxMetadata metadata : dataObject.rxMetadata) {
+            if (metadata == null || metadata.getTime() == null) {
+                continue;
+            }
+            long ta = metadata.getTime().getTime();
+            if (
+                ta > start &&
+                ta <= upperBound &&
+                (maxTimestamp == null || ta > maxTimestamp)
+            ) {
+                maxTimestamp = ta;
+            }
+        }
+        if (maxTimestamp == null) {
+            // for simulated uplinks
+            return true;
+        }
+        delayed = receivedTimestamp - maxTimestamp > maxDelay;
+        if (delayed) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                    dataObject.deviceEui +
+                        " data is too delayed, receivedAt: " +
+                        dataObject.receivedAt +
+                        ", maxTimestamp: " +
+                        maxTimestamp
+                );
+            }
+            return false;
+        } else {
+            return true;
+        }
+        //return receivedTimestamp - maxTimestamp <= MAX_DELAY;
+    }
+
+    private IotData2 transform(
+        TtnData3 dataObject,
+        String authKey,
+        boolean authRequired,
+        String jsonString
+    ) throws ReceiverException {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("transform " + authKey + " " + authRequired);
+        }
+        long systemTimestamp = System.currentTimeMillis();
+        /*
+        if (!isDelayAccepted(dataObject)) {
+            if (dataObject.deviceEui.equalsIgnoreCase("00071D45143A714E")) {
+                LOG.debug(jsonString);
+            }
+            throw new ReceiverException(
+                ReceiverException.DELAYED,
+                "the data is too delayed"
+            );
+        }
+        */
+        IotData2 data = new IotData2(systemTimestamp);
+        data.dev_eui = dataObject.deviceEui;
+        data.gateway_eui = null;
+        data.timestamp = "" + dataObject.getTimestamp();
+
+        data.clientname = "";
+        data.authKey = authKey;
+        data.authRequired = authRequired;
+        data.port = dataObject.getPort();
+        data.counter = dataObject.getFrameCounter();
+        data.timestampUTC = new Timestamp(dataObject.timestamp);
+        data.payload_fields = new ArrayList<>();
+        HashMap pfMap = dataObject.getPayloadFields();
+        // Data channel names should be lowercase. We can fix user mistakes here.
+        HashMap<String, Object> tempMap;
+        Iterator<String> it = pfMap.keySet().iterator();
+        String key;
+        while (it.hasNext()) {
+            tempMap = new HashMap<>();
+            key = it.next();
+            tempMap.put("name", key.toLowerCase());
+            Object value = pfMap.get(key);
+            if (value == null) {
+                LOG.warn("Null value for key: " + key);
+                continue; // Skip null values
+            }
+            if (value instanceof Number) {
+                tempMap.put("value", ((Number) value).doubleValue());
+            } else if (value instanceof Boolean) {
+                tempMap.put("value", (Boolean) value ? 1.0 : 0.0);
+            } else if (value instanceof String) {
+                tempMap.put("value", value);
+            } else {
+                LOG.warn(
+                    "Unsupported value type for key: " +
+                        key +
+                        ", value: " +
+                        value
+                );
+            }
+            data.payload_fields.add(tempMap);
+        }
+        data.normalize();
+        data.setTimestampUTC(systemTimestamp);
+        return data;
     }
 }
