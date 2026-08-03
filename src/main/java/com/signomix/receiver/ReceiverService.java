@@ -17,6 +17,9 @@ import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.IotDatabaseDao;
 import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.application.exception.ReceiverException;
+import com.signomix.receiver.domain.helpers.BulkDataLoader;
+import com.signomix.receiver.domain.helpers.BulkLoaderResult;
+import com.signomix.receiver.domain.helpers.DelayFilterService;
 import com.signomix.receiver.processor.DataProcessorIface;
 import com.signomix.receiver.processor.DefaultProcessor;
 import com.signomix.receiver.processor.NashornDataProcessor;
@@ -25,7 +28,6 @@ import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.agroal.DataSource;
-import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import io.quarkus.vertx.ConsumeEvent;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -62,8 +64,8 @@ public class ReceiverService {
         DeviceType.LORA,
     };
 
-    static final long MAX_DELAY = 30_000L; // 30 seconds
-    static final long DELAY_LIMIT = 5_000L; // 5 seconds
+    static final String MAX_DELAY_PARAM_NAME = "maxDelay"; // eg. {"maxDelay": 30000} - 30 second data timestamp delay is allowed for the device
+    static final long DELAY_SHIFT = 5_000L; // Arbitrarily chosen value of 5 seconds
 
     @Inject
     Logger LOG;
@@ -86,6 +88,9 @@ public class ReceiverService {
 
     @Inject
     BulkDataLoader bulkDataLoader;
+
+    @Inject
+    DelayFilterService delayFilterService;
 
     @Inject
     @Channel("data-received")
@@ -115,11 +120,6 @@ public class ReceiverService {
     @Inject
     ObjectMapper objectMapper;
 
-    private static AtomicLong commandIdSeed = null;
-    private static AtomicLong eventSeed = new AtomicLong(
-        System.currentTimeMillis()
-    );
-
     @Inject
     EventBus bus;
 
@@ -146,7 +146,6 @@ public class ReceiverService {
 
     private ConcurrentHashMap<String, Long> frameCountersMap;
     private long lastFrameCounterCleanupTime = 0;
-    private static final int MAX_FRAME_COUNTERS = 10000;
 
     /**
      * Cleans up frame counters map if it exceeds maximum size or cleanup interval has passed.
@@ -204,22 +203,16 @@ public class ReceiverService {
         MultipartFormDataInput input,
         boolean singleDevice
     ) {
-        // if (null != dao) {
         return bulkDataLoader.loadBulkData(
             device,
             olapDao,
             input,
             singleDevice
         );
-        // }
-        // return null;
     }
 
     public BulkLoaderResult processCsvString(Device device, String input) {
-        // if (null != dao) {
         return bulkDataLoader.loadBulkData(device, olapDao, input);
-        // }
-        // return null;
     }
 
     @ConsumeEvent(value = "iotdata-no-response")
@@ -258,8 +251,8 @@ public class ReceiverService {
             long maxDelay = 0;
             try {
                 HashMap<String, Object> config = device.getConfigurationMap();
-                if (config.get("maxDelay") != null) {
-                    maxDelay = (long) config.get("maxDelay");
+                if (config.get(MAX_DELAY_PARAM_NAME) != null) {
+                    maxDelay = (long) config.get(MAX_DELAY_PARAM_NAME);
                 }
             } catch (Exception e) {
                 LOG.debug(
@@ -268,9 +261,9 @@ public class ReceiverService {
                 );
             }
             if (maxDelay > 0) {
-                boolean delayAccepted = isDelayAccepted(
+                boolean delayAccepted = delayFilterService.isDelayAccepted(
                     dataObject,
-                    DELAY_LIMIT,
+                    DELAY_SHIFT,
                     maxDelay
                 );
                 if (!delayAccepted) {
@@ -503,12 +496,6 @@ public class ReceiverService {
             data.payload_fields = new ArrayList<>();
         }
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
-        /*
-         * if (data.getDeviceEUI().startsWith("DKHSROOM")) {
-         * ObjectMapper mapper = new ObjectMapper();
-         * LOG.info("DATA: " + mapper.valueToTree(data).toString());
-         * }
-         */
         long systemTimestamp = System.currentTimeMillis();
         String result = "";
         DeviceType[] expected = {
@@ -838,9 +825,6 @@ public class ReceiverService {
     }
 
     private void sentToEventBus(String payload) {
-        // IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
-        // DeliveryOptions options = new
-        // DeliveryOptions().setCodecName(iotDataCodec.name());
         if (LOG.isDebugEnabled()) {
             LOG.debug("sending to event bus: " + payload);
         }
@@ -1154,8 +1138,6 @@ public class ReceiverService {
                 );
             }
             try {
-                // values = scriptingAdapter.decodeData(byteArray, device, application,
-                // data.getTimestamp());
                 values = scriptingAdapter.decodeData(
                     byteArray,
                     device.getEUI(),
@@ -1366,11 +1348,7 @@ public class ReceiverService {
         }
         if (authRequired) {
             String secret;
-            // if (gateway == null) {
             secret = device.getKey();
-            // } else {
-            // secret = gateway.getKey();
-            // }
             try {
                 if (null == authKey || !authKey.equals(secret)) {
                     LOG.warn(
@@ -1447,6 +1425,7 @@ public class ReceiverService {
         return "";
     }
 
+    /*
     private boolean isDelayAccepted(
         TtnData3 dataObject,
         long maxDelay,
@@ -1494,8 +1473,8 @@ public class ReceiverService {
         } else {
             return true;
         }
-        //return receivedTimestamp - maxTimestamp <= MAX_DELAY;
     }
+    */
 
     private IotData2 transform(
         TtnData3 dataObject,
@@ -1507,17 +1486,6 @@ public class ReceiverService {
             LOG.debug("transform " + authKey + " " + authRequired);
         }
         long systemTimestamp = System.currentTimeMillis();
-        /*
-        if (!isDelayAccepted(dataObject)) {
-            if (dataObject.deviceEui.equalsIgnoreCase("00071D45143A714E")) {
-                LOG.debug(jsonString);
-            }
-            throw new ReceiverException(
-                ReceiverException.DELAYED,
-                "the data is too delayed"
-            );
-        }
-        */
         IotData2 data = new IotData2(systemTimestamp);
         data.dev_eui = dataObject.deviceEui;
         data.gateway_eui = null;

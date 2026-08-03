@@ -1,22 +1,18 @@
-package com.signomix.receiver;
-
-import java.sql.Timestamp;
-import java.util.HashSet;
-import java.util.Iterator;
-
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
+package com.signomix.receiver.domain.helpers;
 
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.db.SignalDaoIface;
 import com.signomix.common.event.IotEvent;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.sentinel.Signal;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-
+import java.sql.Timestamp;
+import java.util.HashSet;
+import java.util.Iterator;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class AlertService {
@@ -174,5 +170,4 @@ public class AlertService {
                 alertSubject
         );
     }
-
 }

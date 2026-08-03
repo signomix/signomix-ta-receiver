@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.receiver.domain.helpers;
 
 import com.signomix.common.DateTool;
 import com.signomix.common.db.IotDatabaseException;

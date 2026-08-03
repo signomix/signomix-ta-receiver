@@ -1,4 +1,4 @@
-package com.signomix.receiver;
+package com.signomix.receiver.domain.helpers;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

@@ -1,19 +1,16 @@
 package com.signomix.receiver.adapter.in;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
-
 import com.signomix.common.api.PayloadParserIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.ReceiverService;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class MqttClient {
@@ -29,7 +26,7 @@ public class MqttClient {
         String msg = new String(bytes);
         logger.info("Data received: " + msg);
 
-        IotData2 iotData = parseTextData(msg, ";"); 
+        IotData2 iotData = parseTextData(msg, ";");
         Device device = service.getDevice(iotData.dev_eui);
         if (null == device) {
             logger.warn("unknown device " + iotData.dev_eui);
@@ -48,9 +45,10 @@ public class MqttClient {
         options.put("separator", separator);
         // options.put("eui", eui);
         // options.put("euiInHeader", ""+euiHeaderFirst);
-        PayloadParserIface parser = new com.signomix.receiver.PayloadParser();
+        PayloadParserIface parser =
+            new com.signomix.receiver.domain.helpers.PayloadParser();
         data.payload_fields = (ArrayList) parser.parse(input, options);
-            data.dev_eui = getEuiParamValue(data.payload_fields);
+        data.dev_eui = getEuiParamValue(data.payload_fields);
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
         data.authRequired = false;
@@ -67,5 +65,4 @@ public class MqttClient {
         }
         return null;
     }
-
 }

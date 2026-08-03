@@ -1,13 +1,8 @@
 package com.signomix.receiver.adapter.in;
 
-import com.signomix.common.iot.generic.IotData2;
-import com.signomix.common.iot.ttn3.TtnData3;
-import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
-import com.signomix.receiver.application.exception.ReceiverException;
 import io.quarkus.runtime.StartupEvent;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -20,20 +15,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 @Path("/api")
 @ApplicationScoped
 public class ReceiverResourceTtn {
-
-    static final long MAX_DELAY = 30_000L; // 30 seconds
-    static final long DELAY_LIMIT = 5_000L; // 5 seconds
 
     @Inject
     Logger LOG;
@@ -77,30 +64,7 @@ public class ReceiverResourceTtn {
                     .build();
             }
             sendDataToService(authKey + "@" + jsonString);
-            /*
-            // Decoder decoder = new Decoder();
-            TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(
-                jsonString
-            );
-
-            IotData2 iotData = transform(
-                dataObject,
-                authKey,
-                authorizationRequired,
-                jsonString
-            );
-            if (null == iotData) {
-                return Response.status(Status.BAD_REQUEST)
-                    .entity("error while reading the data")
-                    .build();
-            } else {
-                send(iotData);
-            }
-            */
             return Response.ok("OK").build();
-            //} catch (ReceiverException e) {
-            //LOG.warn(e.getMessage());
-            //return Response.ok("OK").build();
         } catch (Exception e) {
             LOG.warn(e.getMessage());
             e.printStackTrace();
@@ -113,82 +77,5 @@ public class ReceiverResourceTtn {
     private void sendDataToService(String dataMessage) {
         bus.<String>requestAndForget("ttndata3-no-response", dataMessage);
         LOG.debug("sent");
-    }
-
-    private void send(IotData2 iotData) {
-        IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
-        DeliveryOptions options = new DeliveryOptions().setCodecName(
-            iotDataCodec.name()
-        );
-        bus.send("ttndata-no-response", iotData, options);
-        LOG.debug("sent");
-    }
-
-    private IotData2 transform(
-        TtnData3 dataObject,
-        String authKey,
-        boolean authRequired,
-        String jsonString
-    ) throws ReceiverException {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("transform " + authKey + " " + authRequired);
-        }
-        long systemTimestamp = System.currentTimeMillis();
-        /*
-        if (!isDelayAccepted(dataObject)) {
-            if (dataObject.deviceEui.equalsIgnoreCase("00071D45143A714E")) {
-                LOG.debug(jsonString);
-            }
-            throw new ReceiverException(
-                ReceiverException.DELAYED,
-                "the data is too delayed"
-            );
-        }
-        */
-        IotData2 data = new IotData2(systemTimestamp);
-        data.dev_eui = dataObject.deviceEui;
-        data.gateway_eui = null;
-        data.timestamp = "" + dataObject.getTimestamp();
-
-        data.clientname = "";
-        data.authKey = authKey;
-        data.authRequired = authRequired;
-        data.port = dataObject.getPort();
-        data.counter = dataObject.getFrameCounter();
-        data.timestampUTC = new Timestamp(dataObject.timestamp);
-        data.payload_fields = new ArrayList<>();
-        HashMap pfMap = dataObject.getPayloadFields();
-        // Data channel names should be lowercase. We can fix user mistakes here.
-        HashMap<String, Object> tempMap;
-        Iterator<String> it = pfMap.keySet().iterator();
-        String key;
-        while (it.hasNext()) {
-            tempMap = new HashMap<>();
-            key = it.next();
-            tempMap.put("name", key.toLowerCase());
-            Object value = pfMap.get(key);
-            if (value == null) {
-                LOG.warn("Null value for key: " + key);
-                continue; // Skip null values
-            }
-            if (value instanceof Number) {
-                tempMap.put("value", ((Number) value).doubleValue());
-            } else if (value instanceof Boolean) {
-                tempMap.put("value", (Boolean) value ? 1.0 : 0.0);
-            } else if (value instanceof String) {
-                tempMap.put("value", value);
-            } else {
-                LOG.warn(
-                    "Unsupported value type for key: " +
-                        key +
-                        ", value: " +
-                        value
-                );
-            }
-            data.payload_fields.add(tempMap);
-        }
-        data.normalize();
-        data.setTimestampUTC(systemTimestamp);
-        return data;
     }
 }

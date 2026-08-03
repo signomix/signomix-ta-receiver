@@ -1,21 +1,19 @@
-package com.signomix.receiver;
+package com.signomix.receiver.domain.helpers;
 
+import com.signomix.common.api.MeasureDto;
+import com.signomix.common.api.PayloadParserIface;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-
-import com.signomix.common.api.MeasureDto;
-import com.signomix.common.api.PayloadParserIface;
-
 import org.jboss.logging.Logger;
 
 public class PayloadParser implements PayloadParserIface {
+
     private static final Logger LOG = Logger.getLogger(PayloadParser.class);
 
-    public PayloadParser() {
-    }
+    public PayloadParser() {}
 
     @Override
     public List<Map> parse(String payload, Map options) {
@@ -25,7 +23,7 @@ public class PayloadParser implements PayloadParserIface {
 
     private List<Map> parseLines(String payload, String separator) {
         ArrayList payload_fields = new ArrayList<>();
-        String dataSeparator = separator!=null?separator:";";  
+        String dataSeparator = separator != null ? separator : ";";
         Scanner scanner = new Scanner(payload);
         HashMap<String, String> map;
         String line;
@@ -52,7 +50,8 @@ public class PayloadParser implements PayloadParserIface {
     @Override
     public List<MeasureDto> parseBatch(String payload, Map options) {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'parseBatch'");
+        throw new UnsupportedOperationException(
+            "Unimplemented method 'parseBatch'"
+        );
     }
-
 }

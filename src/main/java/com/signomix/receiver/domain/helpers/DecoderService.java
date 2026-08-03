@@ -1,11 +1,4 @@
-package com.signomix.receiver;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Base64.Decoder;
-
-import org.jboss.logging.Logger;
+package com.signomix.receiver.domain.helpers;
 
 import com.signomix.common.iot.Application;
 import com.signomix.common.iot.ChannelData;
@@ -13,9 +6,13 @@ import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 class DecoderService {
@@ -87,10 +84,10 @@ class DecoderService {
                     deviceDecoderScript,
                     data.getTimestamp()
                 );
-            // } catch (ScriptAdapterException ex) {
-            //     ex.printStackTrace();
-            //     addNotifications(device, null, ex.getMessage(), false);
-            //     values = new ArrayList<>();
+                // } catch (ScriptAdapterException ex) {
+                //     ex.printStackTrace();
+                //     addNotifications(device, null, ex.getMessage(), false);
+                //     values = new ArrayList<>();
             } catch (Exception e) {
                 // e.printStackTrace();
                 // addNotifications(device, null, e.getMessage(), false);

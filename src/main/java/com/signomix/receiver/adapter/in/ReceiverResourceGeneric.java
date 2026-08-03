@@ -5,9 +5,9 @@ import com.signomix.common.api.ResponseTransformerIface;
 import com.signomix.common.iot.Device;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.generic.IotDto;
-import com.signomix.receiver.BulkLoaderResult;
 import com.signomix.receiver.IotDataMessageCodec;
 import com.signomix.receiver.ReceiverService;
+import com.signomix.receiver.domain.helpers.BulkLoaderResult;
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
@@ -517,9 +517,9 @@ public class ReceiverResourceGeneric {
         @HeaderParam("X-device-eui") String inHeaderEui,
         IotDto dataObject
     ) {
-    if (LOG.isDebugEnabled()) {
-        LOG.debug("input: " + dataObject.toString());
-    }
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("input: " + dataObject.toString());
+        }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
             return Response.status(Status.UNAUTHORIZED)
                 .entity("no authorization header fond")
@@ -705,7 +705,7 @@ public class ReceiverResourceGeneric {
             }
             if (
                 !euiHeaderFirst ||
-                (null == data.dev_eui || data.dev_eui.isEmpty())
+                null == data.dev_eui || data.dev_eui.isEmpty()
             ) {
                 data.dev_eui = getEuiParamValue(data.payload_fields);
             }
@@ -833,11 +833,10 @@ public class ReceiverResourceGeneric {
         options.put("separator", separator);
         // options.put("eui", eui);
         // options.put("euiInHeader", ""+euiHeaderFirst);
-        PayloadParserIface parser = new com.signomix.receiver.PayloadParser();
+        PayloadParserIface parser =
+            new com.signomix.receiver.domain.helpers.PayloadParser();
         data.payload_fields = (ArrayList) parser.parse(input, options);
-        if (
-            !euiHeaderFirst || (null == data.dev_eui || data.dev_eui.isEmpty())
-        ) {
+        if (!euiHeaderFirst || null == data.dev_eui || data.dev_eui.isEmpty()) {
             data.dev_eui = getEuiParamValue(data.payload_fields);
         }
         data.normalize();
