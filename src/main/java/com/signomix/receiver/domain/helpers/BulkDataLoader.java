@@ -14,7 +14,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.server.multipart.FormValue;
@@ -29,7 +28,6 @@ public class BulkDataLoader {
     ArrayList<String> channels = new ArrayList<>();
     ArrayList<ChannelData> data = new ArrayList<>();
     Device device;
-    //IotDatabaseIface dao;
     IotDatabaseIface olapDao;
     boolean withEui = false; // first column in CSV line is device EUI
     BulkLoaderResult result = new BulkLoaderResult();
@@ -43,7 +41,6 @@ public class BulkDataLoader {
         MultipartFormDataInput input,
         boolean singleDevice
     ) {
-        //this.dao = dao;
         device = loadedDevice;
         int lineNumber = 0;
 
@@ -126,76 +123,6 @@ public class BulkDataLoader {
         return result;
     }
 
-    private boolean processLine(String line, int lineNumber) {
-        logger.debug(lineNumber + ": " + line);
-        String[] parts = line.split(";");
-        String channelName;
-        if (lineNumber == 0) {
-            // header line
-            for (int i = 2; i < parts.length; i++) {
-                channels.add(parts[i]);
-            }
-            // if header first column is "eui" then parser will expect device EUI in first column of each line
-            if ("eui".equals(parts[0])) {
-                withEui = true;
-            }
-            logger.debug("header: " + channels.toString());
-            return true;
-        } else {
-            // data line
-            int tstampPos = withEui ? 1 : 0;
-            int firstValuePos = withEui ? 2 : 1;
-            // check eui if needed
-            if (withEui) {
-                String deviceEUI = parts[0];
-                if (!deviceEUI.equalsIgnoreCase(device.getEUI())) {
-                    // invalid device EUI - ignore line
-                    errors++;
-                    return false;
-                }
-            }
-            String timestampString = parts[tstampPos];
-            long timestamp = getTimestamp(timestampString);
-            logger.debug("timestamp: " + timestampString + " - " + timestamp);
-            if (timestamp == 0) {
-                // timestamp cannot be parsed - ignore line
-                errors++;
-                return false;
-            }
-            // parse values
-            for (int i = firstValuePos; i < parts.length; i++) {
-                channelName = channels.get(i - 2);
-                ChannelData cd = new ChannelData();
-                cd.setDeviceEUI(device.getEUI());
-                cd.setName(channelName);
-                cd.setTimestamp(timestamp);
-                try {
-                    cd.setValue(Double.parseDouble(parts[i]));
-                } catch (NumberFormatException e) {
-                    // value cannot be parsed - set null
-                    errors++;
-                    cd.setNullValue();
-                }
-                data.add(cd);
-            }
-            // line parsed - save data
-            /*             try {
-                dao.putData(device, data);
-            } catch (IotDatabaseException e) {
-                logger.error(e.getMessage(), e);
-                return false;
-            } */
-            try {
-                olapDao.putData(device, data);
-            } catch (IotDatabaseException e) {
-                logger.error(e.getMessage(), e);
-                return false;
-            }
-            data.clear();
-        }
-        return true;
-    }
-
     private boolean processBatchLine(
         String line,
         int lineNumber,
@@ -261,7 +188,7 @@ public class BulkDataLoader {
             }
             // line parsed - save data
             try {
-                olapDao.putData(device, data);
+                olapDao.saveAnalyticData(device, data);
             } catch (IotDatabaseException e) {
                 logger.error(e.getMessage(), e);
                 return false;
