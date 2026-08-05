@@ -232,9 +232,8 @@ public class ReceiverService {
         String jsonString = dataString.substring(atSignIndex + 1);
         Device device;
         try {
-            TtnData3 dataObject = objectMapper.readValue(
-                jsonString,
-                TtnData3.class
+            TtnData3 dataObject = com.signomix.common.iot.tts.Decoder.decode(
+                jsonString
             );
             device = getDeviceChecked(
                 dataObject.deviceEui,
