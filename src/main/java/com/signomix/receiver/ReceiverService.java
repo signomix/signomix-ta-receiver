@@ -11,7 +11,6 @@ import com.signomix.common.iot.DeviceType;
 import com.signomix.common.iot.generic.IotData2;
 import com.signomix.common.iot.sentinel.Signal;
 import com.signomix.common.iot.ttn3.TtnData3;
-import com.signomix.common.iot.tts.RxMetadata;
 import com.signomix.common.iot.virtual.VirtualData;
 import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.IotDatabaseDao;
@@ -35,7 +34,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -46,7 +44,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
@@ -251,7 +248,7 @@ public class ReceiverService {
             try {
                 HashMap<String, Object> config = device.getConfigurationMap();
                 if (config.get(MAX_DELAY_PARAM_NAME) != null) {
-                    maxDelay = (long) config.get(MAX_DELAY_PARAM_NAME);
+                    maxDelay = (long) config.get(MAX_DELAY_PARAM_NAME) * 1000; //delay is configured as number of seconds
                 }
             } catch (Exception e) {
                 LOG.debug(

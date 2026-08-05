@@ -38,7 +38,7 @@ public class ReceiverResourceTtn {
         try {
             bus.registerCodec(new IotDataMessageCodec());
         } catch (Exception e) {
-            LOG.error(e.getMessage());
+            LOG.warn(e.getMessage());
         }
     }
 
@@ -75,7 +75,7 @@ public class ReceiverResourceTtn {
     }
 
     private void sendDataToService(String dataMessage) {
-        bus.<String>requestAndForget("ttndata3-no-response", dataMessage);
+        bus.send("ttndata3-no-response", dataMessage);
         LOG.debug("sent");
     }
 }
