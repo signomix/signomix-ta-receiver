@@ -1,5 +1,6 @@
 package com.signomix.receiver;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
@@ -16,6 +17,8 @@ import com.signomix.common.tsdb.ApplicationDao;
 import com.signomix.common.tsdb.IotDatabaseDao;
 import com.signomix.common.tsdb.SignalDao;
 import com.signomix.receiver.application.exception.ReceiverException;
+import com.signomix.receiver.domain.dto.ReportDto;
+import com.signomix.receiver.domain.helpers.AgentDataTransformer;
 import com.signomix.receiver.domain.helpers.BulkDataLoader;
 import com.signomix.receiver.domain.helpers.BulkLoaderResult;
 import com.signomix.receiver.domain.helpers.DelayFilterService;
@@ -42,6 +45,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -63,6 +67,7 @@ public class ReceiverService {
 
     static final String MAX_DELAY_PARAM_NAME = "maxDelay"; // eg. {"maxDelay": 30000} - 30 second data timestamp delay is allowed for the device
     static final long DELAY_SHIFT = 5_000L; // Arbitrarily chosen value of 5 seconds
+    static final String SEPARATOR = "\t"; // tab sign as separator
 
     @Inject
     Logger LOG;
@@ -116,6 +121,9 @@ public class ReceiverService {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @Inject
+    AgentDataTransformer agentDataTransformer;
 
     @Inject
     EventBus bus;
@@ -279,6 +287,67 @@ public class ReceiverService {
             }
 
             processData(iotData);
+        } catch (Exception e) {
+            LOG.error("Error processing TTN data: " + e.getMessage(), e);
+        }
+    }
+
+    @ConsumeEvent(value = "agent-no-response")
+    void processAgentDataString(String dataString) {
+        // dataString format: authKey + SEPARATOR + inHeaderEui + SEPARATOR + jsonString
+
+        int firstSeparatorIndex = dataString.indexOf(SEPARATOR);
+        if (firstSeparatorIndex == -1) {
+            LOG.warn("Invalid dataString format: missing first separator");
+            return;
+        }
+        String authKey = dataString.substring(0, firstSeparatorIndex);
+        int secondSeparatorIndex = dataString.indexOf(
+            SEPARATOR,
+            firstSeparatorIndex + 1
+        );
+        if (secondSeparatorIndex == -1) {
+            LOG.warn("Invalid dataString format: missing second separator");
+            return;
+        }
+        String inHeaderEui = dataString.substring(
+            firstSeparatorIndex + 1,
+            secondSeparatorIndex
+        );
+        Device device;
+        try {
+            device = getDeviceChecked(inHeaderEui, authKey, true, DEVICE_TYPES);
+            if (device == null) {
+                LOG.warn("Device not found or unauthorized: " + inHeaderEui);
+                return;
+            }
+            HashMap<String, Object> configurationMap =
+                device.getConfigurationMap();
+            ReportDto reportDto = null;
+            try {
+                ObjectMapper mapper = new ObjectMapper().configure(
+                    DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                    false
+                );
+                reportDto = mapper.readValue(
+                    dataString.substring(secondSeparatorIndex + 1),
+                    ReportDto.class
+                );
+            } catch (Exception e) {
+                LOG.warn("Error parsing report data: " + e.getMessage());
+                return;
+            }
+            List<IotData2> iotDataList = agentDataTransformer.transform(
+                reportDto,
+                configurationMap
+            );
+            if (null == iotDataList || iotDataList.isEmpty()) {
+                LOG.warn("Error while reading the data");
+                return;
+            }
+            for (IotData2 iotData : iotDataList) {
+                processData(iotData);
+            }
         } catch (Exception e) {
             LOG.error("Error processing TTN data: " + e.getMessage(), e);
         }
