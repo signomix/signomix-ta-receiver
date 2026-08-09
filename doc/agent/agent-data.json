@@ -1,0 +1,53 @@
+{
+  "containers": [
+    {
+      "blockIn": 9.24e7,
+      "blockOut": 2.74e7,
+      "cpuUsage": 0.13,
+      "id": "c36da6f70f989092a58ddc35",
+      "memoryLimit": 3.284576239616e10,
+      "memoryUsage": 3.789553664e8,
+      "name": "signomix-ta-core",
+      "netIn": 1.6399999999999998e7,
+      "netOut": 1.18e7,
+      "status": "Up 39 hours"
+    },
+    {
+      "blockIn": 1.84e7,
+      "blockOut": 209000.0,
+      "cpuUsage": 0.0,
+      "id": "19adb4df6b7b8924b546d314",
+      "memoryLimit": 3.284576239616e10,
+      "memoryUsage": 1.788870656e7,
+      "name": "signomix-webapp",
+      "netIn": 4440000.0,
+      "netOut": 2140000.0,
+      "status": "Up 39 hours"
+    },
+    {
+      "blockIn": 7.4e7,
+      "blockOut": 2.41e7,
+      "cpuUsage": 0.12,
+      "id": "991502d2c817d02d50d2b954",
+      "memoryLimit": 3.284576239616e10,
+      "memoryUsage": 2.596274176e8,
+      "name": "signomix-reports",
+      "netIn": 8760000.0,
+      "netOut": 4900000.0,
+      "status": "Up 39 hours"
+    }
+  ],
+  "dockerCheckMessage": null,
+  "dockerCheckStatus": 1.0,
+  "server": {
+    "cpuLoad": 9.335275423728813,
+    "diskFree": 8.212318208e10,
+    "diskTotal": 4.82122940416e11,
+    "memoryFree": 2.208239616e9,
+    "memoryTotal": 3.2849969152e10,
+    "name": "Local Server"
+  },
+  "systemCheckMessage": null,
+  "systemCheckStatus": 1.0,
+  "timestamp": 1.786273086787e12
+}
