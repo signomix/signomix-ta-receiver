@@ -4,6 +4,19 @@
  */
 package com.signomix.receiver.script;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.signomix.common.EventEnvelope;
+import com.signomix.common.Tag;
+import com.signomix.common.db.IotDatabaseIface;
+import com.signomix.common.iot.Application;
+import com.signomix.common.iot.ChannelData;
+import com.signomix.common.iot.Device;
+import com.signomix.receiver.processor.ProcessorResult;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,31 +29,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.signomix.common.EventEnvelope;
-import com.signomix.common.Tag;
-import com.signomix.common.db.IotDatabaseIface;
-import com.signomix.common.iot.Application;
-import com.signomix.common.iot.ChannelData;
-import com.signomix.common.iot.Device;
-import com.signomix.receiver.processor.ProcessorResult;
-
-import io.quarkus.runtime.StartupEvent;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
-import jakarta.inject.Inject;
 
 /**
  *
@@ -48,7 +44,10 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class NashornScriptingAdapter implements ScriptingAdapterIface {
-    private static final Logger LOG = Logger.getLogger(NashornScriptingAdapter.class);
+
+    private static final Logger LOG = Logger.getLogger(
+        NashornScriptingAdapter.class
+    );
 
     @ConfigProperty(name = "decoder.script")
     private String decoderScriptLocation;
@@ -63,6 +62,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     // @Inject
     // MessageServiceIface messageService;
 
+    private static final ScriptEngineManager ENGINE_MANAGER =
+        new ScriptEngineManager();
     private ScriptEngine engine;
     private String processorScript;
     private String decoderScript;
@@ -73,10 +74,10 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         LOG.debug("processor: " + processorScript);
         LOG.debug("decoder: " + decoderScript);
         try {
-            new ScriptEngineManager().getEngineFactories().forEach(f -> {
-                LOG.info("engine factory: " + f.getEngineName());
-            });
-            engine = new ScriptEngineManager().getEngineByName("nashorn");
+            //new ScriptEngineManager().getEngineFactories().forEach(f -> {
+            //    LOG.info("engine factory: " + f.getEngineName());
+            //});
+            engine = ENGINE_MANAGER.getEngineByName("nashorn");
         } catch (Exception e) {
             LOG.error(e.getMessage());
         }
@@ -86,7 +87,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     private ScriptEngine getEngine() {
         if (engine == null) {
             LOG.info("init engine by mime type");
-            engine = new ScriptEngineManager().getEngineByMimeType("text/javascript");
+            engine = new ScriptEngineManager().getEngineByMimeType(
+                "text/javascript"
+            );
             LOG.info("engine: " + engine);
         }
         return engine;
@@ -94,14 +97,18 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
 
     @Override
     public ProcessorResult processData1(
-            ArrayList<ChannelData> values,
-            Device device,
-            Application application,
-            long dataTimestamp,
-            Double latitude, Double longitude, Double altitude,
-            String command, String requestData, IotDatabaseIface dao,
-            Long port) throws ScriptAdapterException {
-
+        ArrayList<ChannelData> values,
+        Device device,
+        Application application,
+        long dataTimestamp,
+        Double latitude,
+        Double longitude,
+        Double altitude,
+        String command,
+        String requestData,
+        IotDatabaseIface dao,
+        Long port
+    ) throws ScriptAdapterException {
         String deviceScript = device.getCodeUnescaped();
         String deviceID = device.getEUI();
         String userID = device.getUserID();
@@ -114,7 +121,8 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
 
         // String deviceConfig = device.getConfiguration();
         HashMap<String, Object> deviceConfig = device.getConfigurationMap();
-        HashMap<String, Object> applicationConfig = device.getApplicationConfig();
+        HashMap<String, Object> applicationConfig =
+            device.getApplicationConfig();
         List<Tag> tags = device.getTagsAsList();
         HashMap<String, Object> deviceTags = new HashMap<>();
         for (Tag tag : tags) {
@@ -146,38 +154,66 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         if (deviceScript == null) {
             deviceScript = "";
         }
-        if(application != null && application.code != null){
-            deviceScript += "\n" + application.code;  
+        if (application != null && application.code != null) {
+            deviceScript += "\n" + application.code;
         }
         ScriptEngine engine = getEngine();
         try {
-            engine.eval(deviceScript != null ? merge(processorScript, deviceScript) : processorScript);
+            engine.eval(
+                deviceScript != null
+                    ? merge(processorScript, deviceScript)
+                    : processorScript
+            );
             invocable = (Invocable) engine;
-            result = (ProcessorResult) invocable.invokeFunction("processData", deviceID, values,
-                    channelReader, groupReader,
-                    userID, dataTimestamp, state, alert,
-                    devLatitude, devLongitude, devAltitude, command, requestData, deviceConfig, applicationConfig,
-                    deviceGroups,
-                    offsets, port, deviceTags);
+            result = (ProcessorResult) invocable.invokeFunction(
+                "processData",
+                deviceID,
+                values,
+                channelReader,
+                groupReader,
+                userID,
+                dataTimestamp,
+                state,
+                alert,
+                devLatitude,
+                devLongitude,
+                devAltitude,
+                command,
+                requestData,
+                deviceConfig,
+                applicationConfig,
+                deviceGroups,
+                offsets,
+                port,
+                deviceTags
+            );
             LOG.debug("result.output.size==" + result.getOutput().size());
             LOG.debug("result.measures.size==" + result.getMeasures().size());
         } catch (NoSuchMethodException e) {
             LOG.warn(e.getMessage());
             fireEvent(2, device.getEUI(), e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD,
-                    "ScriptingAdapter.no_such_method " + e.getMessage());
+            throw new ScriptAdapterException(
+                ScriptAdapterException.NO_SUCH_METHOD,
+                "ScriptingAdapter.no_such_method " + e.getMessage()
+            );
         } catch (ScriptException e) {
             LOG.warn(e.getMessage());
             fireEvent(2, device.getEUI(), e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION,
-                    "ScriptingAdapter.script_exception " + e.getMessage());
+            throw new ScriptAdapterException(
+                ScriptAdapterException.SCRIPT_EXCEPTION,
+                "ScriptingAdapter.script_exception " + e.getMessage()
+            );
         }
         return result;
     }
 
     @Override
-    public ArrayList<ChannelData> decodeData(byte[] data, String deviceEui, String deviceDecoderScript, long timestamp)
-            throws ScriptAdapterException {
+    public ArrayList<ChannelData> decodeData(
+        byte[] data,
+        String deviceEui,
+        String deviceDecoderScript,
+        long timestamp
+    ) throws ScriptAdapterException {
         Invocable invocable;
         ArrayList<ChannelData> list = new ArrayList<>();
         try {
@@ -185,25 +221,41 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             if (decoderScript == null || decoderScript.trim().isEmpty()) {
                 return list;
             }
-            String mergedScript = deviceDecoderScript != null ? merge(decoderScript, deviceDecoderScript)
+            String mergedScript =
+                deviceDecoderScript != null
+                    ? merge(decoderScript, deviceDecoderScript)
                     : decoderScript;
             LOG.debug(decoderScript);
             ScriptEngine engine = getEngine();
             engine.eval(mergedScript);
             invocable = (Invocable) engine;
-            list = (ArrayList) invocable.invokeFunction("decodeData", deviceEui, data, timestamp);
+            list = (ArrayList) invocable.invokeFunction(
+                "decodeData",
+                deviceEui,
+                data,
+                timestamp
+            );
         } catch (NoSuchMethodException e) {
             LOG.warn(e.getMessage());
             fireEvent(1, deviceEui, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.NO_SUCH_METHOD, e.getMessage());
+            throw new ScriptAdapterException(
+                ScriptAdapterException.NO_SUCH_METHOD,
+                e.getMessage()
+            );
         } catch (ScriptException e) {
             LOG.warn(e.getMessage());
             fireEvent(1, deviceEui, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
+            throw new ScriptAdapterException(
+                ScriptAdapterException.SCRIPT_EXCEPTION,
+                e.getMessage()
+            );
         } catch (Exception e) {
             LOG.warn(e.getMessage());
             fireEvent(1, deviceEui, e.getMessage());
-            throw new ScriptAdapterException(ScriptAdapterException.SCRIPT_EXCEPTION, e.getMessage());
+            throw new ScriptAdapterException(
+                ScriptAdapterException.SCRIPT_EXCEPTION,
+                e.getMessage()
+            );
         }
         return list;
     }
@@ -255,9 +307,17 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     public String readScript(String path) {
         LOG.debug("reading " + path);
         String result;
-        InputStream resource = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(resource, "UTF-8"))) {
-            result = br.lines().collect(Collectors.joining(System.lineSeparator()));
+        InputStream resource = Thread.currentThread()
+            .getContextClassLoader()
+            .getResourceAsStream(path);
+        try (
+            BufferedReader br = new BufferedReader(
+                new InputStreamReader(resource, "UTF-8")
+            )
+        ) {
+            result = br
+                .lines()
+                .collect(Collectors.joining(System.lineSeparator()));
         } catch (IOException ex) {
             LOG.error(ex.getMessage());
             return null;
@@ -267,7 +327,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
 
     /**
      * Sends information about errors
-     * 
+     *
      * @param source
      * @param origin
      * @param message
@@ -303,7 +363,6 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         } catch (JsonProcessingException ex) {
             LOG.error(ex.getMessage());
         }
-
     }
 
     private HashMap<String, Integer> getTimeZoneOffsets(String[] timeZones) {
@@ -319,5 +378,4 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
 
         return timeZoneOffsets;
     }
-
 }

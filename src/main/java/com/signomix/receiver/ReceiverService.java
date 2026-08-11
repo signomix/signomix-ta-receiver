@@ -36,6 +36,7 @@ import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -114,10 +115,19 @@ public class ReceiverService {
     @Channel("command-ready")
     Emitter<String> commandEmitter;
 
-    IotDatabaseDao dao = new IotDatabaseDao();
-    IotDatabaseDao olapDao = new IotDatabaseDao();
-    SignalDao signalDao = new SignalDao();
-    ApplicationDao appDao = new ApplicationDao();
+    @Inject
+    @Named("dao")
+    IotDatabaseDao dao;
+
+    @Inject
+    @Named("olapDao")
+    IotDatabaseDao olapDao;
+
+    @Inject
+    SignalDao signalDao;
+
+    @Inject
+    ApplicationDao appDao;
 
     @Inject
     ObjectMapper objectMapper;
@@ -190,11 +200,6 @@ public class ReceiverService {
     }
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        dao.setDatasource(tsDs);
-        olapDao.setDatasource(tsDs);
-        olapDao.setAnalyticDatasource(olapDs);
-        signalDao.setDatasource(tsDs);
-        appDao.setDatasource(tsDs);
         frameCountersMap = new ConcurrentHashMap<>();
         lastFrameCounterCleanupTime = System.currentTimeMillis();
     }
