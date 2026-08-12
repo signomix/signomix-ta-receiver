@@ -2,7 +2,7 @@ package com.signomix.receiver.domain.dto;
 
 public class ReportDto {
 
-    private double timestamp;
+    private long timestamp;
     private ServerDto server;
     private DockerContainerDto[] containers;
     private double dockerCheckStatus;
@@ -11,7 +11,7 @@ public class ReportDto {
     private String systemCheckMessage;
 
     public ReportDto(
-        double timestamp,
+        long timestamp,
         ServerDto server,
         DockerContainerDto[] containers
     ) {
@@ -27,7 +27,7 @@ public class ReportDto {
     }
 
     public ReportDto(
-        double timestamp,
+        long timestamp,
         ServerDto server,
         DockerContainerDto[] containers,
         CheckStatus dockerCheckStatus,
@@ -44,11 +44,11 @@ public class ReportDto {
         this.systemCheckMessage = systemCheckMessage;
     }
 
-    public double getTimestamp() {
+    public long getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(double timestamp) {
+    public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
     }
 
