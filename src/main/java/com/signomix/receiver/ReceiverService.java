@@ -49,6 +49,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
@@ -159,49 +162,28 @@ public class ReceiverService {
     )
     long frameCounterCleanupIntervalMs;
 
-    private ConcurrentHashMap<String, Long> frameCountersMap;
-    private long lastFrameCounterCleanupTime = 0;
+    @ConfigProperty(name = "frame.counter.ttl.ms", defaultValue = "86400000") // 24 hours
+    long frameCounterTtlMs;
+
+    private Cache<String, Long> frameCountersCache;
 
     /**
-     * Cleans up frame counters map if it exceeds maximum size or cleanup interval has passed.
-     * Removes 20% of oldest entries to prevent memory leak.
+     * No longer needed - Caffeine cache handles automatic cleanup based on size and TTL.
+     * Kept for compatibility but does nothing.
      */
+    @Deprecated
     private void cleanupFrameCountersIfNeeded() {
-        long now = System.currentTimeMillis();
-
-        // Check if cleanup interval has passed or map is too large
-        if (
-            now - lastFrameCounterCleanupTime > frameCounterCleanupIntervalMs ||
-            frameCountersMap.size() > frameCounterCacheSize
-        ) {
-            int entriesToRemove = Math.max(
-                1,
-                (int) (frameCountersMap.size() * 0.2)
-            );
-
-            if (LOG.isDebugEnabled()) {
-                LOG.debug(
-                    "Cleaning up frame counters map. Current size: " +
-                        frameCountersMap.size() +
-                        ", removing: " +
-                        entriesToRemove
-                );
-            }
-
-            // Remove oldest entries (simple approach - remove first N entries)
-            frameCountersMap
-                .keySet()
-                .stream()
-                .limit(entriesToRemove)
-                .forEach(frameCountersMap::remove);
-
-            lastFrameCounterCleanupTime = now;
+        // Caffeine cache handles automatic eviction based on maximumSize and expireAfterWrite
+        if (LOG.isTraceEnabled()) {
+            LOG.trace("Frame counters cache stats - size: " + frameCountersCache.estimatedSize());
         }
     }
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        frameCountersMap = new ConcurrentHashMap<>();
-        lastFrameCounterCleanupTime = System.currentTimeMillis();
+        frameCountersCache = Caffeine.newBuilder()
+            .maximumSize(frameCounterCacheSize)
+            .expireAfterWrite(frameCounterTtlMs, TimeUnit.MILLISECONDS)
+            .build();
     }
 
     public String processDataAndReturnResponse(IotData2 data) {
@@ -223,6 +205,18 @@ public class ReceiverService {
 
     public BulkLoaderResult processCsvString(Device device, String input) {
         return bulkDataLoader.loadBulkData(device, olapDao, input);
+    }
+
+    /**
+     * Returns the estimated size of the frame counters cache.
+     * Used for memory monitoring.
+     * @return estimated cache size
+     */
+    public long getFrameCountersCacheSize() {
+        if (frameCountersCache != null) {
+            return frameCountersCache.estimatedSize();
+        }
+        return 0;
     }
 
     @ConsumeEvent(value = "iotdata-no-response")
@@ -330,11 +324,7 @@ public class ReceiverService {
                 device.getConfigurationMap();
             ReportDto reportDto = null;
             try {
-                ObjectMapper mapper = new ObjectMapper().configure(
-                    DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-                    false
-                );
-                reportDto = mapper.readValue(
+                reportDto = objectMapper.readValue(
                     dataString.substring(secondSeparatorIndex + 1),
                     ReportDto.class
                 );
@@ -587,16 +577,17 @@ public class ReceiverService {
                 device.getType() == DeviceType.CHIRPSTACK.name() ||
                 device.getType() == DeviceType.LORA.name())
         ) {
-            cleanupFrameCountersIfNeeded();
-
             String deviceKey = device.getEUI();
-            long previousFrame = frameCountersMap.getOrDefault(deviceKey, 0L);
+            Long previousFrame = frameCountersCache.getIfPresent(deviceKey);
+            if (previousFrame == null) {
+                previousFrame = 0L;
+            }
             long currentFrame = data.counter;
             long resetLevel = frameCounterCacheSize / 10; // Use 10% of cache size as reset level
             if (previousFrame - currentFrame >= resetLevel) {
                 previousFrame = 0L;
             }
-            frameCountersMap.put(deviceKey, currentFrame);
+            frameCountersCache.put(deviceKey, currentFrame);
             if (currentFrame <= previousFrame) {
                 LOG.warn(
                     "Frame counter error for device " +

@@ -59,11 +59,12 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     @Channel("error-event")
     Emitter<String> errorEventEmitter;
 
+    @Inject
+    ObjectMapper objectMapper;
+
     // @Inject
     // MessageServiceIface messageService;
 
-    private static final ScriptEngineManager ENGINE_MANAGER =
-        new ScriptEngineManager();
     private ScriptEngine engine;
     private String processorScript;
     private String decoderScript;
@@ -74,10 +75,7 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         LOG.debug("processor: " + processorScript);
         LOG.debug("decoder: " + decoderScript);
         try {
-            //new ScriptEngineManager().getEngineFactories().forEach(f -> {
-            //    LOG.info("engine factory: " + f.getEngineName());
-            //});
-            engine = ENGINE_MANAGER.getEngineByName("nashorn");
+            engine = new ScriptEngineManager().getEngineByName("nashorn");
         } catch (Exception e) {
             LOG.error(e.getMessage());
         }
@@ -93,6 +91,27 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             LOG.info("engine: " + engine);
         }
         return engine;
+    }
+
+    /**
+     * Creates a new ScriptEngine instance for each request to prevent memory leaks.
+     * This is the primary fix for Nashorn memory leaks - creating new engines per request
+     * instead of reusing a single engine.
+     */
+    private ScriptEngine createNewEngine() {
+        try {
+            // Create a new ScriptEngineManager and engine for each request
+            // This prevents memory leaks from script state accumulation
+            ScriptEngineManager manager = new ScriptEngineManager();
+            ScriptEngine newEngine = manager.getEngineByName("nashorn");
+            if (newEngine == null) {
+                newEngine = manager.getEngineByMimeType("text/javascript");
+            }
+            return newEngine;
+        } catch (Exception e) {
+            LOG.error("Error creating new Nashorn engine: " + e.getMessage(), e);
+            return getEngine(); // fallback to shared engine
+        }
     }
 
     @Override
@@ -157,14 +176,14 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         if (application != null && application.code != null) {
             deviceScript += "\n" + application.code;
         }
-        ScriptEngine engine = getEngine();
+        ScriptEngine requestEngine = createNewEngine();
         try {
-            engine.eval(
+            requestEngine.eval(
                 deviceScript != null
                     ? merge(processorScript, deviceScript)
                     : processorScript
             );
-            invocable = (Invocable) engine;
+            invocable = (Invocable) requestEngine;
             result = (ProcessorResult) invocable.invokeFunction(
                 "processData",
                 deviceID,
@@ -226,9 +245,9 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
                     ? merge(decoderScript, deviceDecoderScript)
                     : decoderScript;
             LOG.debug(decoderScript);
-            ScriptEngine engine = getEngine();
-            engine.eval(mergedScript);
-            invocable = (Invocable) engine;
+            ScriptEngine requestEngine = createNewEngine();
+            requestEngine.eval(mergedScript);
+            invocable = (Invocable) requestEngine;
             list = (ArrayList) invocable.invokeFunction(
                 "decodeData",
                 deviceEui,
@@ -356,7 +375,6 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
         wrapper.payload = payload;
         // messageService.sendEvent(wrapper);
         String encodedMessage;
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
             encodedMessage = objectMapper.writeValueAsString(wrapper);
             errorEventEmitter.send(encodedMessage);

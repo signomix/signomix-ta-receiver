@@ -56,6 +56,9 @@ public class ChirpstackRestAdapter {
     @Inject
     EventBus bus;
 
+    @Inject
+    ObjectMapper objectMapper;
+
     public void onApplicationStart(@Observes StartupEvent event) {
         try {
             bus.registerCodec(new IotDataMessageCodec());
@@ -109,13 +112,10 @@ public class ChirpstackRestAdapter {
     }
 
     private IotData2 handleUplink(String event, String authKey) {
-        ObjectMapper mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        // LOG.info(event);
         ChirpstackUplink uplink;
         IotData2 iotData = null;
         try {
-            uplink = mapper.readValue(event, ChirpstackUplink.class);
+            uplink = objectMapper.readValue(event, ChirpstackUplink.class);
             if (LOG.isDebugEnabled()) {
                 LOG.debug(deserialize(uplink));
             }
@@ -130,10 +130,9 @@ public class ChirpstackRestAdapter {
     }
 
     private String deserialize(ChirpstackUplink uplink) {
-        ObjectMapper mapper = new ObjectMapper();
         String json = null;
         try {
-            json = mapper.writeValueAsString(uplink);
+            json = objectMapper.writeValueAsString(uplink);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -176,10 +175,9 @@ public class ChirpstackRestAdapter {
         data.authRequired = authorizationRequired;
         data.payload_fields = new ArrayList<>();
         HashMap pfMap = null;
-        ObjectMapper mapper = new ObjectMapper();
         if (null != uplink.objectJSON && !uplink.objectJSON.isEmpty()) {
             try {
-                pfMap = mapper.readValue(uplink.objectJSON, HashMap.class);
+                pfMap = objectMapper.readValue(uplink.objectJSON, HashMap.class);
             } catch (JsonProcessingException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -222,7 +220,7 @@ public class ChirpstackRestAdapter {
      * private void handleJoin(String event) {
      * ObjectMapper mapper = new ObjectMapper()
      * .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-     * 
+     *
      * Join join;
      * try {
      * join = mapper.readValue(event, Join.class);
@@ -236,7 +234,7 @@ public class ChirpstackRestAdapter {
      * } catch (JsonProcessingException e) {
      * e.printStackTrace();
      * }
-     * 
+     *
      * }
      */
 }
