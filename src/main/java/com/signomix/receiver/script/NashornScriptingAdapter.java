@@ -97,11 +97,14 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
      * Creates a new ScriptEngine instance for each request to prevent memory leaks.
      * This is the primary fix for Nashorn memory leaks - creating new engines per request
      * instead of reusing a single engine.
+     *
+     * Note: ScriptEngineManager caches engines, so we need to create a new manager
+     * for each request to get a fresh engine instance.
      */
     private ScriptEngine createNewEngine() {
         try {
-            // Create a new ScriptEngineManager and engine for each request
-            // This prevents memory leaks from script state accumulation
+            // Create a completely new ScriptEngineManager for each request
+            // This ensures we get a fresh engine that hasn't been polluted by previous scripts
             ScriptEngineManager manager = new ScriptEngineManager();
             ScriptEngine newEngine = manager.getEngineByName("nashorn");
             if (newEngine == null) {

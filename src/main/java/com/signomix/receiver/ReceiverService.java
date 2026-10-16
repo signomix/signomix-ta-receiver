@@ -1,7 +1,27 @@
 package com.signomix.receiver;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.signomix.common.HexTool;
 import com.signomix.common.db.IotDatabaseException;
 import com.signomix.common.event.IotEvent;
@@ -28,6 +48,7 @@ import com.signomix.receiver.processor.NashornDataProcessor;
 import com.signomix.receiver.processor.ProcessorResult;
 import com.signomix.receiver.script.NashornScriptingAdapter;
 import com.signomix.receiver.script.ScriptAdapterException;
+
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.agroal.DataSource;
 import io.quarkus.runtime.StartupEvent;
@@ -37,26 +58,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Base64.Decoder;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 
 @ApplicationScoped
 public class ReceiverService {
@@ -156,28 +157,10 @@ public class ReceiverService {
     @ConfigProperty(name = "frame.counter.cache.size", defaultValue = "10000")
     int frameCounterCacheSize;
 
-    @ConfigProperty(
-        name = "frame.counter.cleanup.interval.ms",
-        defaultValue = "3600000"
-    )
-    long frameCounterCleanupIntervalMs;
-
     @ConfigProperty(name = "frame.counter.ttl.ms", defaultValue = "86400000") // 24 hours
     long frameCounterTtlMs;
 
     private Cache<String, Long> frameCountersCache;
-
-    /**
-     * No longer needed - Caffeine cache handles automatic cleanup based on size and TTL.
-     * Kept for compatibility but does nothing.
-     */
-    @Deprecated
-    private void cleanupFrameCountersIfNeeded() {
-        // Caffeine cache handles automatic eviction based on maximumSize and expireAfterWrite
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Frame counters cache stats - size: " + frameCountersCache.estimatedSize());
-        }
-    }
 
     public void onApplicationStart(@Observes StartupEvent event) {
         frameCountersCache = Caffeine.newBuilder()
@@ -1540,6 +1523,9 @@ public class ReceiverService {
         }
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 }

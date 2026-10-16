@@ -212,7 +212,10 @@ public class ChirpstackRestAdapter {
             }
         }
         data.normalize();
-        data.chirpstackUplink = uplink;
+        // IMPORTANT: Do NOT store the entire uplink object to prevent memory leaks
+        // Explicitly set to null to ensure no references are kept
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 

@@ -67,6 +67,9 @@ public class AgentDataTransformer {
                     timestamp
                 )
             );
+            // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+            serverData.chirpstackUplink = null;
+            serverData.ttnUplink = null;
             iotDataList.add(serverData);
         } else {
             logger.warn("No dev_eui found for server " + serverDto.name());
@@ -129,6 +132,9 @@ public class AgentDataTransformer {
                     timestamp
                 )
             );
+            // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+            containerData.chirpstackUplink = null;
+            containerData.ttnUplink = null;
             iotDataList.add(containerData);
         }
         return iotDataList;

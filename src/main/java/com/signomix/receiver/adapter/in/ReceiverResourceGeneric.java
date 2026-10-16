@@ -723,6 +723,9 @@ public class ReceiverResourceGeneric {
             return null;
         }
         data.setTimestampUTC(systemTimestamp);
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 
@@ -843,6 +846,9 @@ public class ReceiverResourceGeneric {
         data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 
@@ -906,6 +912,9 @@ public class ReceiverResourceGeneric {
         data.setTimestampUTC(systemTimestamp);
         data.authRequired = authRequired;
         data.authKey = authKey;
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 
@@ -932,6 +941,9 @@ public class ReceiverResourceGeneric {
         data.setTimestampUTC(systemTimestamp);
         data.authKey = authKey;
         data.authRequired = authRequired;
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 

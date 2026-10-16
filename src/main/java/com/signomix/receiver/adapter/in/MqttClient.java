@@ -52,6 +52,9 @@ public class MqttClient {
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
         data.authRequired = false;
+        // IMPORTANT: Explicitly null out uplink references to prevent memory leaks
+        data.chirpstackUplink = null;
+        data.ttnUplink = null;
         return data;
     }
 
