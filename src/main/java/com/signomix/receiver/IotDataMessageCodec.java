@@ -9,12 +9,14 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * Custeom codec
- * 
+ *
  * https://github.com/vert-x3/vertx-examples/blob/4.x/core-examples/src/main/java/io/vertx/example/core/eventbus/messagecodec/util/CustomMessageCodec.java
  */
+@ApplicationScoped
 public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
     @Override
     public void encodeToWire(Buffer buffer, IotData2 iotData2) {

@@ -31,15 +31,18 @@ public class ReceiverResourceTtn {
     @Inject
     ReceiverService service;
 
+    // @Inject
+    // IotDataMessageCodec iotDataMessageCodec;
+
     @ConfigProperty(name = "device.authorization.required")
     Boolean authorizationRequired;
 
     public void onApplicationStart(@Observes StartupEvent event) {
-        try {
-            bus.registerCodec(new IotDataMessageCodec());
-        } catch (Exception e) {
-            LOG.warn(e.getMessage());
-        }
+        // try {
+        //     bus.registerCodec(iotDataMessageCodec);
+        // } catch (Exception e) {
+        //     LOG.warn(e.getMessage());
+        // }
     }
 
     @Path("/receiver/ttn3")

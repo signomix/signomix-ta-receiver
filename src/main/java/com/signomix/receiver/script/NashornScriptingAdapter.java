@@ -85,9 +85,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
     private ScriptEngine getEngine() {
         if (engine == null) {
             LOG.info("init engine by mime type");
-            engine = new ScriptEngineManager().getEngineByMimeType(
-                "text/javascript"
-            );
+            try {
+                engine = new ScriptEngineManager().getEngineByMimeType("text/javascript");
+            } catch (Exception e) {
+                LOG.error("Error initializing engine by mime type: " + e.getMessage());
+            }
             LOG.info("engine: " + engine);
         }
         return engine;
@@ -98,21 +100,30 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
      * This is the primary fix for Nashorn memory leaks - creating new engines per request
      * instead of reusing a single engine.
      *
-     * Note: ScriptEngineManager caches engines, so we need to create a new manager
-     * for each request to get a fresh engine instance.
+     * Note: ScriptEngineManager may cache engines, but creating a new manager
+     * for each request helps prevent memory leaks from script state accumulation.
      */
     private ScriptEngine createNewEngine() {
         try {
             // Create a completely new ScriptEngineManager for each request
             // This ensures we get a fresh engine that hasn't been polluted by previous scripts
             ScriptEngineManager manager = new ScriptEngineManager();
-            ScriptEngine newEngine = manager.getEngineByName("nashorn");
+
+            // Try GraalVM first if available
+            ScriptEngine newEngine = manager.getEngineByName("graal.js");
+            if (newEngine == null) {
+                newEngine = manager.getEngineByName("js");
+            }
+            // Fall back to Nashorn
+            if (newEngine == null) {
+                newEngine = manager.getEngineByName("nashorn");
+            }
             if (newEngine == null) {
                 newEngine = manager.getEngineByMimeType("text/javascript");
             }
             return newEngine;
         } catch (Exception e) {
-            LOG.error("Error creating new Nashorn engine: " + e.getMessage(), e);
+            LOG.error("Error creating new ScriptEngine: " + e.getMessage(), e);
             return getEngine(); // fallback to shared engine
         }
     }
@@ -344,6 +355,11 @@ public class NashornScriptingAdapter implements ScriptingAdapterIface {
             LOG.error(ex.getMessage());
             return null;
         }
+        try {
+			resource.close();
+		} catch (Exception e) {
+			LOG.error(e.getMessage());
+		}
         return result;
     }
 

@@ -70,6 +70,14 @@ public class ReceiverService {
         DeviceType.LORA,
     };
 
+    // DeviceType[] expected = {
+    //     DeviceType.GENERIC,
+    //     DeviceType.VIRTUAL,
+    //     DeviceType.TTN,
+    //     DeviceType.CHIRPSTACK,
+    //     DeviceType.LORA,
+    // };
+
     static final String MAX_DELAY_PARAM_NAME = "maxDelay"; // eg. {"maxDelay": 30000} - 30 second data timestamp delay is allowed for the device
     static final long DELAY_SHIFT = 5_000L; // Arbitrarily chosen value of 5 seconds
     static final String SEPARATOR = "\t"; // tab sign as separator
@@ -225,8 +233,7 @@ public class ReceiverService {
             device = getDeviceChecked(
                 dataObject.deviceEui,
                 authKey,
-                true,
-                DEVICE_TYPES
+                true
             );
             if (device == null) {
                 LOG.warn(
@@ -298,7 +305,7 @@ public class ReceiverService {
         );
         Device device;
         try {
-            device = getDeviceChecked(inHeaderEui, authKey, true, DEVICE_TYPES);
+            device = getDeviceChecked(inHeaderEui, authKey, true);
             if (device == null) {
                 LOG.warn("Device not found or unauthorized: " + inHeaderEui);
                 return;
@@ -438,7 +445,7 @@ public class ReceiverService {
         if (code == null || code.isEmpty()) {
             return "";
         }
-        String script = code;
+        String script = code.trim();
         // remove all empty lines or lines with only whitespaces
         script = script.replaceAll("(?m)^[ \t]*\r?\n", "");
         script = script.replaceAll("(?m)^[ \t]*$", "");
@@ -541,14 +548,8 @@ public class ReceiverService {
         LOG.info("DATA FROM EUI: " + data.getDeviceEUI());
         long systemTimestamp = System.currentTimeMillis();
         String result = "";
-        DeviceType[] expected = {
-            DeviceType.GENERIC,
-            DeviceType.VIRTUAL,
-            DeviceType.TTN,
-            DeviceType.CHIRPSTACK,
-            DeviceType.LORA,
-        };
-        Device device = getDeviceChecked(data, expected);
+
+        Device device = getDeviceChecked(data);
         if (null == device) {
             // TODO: result.setData(authMessage);
             return null;
@@ -705,6 +706,7 @@ public class ReceiverService {
             );
         }
         if (null == scriptResult) {
+            device = null;
             return "";
         }
 
@@ -840,6 +842,7 @@ public class ReceiverService {
                 commandEmitter.send(target);
             }
         }
+        device = null;
         return result;
     }
 
@@ -988,19 +991,22 @@ public class ReceiverService {
             .append(",")
             .append(device.getLongitude())
             .append(",")
-            .append(device.getAltitude())
-            .append(",");
+            .append(device.getAltitude());
+
         // measurements
-        ChannelData cd = list.get(0);
-        sb.append(cd.getTimestamp());
-        // HEADER_SIZE = 9
-        for (int i = 0; i < list.size(); i++) {
-            cd = list.get(i);
-            if (cd.getValue() != null) {
-                sb.append(",")
+        if(!list.isEmpty()){
+            sb.append(",");
+            ChannelData cd = list.get(0);
+            sb.append(cd.getTimestamp());
+            // HEADER_SIZE = 9
+            for (int i = 0; i < list.size(); i++) {
+                cd = list.get(i);
+                if (cd.getValue() != null) {
+                    sb.append(",")
                     .append(cd.getName())
                     .append("=")
                     .append(cd.getValue());
+                }
             }
         }
         LOG.info("data-received message: " + sb.toString());
@@ -1381,8 +1387,7 @@ public class ReceiverService {
     public Device getDeviceChecked(
         String eui,
         String authKey,
-        boolean authRequired,
-        DeviceType[] expectedTypes
+        boolean authRequired
     ) {
         Device gateway = null;
         Device device = getDevice(eui);
@@ -1412,8 +1417,8 @@ public class ReceiverService {
         }
 
         boolean deviceFound = false;
-        for (int i = 0; i < expectedTypes.length; i++) {
-            if (expectedTypes[i] == DeviceType.valueOf(device.getType())) {
+        for (int i = 0; i < DEVICE_TYPES.length; i++) {
+            if (DEVICE_TYPES[i] == DeviceType.valueOf(device.getType())) {
                 deviceFound = true;
                 break;
             }
@@ -1449,12 +1454,11 @@ public class ReceiverService {
         return device;
     }
 
-    private Device getDeviceChecked(IotData2 data, DeviceType[] expectedTypes) {
+    private Device getDeviceChecked(IotData2 data) {
         return getDeviceChecked(
             data.getDeviceEUI(),
             data.getAuthKey(),
-            data.authRequired,
-            expectedTypes
+            data.authRequired
         );
     }
 

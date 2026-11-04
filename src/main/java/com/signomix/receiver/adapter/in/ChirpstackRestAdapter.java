@@ -59,9 +59,12 @@ public class ChirpstackRestAdapter {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    IotDataMessageCodec iotDataCodec;
+
     public void onApplicationStart(@Observes StartupEvent event) {
         try {
-            bus.registerCodec(new IotDataMessageCodec());
+            bus.registerCodec(iotDataCodec);
         } catch (Exception e) {
 
         }
@@ -74,7 +77,7 @@ public class ChirpstackRestAdapter {
 
     @POST
     @Path("/receiver/chirpstack")
-    @Transactional
+    //@Transactional
     @Produces(MediaType.TEXT_PLAIN)
     public Response handle(@HeaderParam("Authorization") String authKey, String event,
             @QueryParam("event") String eventType)/* throws ServiceException */ {
@@ -93,6 +96,7 @@ public class ChirpstackRestAdapter {
                 } else {
                     send(iotData);
                 }
+                iotData=null;
                 break;
             case "join":
                 // handleJoin(event);
@@ -101,13 +105,16 @@ public class ChirpstackRestAdapter {
                 // System.out.println(eventType);
                 break;
         }
+        event = null;
+        eventType = null;
+        authKey = null;
         return Response.ok().build();
     }
 
     private void send(IotData2 iotData) {
-        IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
         DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
         bus.send("chirpstackdata-no-response", iotData, options);
+        options=null;
         LOG.debug("sent");
     }
 
@@ -126,6 +133,7 @@ public class ChirpstackRestAdapter {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        uplink=null;
         return iotData;
     }
 
@@ -210,12 +218,14 @@ public class ChirpstackRestAdapter {
                 }
                 data.payload_fields.add(tempMap);
             }
+            tempMap=null;
         }
         data.normalize();
         // IMPORTANT: Do NOT store the entire uplink object to prevent memory leaks
         // Explicitly set to null to ensure no references are kept
         data.chirpstackUplink = null;
         data.ttnUplink = null;
+        pfMap=null;
         return data;
     }
 

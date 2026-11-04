@@ -36,6 +36,7 @@ public class MqttClient {
             return;
         }
         service.processDataNoResponse(iotData);
+        iotData = null;
     }
 
     private IotData2 parseTextData(String input, String separator) {
