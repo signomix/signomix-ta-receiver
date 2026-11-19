@@ -371,6 +371,19 @@ public class ReceiverService {
         }
     }
 
+    public void consume(IotData2 data) {
+        LOG.info("Consuming data");
+        try {
+            processData(data);
+        } catch (Exception e) {
+            LOG.error(
+                "Error processing Chirpstack data for device: " +
+                    (data != null ? data.getDeviceEUI() : "null"),
+                e
+            );
+        }
+    }
+
     @ConsumeEvent(value = "virtualdata-no-response")
     void processVirtualData(String payload) {
         if (LOG.isDebugEnabled()) {
@@ -1017,11 +1030,13 @@ public class ReceiverService {
             .append(device.getAltitude())
             .append(",");
         // measurements
-        ChannelData cd = list.get(0);
-        sb.append(cd.getTimestamp());
+        ChannelData cd;
         // HEADER_SIZE = 9
         for (int i = 0; i < list.size(); i++) {
             cd = list.get(i);
+            if (i == 0) {
+                sb.append(cd.getTimestamp());
+            }
             if (cd.getValue() != null) {
                 sb.append(",")
                     .append(cd.getName())

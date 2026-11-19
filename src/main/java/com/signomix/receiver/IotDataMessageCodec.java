@@ -12,7 +12,7 @@ import io.vertx.core.json.JsonObject;
 
 /**
  * Custeom codec
- * 
+ *
  * https://github.com/vert-x3/vertx-examples/blob/4.x/core-examples/src/main/java/io/vertx/example/core/eventbus/messagecodec/util/CustomMessageCodec.java
  */
 public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
@@ -38,10 +38,11 @@ public class IotDataMessageCodec implements MessageCodec<IotData2, IotData2> {
         jsonToEncode.put("gateway", iotData2.gateway_eui);
         jsonToEncode.put("authrequired", iotData2.authRequired);
         jsonToEncode.put("fields", fields);
+        fields=null;
 
         // Encode object to string
         String jsonToStr = jsonToEncode.encode();
-
+        jsonToEncode = null;
         // Length of JSON: is NOT characters count
         int length = jsonToStr.getBytes().length;
 

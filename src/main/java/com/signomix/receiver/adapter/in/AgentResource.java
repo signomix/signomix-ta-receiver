@@ -67,6 +67,7 @@ public class AgentResource {
                     .entity("no authorization header fond")
                     .build();
             }
+            LOG.info(jsonString);
             sendDataToService(
                 authKey + SEPARATOR + inHeaderEui + SEPARATOR + jsonString
             );

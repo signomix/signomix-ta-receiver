@@ -1,31 +1,17 @@
 package com.signomix.receiver.adapter.in;
 
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.signomix.common.iot.chirpstack.uplink.ChirpstackUplink;
 import com.signomix.common.iot.generic.IotData2;
-import com.signomix.receiver.IotDataMessageCodec;
-
+import com.signomix.receiver.ReceiverService;
 import io.quarkus.runtime.StartupEvent;
-import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.mutiny.core.eventbus.EventBus;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -34,13 +20,23 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 /**
  * Interfejs odbierający dane z LNS ChirpStack
  */
 // @InboundAdapter
 @Path("/api")
-@ApplicationScoped
+//@ApplicationScoped
 public class ChirpstackRestAdapter {
 
     @Inject
@@ -48,21 +44,28 @@ public class ChirpstackRestAdapter {
 
     @ConfigProperty(name = "signomix.receiver.exception.api.param.missing")
     String missingParameterException;
+
     @ConfigProperty(name = "device.authorization.required")
     Boolean authorizationRequired;
+
     @ConfigProperty(name = "receiver.api.mode")
     String apiMode;
 
-    @Inject
-    EventBus bus;
+    //@Inject
+    //EventBus bus;
 
+    @Inject
+    ReceiverService receiverService;
+
+    /*
     public void onApplicationStart(@Observes StartupEvent event) {
         try {
-            bus.registerCodec(new IotDataMessageCodec());
+            //bus.registerCodec(new IotDataMessageCodec());
         } catch (Exception e) {
 
         }
     }
+    */
 
     /*
      * @Inject
@@ -71,25 +74,35 @@ public class ChirpstackRestAdapter {
 
     @POST
     @Path("/receiver/chirpstack")
-    @Transactional
     @Produces(MediaType.TEXT_PLAIN)
-    public Response handle(@HeaderParam("Authorization") String authKey, String event,
-            @QueryParam("event") String eventType)/* throws ServiceException */ {
+    public Response handle(
+        @HeaderParam("Authorization") String authKey,
+        String event,
+        @QueryParam("event") String eventType
+    ) /* throws ServiceException */ {
         if (null == eventType) {
             // throw new ServiceException(missingParameterException);
-            return Response.status(Status.BAD_REQUEST).entity("event parammeter missing").build();
+            return Response.status(Status.BAD_REQUEST)
+                .entity("event parammeter missing")
+                .build();
         }
         if (authorizationRequired && (null == authKey || authKey.isBlank())) {
-            return Response.status(Status.UNAUTHORIZED).entity("no authorization header fond").build();
+            return Response.status(Status.UNAUTHORIZED)
+                .entity("no authorization header fond")
+                .build();
         }
+
         switch (eventType) {
             case "up":
                 IotData2 iotData = handleUplink(event, authKey);
                 if (null == iotData) {
-                    return Response.status(Status.BAD_REQUEST).entity("error while reading the data").build();
+                    return Response.status(Status.BAD_REQUEST)
+                        .entity("error while reading the data")
+                        .build();
                 } else {
                     send(iotData);
                 }
+                iotData = null;
                 break;
             case "join":
                 // handleJoin(event);
@@ -98,19 +111,29 @@ public class ChirpstackRestAdapter {
                 // System.out.println(eventType);
                 break;
         }
+        eventType = null;
+        event = null;
+        authKey = null;
         return Response.ok().build();
     }
 
     private void send(IotData2 iotData) {
-        IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
-        DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
-        bus.send("chirpstackdata-no-response", iotData, options);
+        //IotDataMessageCodec iotDataCodec = new IotDataMessageCodec();
+        //DeliveryOptions options = new DeliveryOptions().setCodecName(iotDataCodec.name());
+        //bus.send("chirpstackdata-no-response", iotData, options);
+        //iotDataCodec = null;
+        //options = null;
+        //bus.send("chirpstackdata-no-response", iotData);
+        //iotDataEvent.fire(iotData);
+        receiverService.consume(iotData);
         LOG.debug("sent");
     }
 
     private IotData2 handleUplink(String event, String authKey) {
-        ObjectMapper mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        ObjectMapper mapper = new ObjectMapper().configure(
+            DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+            false
+        );
         // LOG.info(event);
         ChirpstackUplink uplink;
         IotData2 iotData = null;
@@ -120,12 +143,13 @@ public class ChirpstackRestAdapter {
                 LOG.debug(deserialize(uplink));
             }
             iotData = transform(uplink, authKey, authorizationRequired);
-
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        mapper = null;
+        uplink = null;
         return iotData;
     }
 
@@ -137,10 +161,15 @@ public class ChirpstackRestAdapter {
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
+        mapper = null;
         return json;
     }
 
-    private IotData2 transform(ChirpstackUplink uplink, String authKey, boolean authorizationRequired) {
+    private IotData2 transform(
+        ChirpstackUplink uplink,
+        String authKey,
+        boolean authorizationRequired
+    ) {
         long systemTimestamp = System.currentTimeMillis();
         IotData2 data = new IotData2();
         if (LOG.isDebugEnabled()) {
@@ -148,8 +177,12 @@ public class ChirpstackRestAdapter {
         }
         data.dev_eui = uplink.deviceinfo.devEui;
         data.gateway_eui = null;
-        if ("dev".equalsIgnoreCase(apiMode) || "test".equalsIgnoreCase(apiMode)) {
-            DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        if (
+            "dev".equalsIgnoreCase(apiMode) || "test".equalsIgnoreCase(apiMode)
+        ) {
+            DateTimeFormatter df = DateTimeFormatter.ofPattern(
+                "yyyy-MM-dd'T'HH:mm:ss"
+            );
             data.timestamp = df.format(LocalDateTime.now());
             data.timestamp = data.timestamp + "Z";
             LOG.info("Uplink time: " + data.timestamp + " (using system time)");
@@ -197,21 +230,28 @@ public class ChirpstackRestAdapter {
                 key = it.next();
                 tempMap.put("name", key.toLowerCase());
                 Object value = pfMap.get(key);
-                if(value == null) {
+                if (value == null) {
                     LOG.warn("Null value for key: " + key);
                     continue; // Skip null values
                 }
                 if (value instanceof Number) {
                     tempMap.put("value", ((Number) value).doubleValue());
                 } else if (value instanceof Boolean) {
-                    tempMap.put("value", ((Boolean) value) ? 1.0 : 0.0);
+                    tempMap.put("value", (Boolean) value ? 1.0 : 0.0);
                 } else if (value instanceof String) {
                     tempMap.put("value", value);
                 } else {
-                    LOG.warn("Unsupported value type for key: " + key + ", value: " + value);
+                    LOG.warn(
+                        "Unsupported value type for key: " +
+                            key +
+                            ", value: " +
+                            value
+                    );
                 }
                 data.payload_fields.add(tempMap);
             }
+            tempMap = null;
+            pfMap = null;
         }
         data.normalize();
         data.chirpstackUplink = uplink;
@@ -222,7 +262,7 @@ public class ChirpstackRestAdapter {
      * private void handleJoin(String event) {
      * ObjectMapper mapper = new ObjectMapper()
      * .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-     * 
+     *
      * Join join;
      * try {
      * join = mapper.readValue(event, Join.class);
@@ -236,7 +276,7 @@ public class ChirpstackRestAdapter {
      * } catch (JsonProcessingException e) {
      * e.printStackTrace();
      * }
-     * 
+     *
      * }
      */
 }

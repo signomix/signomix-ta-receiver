@@ -36,6 +36,8 @@ public class MqttClient {
             return;
         }
         service.processDataNoResponse(iotData);
+        device = null;
+        iotData = null;
     }
 
     private IotData2 parseTextData(String input, String separator) {
@@ -52,15 +54,21 @@ public class MqttClient {
         data.normalize();
         data.setTimestampUTC(systemTimestamp);
         data.authRequired = false;
+
+        parser = null;
+        options = null;
         return data;
     }
 
     private String getEuiParamValue(ArrayList<Map> params) {
+        String val = null;
         Map<String, String> map;
         for (int i = 0; i < params.size(); i++) {
             map = params.get(i);
             if ("eui".equals(map.get("name"))) {
-                return map.get("value");
+                val = map.get("value");
+                map = null;
+                return val;
             }
         }
         return null;

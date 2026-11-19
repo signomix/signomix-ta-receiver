@@ -140,10 +140,12 @@ public class ReceiverResourceGeneric {
                 }
                 String result = service.processDataAndReturnResponse(iotData);
                 if (null == result) {
+                    iotData = null;
                     return Response.status(Status.NOT_FOUND)
                         .entity("device not found or no access rights")
                         .build();
                 } else if (result.startsWith("error")) {
+                    iotData = null;
                     return Response.status(Status.BAD_REQUEST)
                         .entity(result)
                         .build();
@@ -153,6 +155,7 @@ public class ReceiverResourceGeneric {
                 if (
                     null != iotData.clientname && !iotData.clientname.isEmpty()
                 ) {
+                    iotData = null;
                     return Response.ok(
                         buildResultData(
                             true,
@@ -164,6 +167,7 @@ public class ReceiverResourceGeneric {
                         .header("Content-type", "text/html")
                         .build();
                 }
+                iotData = null;
                 // return Response.ok(result).build();
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("RESULT BEFORE TRANSFORMER:" + result);
